@@ -1,15 +1,14 @@
-from sqlalchemy import select
-
 from app.database.session import SessionLocal
-from app.models import Team
+from app.services import TeamService
 
 
-def list_teams() -> None:
+def main() -> None:
     session = SessionLocal()
 
     try:
-        statement = select(Team).order_by(Team.name)
-        teams = session.scalars(statement).all()
+        service = TeamService(session)
+
+        teams = service.list_teams()
 
         if not teams:
             print("Nenhuma equipe cadastrada.")
@@ -27,11 +26,11 @@ def list_teams() -> None:
             )
 
     except Exception as error:
-        print(f"Erro ao consultar equipes: {error}")
+        print(f"Erro ao listar equipes: {error}")
 
     finally:
         session.close()
 
 
 if __name__ == "__main__":
-    list_teams()
+    main()
