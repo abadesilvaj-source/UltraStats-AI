@@ -1,3 +1,21 @@
+from app.models.audit import Audit
+from app.models.bet import Bet
+from app.models.competition import Competition
+from app.models.market import Market
+from app.models.match import Match
+from app.models.match_statistics import MatchStatistics
+from app.models.odd import Odd
+from app.models.prediction import Prediction
 from app.models.team import Team
 
-__all__ = ["Team"]
+__all__ = [
+    "Audit",
+    "Bet",
+    "Competition",
+    "Market",
+    "Match",
+    "MatchStatistics",
+    "Odd",
+    "Prediction",
+    "Team",
+]
