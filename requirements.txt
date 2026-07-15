@@ -1,0 +1,11 @@
+sqlalchemy
+psycopg[binary]
+python-dotenv
+pandas
+numpy
+pydantic
+streamlit
+plotly
+openpyxl
+requests
+pytest
