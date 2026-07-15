@@ -1,6 +1,6 @@
 from sqlalchemy import text
 
-from app.database.connection import engine
+from app.database.engine import engine
 
 
 def check_database_connection() -> bool:
@@ -8,7 +8,8 @@ def check_database_connection() -> bool:
 
     try:
         with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
+            result = connection.execute(text("SELECT 1"))
+            result.scalar()
 
         print("Banco de dados conectado com sucesso!")
         return True

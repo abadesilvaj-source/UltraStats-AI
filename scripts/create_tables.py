@@ -1,5 +1,5 @@
 from app.database.base import Base
-from app.database.connection import engine
+from app.database.engine import engine
 from app.models import Team
 
 

@@ -1,29 +1,27 @@
 from sqlalchemy import select
 
-from app.database.connection import SessionLocal
+from app.database.session import SessionLocal
 from app.models import Team
 
 
 def list_teams() -> None:
-    """Lista todas as equipes cadastradas."""
-
     session = SessionLocal()
 
     try:
         statement = select(Team).order_by(Team.name)
-
         teams = session.scalars(statement).all()
 
         if not teams:
             print("Nenhuma equipe cadastrada.")
             return
 
-        print("Equipes cadastradas:")
+        print("\nEquipes cadastradas:\n")
 
         for team in teams:
             print(
                 f"ID: {team.id} | "
                 f"Nome: {team.name} | "
+                f"País: {team.country} | "
                 f"Liga: {team.league} | "
                 f"Power: {team.power_rating}"
             )

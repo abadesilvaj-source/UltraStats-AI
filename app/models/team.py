@@ -7,8 +7,6 @@ from app.database.base import Base
 
 
 class Team(Base):
-    """Representa uma equipe esportiva."""
-
     __tablename__ = "teams"
 
     id: Mapped[int] = mapped_column(
@@ -64,6 +62,18 @@ class Team(Base):
         default=50.0,
     )
 
+    goal_rating: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+        default=50.0,
+    )
+
+    offside_rating: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+        default=50.0,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -79,6 +89,7 @@ class Team(Base):
 
     def __repr__(self) -> str:
         return (
-            f"Team(id={self.id}, name='{self.name}', "
+            f"Team(id={self.id}, "
+            f"name='{self.name}', "
             f"power_rating={self.power_rating})"
         )
