@@ -8,4 +8,9 @@ __all__ = [
     "MatchService",
     "PostMatchService",
     "TeamService",
+    "PerformanceService",
 ]
+
+from app.services.performance_service import (
+    PerformanceService,
+)

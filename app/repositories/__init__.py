@@ -20,4 +20,9 @@ __all__ = [
     "OddRepository",
     "PredictionRepository",
     "TeamRepository",
+    "PerformanceRepository",
 ]
+
+from app.repositories.performance_repository import (
+    PerformanceRepository,
+)
