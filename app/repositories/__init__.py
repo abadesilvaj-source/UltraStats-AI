@@ -16,6 +16,10 @@ from app.repositories.bankroll_transaction_repository import (
     BankrollTransactionRepository,
 )
 
+from app.repositories.sync_run_repository import (
+    SyncRunRepository,
+)
+
 __all__ = [
     "AuditRepository",
     "BetRepository",
@@ -29,6 +33,7 @@ __all__ = [
     "PerformanceRepository",
     "BankrollRepository",
     "BankrollTransactionRepository"
+    "SyncRunRepository",
     
 ]
 

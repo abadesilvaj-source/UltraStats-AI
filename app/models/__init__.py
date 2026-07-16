@@ -12,6 +12,8 @@ from app.models.bankroll_transaction import (
     BankrollTransaction,
 )
 
+from app.models.sync_run import SyncRun
+
 __all__ = [
     "Audit",
     "Bet",
@@ -24,5 +26,6 @@ __all__ = [
     "Team",
     "Bankroll",
     "BankrollTransaction",
+    "SyncRun",
     
 ]

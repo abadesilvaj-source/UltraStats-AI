@@ -12,6 +12,14 @@ from app.services.bankroll_accounting_service import (
 
 from app.services.sports_sync_service import SportsSyncService
 
+from app.services.sync_monitor_service import (
+    SyncMonitorService,
+)
+
+from app.services.collector_orchestrator_service import (
+    CollectorOrchestratorService,
+)
+
 __all__ = [
     "AnalysisService",
     "MatchService",
@@ -22,6 +30,8 @@ __all__ = [
     "RiskService",
     "BankrollAccountingService",
     "SportsSyncService",
+    "SyncMonitorService",
+    "CollectorOrchestratorService",
 ]
 
 from app.services.performance_service import (

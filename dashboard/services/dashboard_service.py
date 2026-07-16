@@ -16,6 +16,8 @@ from app.services import (
     PerformanceService,
     PostMatchService,
     RiskService,
+    CollectorOrchestratorService,
+    SyncMonitorService,
 )
 
 from app.services import RiskService
@@ -80,6 +82,16 @@ class DashboardService:
 
         self.post_match_service = (
             PostMatchService(session)
+        )
+
+        self.sync_monitor_service = (
+            SyncMonitorService(session)
+        )
+
+        self.collector_orchestrator_service = (
+            CollectorOrchestratorService(
+                session
+            )
         )
 
     def get_home_data(self) -> dict:
@@ -1008,3 +1020,80 @@ class DashboardService:
                 result["total_profit_units"]
             ),
         }
+    
+    def get_sync_history(
+        self,
+        limit: int = 50,
+    ) -> list[dict]:
+        runs = (
+            self.sync_monitor_service
+            .list_recent_runs(
+                limit=limit
+            )
+        )
+
+        return [
+            {
+                "id": run.id,
+                "source": run.source,
+                "status": run.status,
+                "started_at": run.started_at,
+                "finished_at": run.finished_at,
+                "duration_seconds": (
+                    run.duration_seconds
+                ),
+                "competitions_created": (
+                    run.competitions_created
+                ),
+                "competitions_updated": (
+                    run.competitions_updated
+                ),
+                "competitions_linked": (
+                    run.competitions_linked
+                ),
+                "teams_created": (
+                    run.teams_created
+                ),
+                "teams_updated": (
+                    run.teams_updated
+                ),
+                "teams_linked": (
+                    run.teams_linked
+                ),
+                "matches_created": (
+                    run.matches_created
+                ),
+                "matches_updated": (
+                    run.matches_updated
+                ),
+                "matches_skipped": (
+                    run.matches_skipped
+                ),
+                "error_message": (
+                    run.error_message
+                ),
+                "triggered_by": (
+                    run.triggered_by
+                ),
+            }
+            for run in runs
+        ]
+
+    def run_mock_sync(
+        self,
+    ) -> dict:
+        from app.collectors import (
+            MockSportsCollector,
+        )
+
+        collector = MockSportsCollector(
+            "data/providers/mock_sports_data.json"
+        )
+
+        return (
+            self.collector_orchestrator_service
+            .run(
+                collector=collector,
+                triggered_by="dashboard",
+            )
+        )

@@ -112,3 +112,25 @@ A camada HTTP do UltraStats AI possui:
 - testes com `httpx.MockTransport`.
 
 As credenciais reais devem permanecer apenas no arquivo `.env`.
+
+## Monitoramento de sincronizações
+
+Cada execução de collector é registrada em `sync_runs`.
+
+Informações registradas:
+
+- provedor;
+- status;
+- início e fim;
+- duração;
+- quantidades criadas;
+- quantidades atualizadas;
+- quantidades vinculadas;
+- partidas ignoradas;
+- mensagem de erro;
+- origem do acionamento.
+
+### Execução manual
+
+```powershell
+python -m scripts.sync_mock_provider

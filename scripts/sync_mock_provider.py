@@ -1,6 +1,12 @@
-from app.collectors import MockSportsCollector
-from app.database.session import SessionLocal
-from app.services import SportsSyncService
+from app.collectors import (
+    MockSportsCollector,
+)
+from app.database.session import (
+    SessionLocal,
+)
+from app.services import (
+    CollectorOrchestratorService,
+)
 
 
 def main() -> None:
@@ -11,19 +17,40 @@ def main() -> None:
             "data/providers/mock_sports_data.json"
         )
 
-        service = SportsSyncService(
-            session
+        service = (
+            CollectorOrchestratorService(
+                session
+            )
         )
 
-        result = service.sync_all(
-            collector
+        execution = service.run(
+            collector=collector,
+            triggered_by="manual",
         )
+
+        result = execution["result"]
 
         print("\nSINCRONIZAÇÃO CONCLUÍDA")
         print("=" * 60)
 
         print(
-            f"Fonte: {result['source']}"
+            f"Execução ID: "
+            f"{execution['sync_run_id']}"
+        )
+
+        print(
+            f"Status: "
+            f"{execution['status']}"
+        )
+
+        print(
+            f"Fonte: "
+            f"{execution['source']}"
+        )
+
+        print(
+            f"Duração: "
+            f"{execution['duration_seconds']:.4f}s"
         )
 
         print(
@@ -42,8 +69,6 @@ def main() -> None:
         )
 
     except Exception as error:
-        session.rollback()
-
         print(
             f"Erro na sincronização: {error}"
         )
