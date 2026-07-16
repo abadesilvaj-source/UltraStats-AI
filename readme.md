@@ -83,3 +83,17 @@ O Dashboard Pro permite:
 - registrar uma aposta oficial;
 - debitar automaticamente a banca;
 - impedir apostas duplicadas ou em partidas encerradas.
+
+## Liquidação administrativa
+
+O Dashboard Pro permite:
+
+- selecionar uma partida aberta;
+- informar o placar oficial;
+- registrar escanteios, cartões e finalizações;
+- registrar posse de bola e xG;
+- encerrar a partida;
+- liquidar apostas pendentes;
+- calcular lucro ou prejuízo;
+- atualizar a banca;
+- criar auditorias pós-jogo.

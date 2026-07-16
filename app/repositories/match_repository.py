@@ -72,3 +72,33 @@ class MatchRepository:
                 statement
             ).all()
         )
+    
+    def list_for_settlement(
+        self,
+    ) -> list[Match]:
+        """
+        Lista partidas que podem receber
+        resultado administrativo.
+        """
+
+        statement = (
+            select(Match)
+            .where(
+                Match.status.in_(
+                    [
+                        "scheduled",
+                        "not_started",
+                        "in_progress",
+                    ]
+                )
+            )
+            .order_by(
+                Match.kickoff_at.desc()
+            )
+        )
+
+        return list(
+            self.session.scalars(
+                statement
+            ).all()
+        )

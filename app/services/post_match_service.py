@@ -91,6 +91,16 @@ class PostMatchService:
 
         if not match:
             raise ValueError("Partida não encontrada.")
+        
+        if match.status == "cancelled":
+            raise ValueError(
+                "Uma partida cancelada não pode ser liquidada."
+            )
+
+        if match.status == "finished":
+            raise ValueError(
+                "Essa partida já foi encerrada."
+            )
 
         try:
             # ======================================
@@ -309,3 +319,72 @@ class PostMatchService:
         except Exception:
             self.session.rollback()
             raise
+
+        if not source.strip():
+            raise ValueError(
+                "A fonte oficial é obrigatória."
+            )
+
+        integer_statistics = {
+            "Escanteios do mandante": corners_home,
+            "Escanteios do visitante": corners_away,
+            "Amarelos do mandante": yellow_cards_home,
+            "Amarelos do visitante": yellow_cards_away,
+            "Vermelhos do mandante": red_cards_home,
+            "Vermelhos do visitante": red_cards_away,
+            "Finalizações do mandante": shots_home,
+            "Finalizações do visitante": shots_away,
+            "Finalizações no gol do mandante": (
+                shots_on_target_home
+            ),
+            "Finalizações no gol do visitante": (
+                shots_on_target_away
+            ),
+            "Impedimentos do mandante": offsides_home,
+            "Impedimentos do visitante": offsides_away,
+        }
+
+        for field_name, value in integer_statistics.items():
+            if value is not None and value < 0:
+                raise ValueError(
+                    f"{field_name} não pode ser negativo."
+                )
+
+        if possession_home is not None:
+            if possession_home < 0 or possession_home > 100:
+                raise ValueError(
+                    "A posse do mandante deve estar "
+                    "entre 0 e 100."
+                )
+
+        if possession_away is not None:
+            if possession_away < 0 or possession_away > 100:
+                raise ValueError(
+                    "A posse do visitante deve estar "
+                    "entre 0 e 100."
+                )
+
+        if (
+            possession_home is not None
+            and possession_away is not None
+        ):
+            possession_total = (
+                possession_home
+                + possession_away
+            )
+
+            if abs(possession_total - 100) > 1:
+                raise ValueError(
+                    "A soma das posses deve ser "
+                    "aproximadamente 100%."
+                )
+
+        if xg_home is not None and xg_home < 0:
+            raise ValueError(
+                "O xG do mandante não pode ser negativo."
+            )
+
+        if xg_away is not None and xg_away < 0:
+            raise ValueError(
+                "O xG do visitante não pode ser negativo."
+            )

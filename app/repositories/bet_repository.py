@@ -72,3 +72,20 @@ class BetRepository:
         return self.session.scalar(
             statement
         )
+    
+    def count_pending_by_match_id(
+        self,
+        match_id: int,
+    ) -> int:
+        statement = select(Bet).where(
+            Bet.match_id == match_id,
+            Bet.status == "pending",
+        )
+
+        return len(
+            list(
+                self.session.scalars(
+                    statement
+                ).all()
+            )
+        )

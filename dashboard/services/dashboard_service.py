@@ -14,6 +14,7 @@ from app.services import (
     AnalysisService,
     BankrollService,
     PerformanceService,
+    PostMatchService,
     RiskService,
 )
 
@@ -75,6 +76,10 @@ class DashboardService:
 
         self.competition_repository = (
             CompetitionRepository(session)
+        )
+
+        self.post_match_service = (
+            PostMatchService(session)
         )
 
     def get_home_data(self) -> dict:
@@ -817,5 +822,189 @@ class DashboardService:
             ),
             "risk_profile": (
                 recommendation["profile"]
+            ),
+        }
+    
+    def get_settlement_form_data(
+        self,
+    ) -> dict:
+        """
+        Retorna partidas disponíveis
+        para liquidação administrativa.
+        """
+
+        matches = (
+            self.match_repository
+            .list_for_settlement()
+        )
+
+        match_rows = []
+
+        for match in matches:
+            home_team = (
+                self.team_repository.find_by_id(
+                    match.home_team_id
+                )
+            )
+
+            away_team = (
+                self.team_repository.find_by_id(
+                    match.away_team_id
+                )
+            )
+
+            competition = (
+                self.competition_repository
+                .find_by_id(
+                    match.competition_id
+                )
+            )
+
+            if not home_team or not away_team:
+                continue
+
+            pending_bets = (
+                self.bet_repository
+                .count_pending_by_match_id(
+                    match.id
+                )
+            )
+
+            competition_name = (
+                competition.name
+                if competition
+                else "Competição não informada"
+            )
+
+            label = (
+                f"{home_team.name} x "
+                f"{away_team.name} | "
+                f"{competition_name} | "
+                f"{match.kickoff_at:%d/%m/%Y %H:%M}"
+            )
+
+            match_rows.append(
+                {
+                    "id": match.id,
+                    "external_id": (
+                        match.external_id
+                    ),
+                    "label": label,
+                    "home_team": home_team.name,
+                    "away_team": away_team.name,
+                    "competition": competition_name,
+                    "kickoff_at": match.kickoff_at,
+                    "status": match.status,
+                    "pending_bets": pending_bets,
+                }
+            )
+
+        return {
+            "matches": match_rows,
+        }
+    
+    def settle_match_administratively(
+        self,
+        match_external_id: str,
+        home_score: int,
+        away_score: int,
+        source: str,
+        corners_home: int | None = None,
+        corners_away: int | None = None,
+        yellow_cards_home: int | None = None,
+        yellow_cards_away: int | None = None,
+        red_cards_home: int | None = None,
+        red_cards_away: int | None = None,
+        shots_home: int | None = None,
+        shots_away: int | None = None,
+        shots_on_target_home: int | None = None,
+        shots_on_target_away: int | None = None,
+        offsides_home: int | None = None,
+        offsides_away: int | None = None,
+        possession_home: float | None = None,
+        possession_away: float | None = None,
+        xg_home: float | None = None,
+        xg_away: float | None = None,
+    ) -> dict:
+        """
+        Encerra a partida e liquida suas apostas.
+        """
+
+        result = (
+            self.post_match_service
+            .settle_match(
+                match_external_id=(
+                    match_external_id
+                ),
+                home_score=home_score,
+                away_score=away_score,
+                source=source,
+                corners_home=corners_home,
+                corners_away=corners_away,
+                yellow_cards_home=(
+                    yellow_cards_home
+                ),
+                yellow_cards_away=(
+                    yellow_cards_away
+                ),
+                red_cards_home=red_cards_home,
+                red_cards_away=red_cards_away,
+                shots_home=shots_home,
+                shots_away=shots_away,
+                shots_on_target_home=(
+                    shots_on_target_home
+                ),
+                shots_on_target_away=(
+                    shots_on_target_away
+                ),
+                offsides_home=offsides_home,
+                offsides_away=offsides_away,
+                possession_home=possession_home,
+                possession_away=possession_away,
+                xg_home=xg_home,
+                xg_away=xg_away,
+            )
+        )
+
+        match = result["match"]
+        statistics = result["statistics"]
+        settled_bets = result["settled_bets"]
+
+        bet_rows = [
+            {
+                "id": bet.id,
+                "selection": bet.selection,
+                "result": bet.result,
+                "profit_units": float(
+                    bet.profit_units or 0
+                ),
+                "stake_amount": (
+                    float(bet.stake_amount)
+                    if bet.stake_amount
+                    is not None
+                    else None
+                ),
+                "payout_amount": (
+                    float(bet.payout_amount)
+                    if bet.payout_amount
+                    is not None
+                    else None
+                ),
+            }
+            for bet in settled_bets
+        ]
+
+        return {
+            "match_id": match.id,
+            "home_score": match.home_score,
+            "away_score": match.away_score,
+            "status": match.status,
+            "statistics_id": statistics.id,
+            "settled_bets": bet_rows,
+            "settled_bets_count": len(
+                settled_bets
+            ),
+            "total_profit_units": float(
+                result["total_profit_units"]
             ),
         }
