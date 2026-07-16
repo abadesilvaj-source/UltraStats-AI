@@ -103,3 +103,12 @@ class BankrollTransactionRepository:
         )
 
         return abs(float(value or 0))
+    
+    def find_by_id(
+        self,
+        transaction_id: int,
+    ) -> BankrollTransaction | None:
+        return self.session.get(
+            BankrollTransaction,
+            transaction_id,
+        )

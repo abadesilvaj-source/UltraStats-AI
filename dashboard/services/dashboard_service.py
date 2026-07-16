@@ -451,3 +451,118 @@ class DashboardService:
             "daily_exposure": daily_exposure,
             "exposure_percentage": exposure_percentage,
         }
+    
+    def create_bankroll(
+        self,
+        name: str,
+        initial_balance: float,
+        currency: str,
+        unit_percentage: float,
+    ) -> dict:
+        bankroll = (
+            self.bankroll_service.create_bankroll(
+                name=name,
+                initial_balance=initial_balance,
+                currency=currency,
+                unit_percentage=unit_percentage,
+            )
+        )
+
+        return {
+            "id": bankroll.id,
+            "name": bankroll.name,
+            "currency": bankroll.currency,
+            "current_balance": float(
+                bankroll.current_balance
+            ),
+        }
+
+    def deposit_to_bankroll(
+        self,
+        bankroll_id: int,
+        amount: float,
+        description: str | None,
+    ) -> dict:
+        transaction = (
+            self.bankroll_service.deposit(
+                bankroll_id=bankroll_id,
+                amount=amount,
+                description=description,
+            )
+        )
+
+        return {
+            "transaction_id": transaction.id,
+            "amount": float(
+                transaction.amount
+            ),
+            "balance_after": float(
+                transaction.balance_after
+            ),
+        }
+
+    def withdraw_from_bankroll(
+        self,
+        bankroll_id: int,
+        amount: float,
+        description: str | None,
+    ) -> dict:
+        transaction = (
+            self.bankroll_service.withdraw(
+                bankroll_id=bankroll_id,
+                amount=amount,
+                description=description,
+            )
+        )
+
+        return {
+            "transaction_id": transaction.id,
+            "amount": float(
+                transaction.amount
+            ),
+            "balance_after": float(
+                transaction.balance_after
+            ),
+        }
+
+    def adjust_bankroll(
+        self,
+        bankroll_id: int,
+        amount: float,
+        description: str,
+    ) -> dict:
+        transaction = (
+            self.bankroll_service.manual_adjustment(
+                bankroll_id=bankroll_id,
+                amount=amount,
+                description=description,
+            )
+        )
+
+        return {
+            "transaction_id": transaction.id,
+            "amount": float(
+                transaction.amount
+            ),
+            "balance_after": float(
+                transaction.balance_after
+            ),
+        }
+
+    def set_bankroll_status(
+        self,
+        bankroll_id: int,
+        active: bool,
+    ) -> dict:
+        bankroll = (
+            self.bankroll_service.set_active_status(
+                bankroll_id=bankroll_id,
+                active=active,
+            )
+        )
+
+        return {
+            "id": bankroll.id,
+            "name": bankroll.name,
+            "active": bankroll.active,
+        }

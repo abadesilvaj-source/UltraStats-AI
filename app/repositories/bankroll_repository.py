@@ -32,19 +32,44 @@ class BankrollRepository:
         self,
         name: str,
     ) -> Bankroll | None:
-        statement = select(Bankroll).where(
+        statement = select(
+            Bankroll
+        ).where(
             Bankroll.name == name
         )
 
         return self.session.scalar(statement)
 
     def list_all(self) -> list[Bankroll]:
-        statement = select(Bankroll).order_by(
+        statement = select(
+            Bankroll
+        ).order_by(
             Bankroll.name
         )
 
         return list(
-            self.session.scalars(statement).all()
+            self.session.scalars(
+                statement
+            ).all()
+        )
+
+    def list_active(
+        self,
+    ) -> list[Bankroll]:
+        statement = (
+            select(Bankroll)
+            .where(
+                Bankroll.active.is_(True)
+            )
+            .order_by(
+                Bankroll.name
+            )
+        )
+
+        return list(
+            self.session.scalars(
+                statement
+            ).all()
         )
 
     def update(

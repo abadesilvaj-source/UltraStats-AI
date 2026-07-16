@@ -59,3 +59,14 @@ O Dashboard Pro possui um simulador de stake baseado em:
 - limite máximo por aposta;
 - exposição diária;
 - perfis conservador, moderado e agressivo.
+
+## Operações financeiras
+
+O Dashboard Pro permite:
+
+- criar bancas;
+- realizar depósitos;
+- realizar retiradas;
+- realizar ajustes administrativos;
+- ativar ou desativar bancas;
+- consultar o histórico financeiro.
