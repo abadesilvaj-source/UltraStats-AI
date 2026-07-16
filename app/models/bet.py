@@ -32,6 +32,15 @@ class Bet(Base):
         index=True,
     )
 
+    bankroll_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "bankrolls.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
+
     match_id: Mapped[int] = mapped_column(
         ForeignKey("matches.id"),
         nullable=False,
@@ -58,6 +67,16 @@ class Bet(Base):
         Float,
         nullable=False,
         default=1.0,
+    )
+
+    stake_amount: Mapped[Decimal | None] = mapped_column(
+        Numeric(14, 2),
+        nullable=True,
+    )
+
+    payout_amount: Mapped[Decimal | None] = mapped_column(
+        Numeric(14, 2),
+        nullable=True,
     )
 
     status: Mapped[str] = mapped_column(

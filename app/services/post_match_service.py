@@ -13,6 +13,10 @@ from app.repositories import (
 )
 from app.utils.market_evaluator import evaluate_market
 
+from app.services.bankroll_accounting_service import (
+    BankrollAccountingService,
+)
+
 
 class PostMatchService:
     """
@@ -33,6 +37,11 @@ class PostMatchService:
             PredictionRepository(session)
         )
         self.audit_repository = AuditRepository(session)
+        self.bankroll_accounting_service = (
+            BankrollAccountingService(
+                session
+            )
+        )
 
     def settle_match(
         self,
@@ -212,6 +221,9 @@ class PostMatchService:
                 bet.settled_at = datetime.now()
 
                 self.bet_repository.update(bet)
+                self.bankroll_accounting_service.settle_bet(
+                    bet
+                )
 
                 settled_bets.append(bet)
 

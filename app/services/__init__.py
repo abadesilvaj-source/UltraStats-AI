@@ -5,6 +5,10 @@ from app.services.team_service import TeamService
 from app.services.bankroll_service import (
     BankrollService,
 )
+from app.services.risk_service import RiskService
+from app.services.bankroll_accounting_service import (
+    BankrollAccountingService,
+)
 
 __all__ = [
     "AnalysisService",
@@ -13,6 +17,8 @@ __all__ = [
     "TeamService",
     "PerformanceService",
     "BankrollService",
+    "RiskService",
+    "BankrollAccountingService",
 ]
 
 from app.services.performance_service import (

@@ -16,7 +16,9 @@ from app.utils.betting_math import (
     validate_odd,
     validate_probability,
 )
-
+from app.services.bankroll_accounting_service import (
+    BankrollAccountingService,
+)
 
 class AnalysisService:
     """
@@ -32,7 +34,9 @@ class AnalysisService:
         self.odd_repository = OddRepository(session)
         self.prediction_repository = PredictionRepository(session)
         self.bet_repository = BetRepository(session)
-
+        self.bankroll_accounting_service = (
+            BankrollAccountingService(session)
+        )
     def register_analysis(
         self,
         match_external_id: str,
@@ -50,6 +54,8 @@ class AnalysisService:
         risk_level: str,
         create_official_bet: bool = False,
         stake_units: float = 1.0,
+        bankroll_id: int | None = None,
+        stake_amount: float | None = None,
     ) -> tuple[Odd, Prediction, Bet | None]:
         """Registra uma análise completa em uma única transação."""
 
@@ -119,16 +125,31 @@ class AnalysisService:
             if create_official_bet:
                 if expected_value <= 0:
                     raise ValueError(
-                        "Aposta oficial rejeitada: EV não é positivo."
+                        "Aposta oficial rejeitada: "
+                        "EV não é positivo."
                     )
+
+                if bankroll_id is not None:
+                    if stake_amount is None:
+                        raise ValueError(
+                            "O valor monetário da stake "
+                            "é obrigatório."
+                        )
 
                 bet = Bet(
                     prediction_id=prediction.id,
+                    bankroll_id=bankroll_id,
                     match_id=match.id,
                     market_id=market.id,
                     selection=selection,
                     odd_value=Decimal(str(odd_value)),
                     stake_units=stake_units,
+                    stake_amount=(
+                        Decimal(str(stake_amount))
+                        if stake_amount is not None
+                        else None
+                    ),
+                    payout_amount=None,
                     status="pending",
                     result=None,
                     profit_units=None,
@@ -137,6 +158,20 @@ class AnalysisService:
 
                 self.bet_repository.create(bet)
 
+                if bankroll_id is not None:
+                    self.bankroll_accounting_service.reserve_stake(
+                        bet
+                    )
+
+            self.session.commit()
+
+            self.session.refresh(odd)
+            self.session.refresh(prediction)
+
+            if bet:
+                self.session.refresh(bet)
+
+            return odd, prediction, bet
             self.session.commit()
 
             self.session.refresh(odd)
