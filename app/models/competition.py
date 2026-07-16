@@ -38,6 +38,18 @@ class Competition(Base):
         default="football",
     )
 
+    source: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        index=True,
+    )
+
+    external_id: Mapped[str | None] = mapped_column(
+        String(150),
+        nullable=True,
+        index=True,
+    )
+
     active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

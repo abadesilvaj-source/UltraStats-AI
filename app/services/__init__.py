@@ -10,6 +10,8 @@ from app.services.bankroll_accounting_service import (
     BankrollAccountingService,
 )
 
+from app.services.sports_sync_service import SportsSyncService
+
 __all__ = [
     "AnalysisService",
     "MatchService",
@@ -19,6 +21,7 @@ __all__ = [
     "BankrollService",
     "RiskService",
     "BankrollAccountingService",
+    "SportsSyncService",
 ]
 
 from app.services.performance_service import (

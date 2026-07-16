@@ -1,0 +1,61 @@
+{
+  "competitions": [
+    {
+      "external_id": "bra-serie-a-2026",
+      "name": "Campeonato Brasileiro Série A",
+      "country": "Brasil",
+      "season": "2026",
+      "sport": "football"
+    }
+  ],
+  "teams": [
+    {
+      "external_id": "palmeiras",
+      "name": "Palmeiras",
+      "country": "Brasil",
+      "league": "Campeonato Brasileiro Série A"
+    },
+    {
+      "external_id": "flamengo",
+      "name": "Flamengo",
+      "country": "Brasil",
+      "league": "Campeonato Brasileiro Série A"
+    },
+    {
+      "external_id": "corinthians",
+      "name": "Corinthians",
+      "country": "Brasil",
+      "league": "Campeonato Brasileiro Série A"
+    },
+    {
+      "external_id": "sao-paulo",
+      "name": "São Paulo",
+      "country": "Brasil",
+      "league": "Campeonato Brasileiro Série A"
+    }
+  ],
+  "matches": [
+    {
+      "external_id": "mock-001",
+      "competition_external_id": "bra-serie-a-2026",
+      "home_team_external_id": "corinthians",
+      "away_team_external_id": "sao-paulo",
+      "kickoff_at": "2026-08-15T18:30:00",
+      "status": "scheduled",
+      "home_score": null,
+      "away_score": null,
+      "venue": "Neo Química Arena"
+    },
+    {
+      "external_id": "mock-002",
+      "competition_external_id": "bra-serie-a-2026",
+      "home_team_external_id": "palmeiras",
+      "away_team_external_id": "corinthians",
+      "kickoff_at": "2026-08-20T20:00:00",
+      "status": "scheduled",
+      "home_score": null,
+      "away_score": null,
+      "venue": "Allianz Parque"
+    }
+  ]
+}

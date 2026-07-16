@@ -32,6 +32,18 @@ class Team(Base):
         nullable=True,
     )
 
+    source: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        index=True,
+    )
+
+    external_id: Mapped[str | None] = mapped_column(
+        String(150),
+        nullable=True,
+        index=True,
+    )
+
     power_rating: Mapped[float] = mapped_column(
         Float,
         nullable=False,
