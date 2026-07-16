@@ -24,3 +24,12 @@ class TeamRepository:
         self.session.refresh(team)
 
         return team
+    
+    def find_by_id(
+        self,
+        team_id: int,
+    ) -> Team | None:
+        return self.session.get(
+            Team,
+            team_id,
+        )

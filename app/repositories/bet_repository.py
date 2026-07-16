@@ -48,3 +48,27 @@ class BetRepository:
         self.session.flush()
 
         return bet
+    
+    def find_pending_duplicate(
+        self,
+        match_id: int,
+        market_id: int,
+        selection: str,
+        bankroll_id: int | None,
+    ) -> Bet | None:
+        """
+        Procura uma aposta pendente idêntica.
+        """
+
+        statement = select(Bet).where(
+            Bet.match_id == match_id,
+            Bet.market_id == market_id,
+            Bet.selection == selection,
+            Bet.bankroll_id == bankroll_id,
+            Bet.status == "pending",
+            Bet.is_official.is_(True),
+        )
+
+        return self.session.scalar(
+            statement
+        )

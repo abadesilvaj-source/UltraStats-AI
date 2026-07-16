@@ -70,3 +70,16 @@ O Dashboard Pro permite:
 - realizar ajustes administrativos;
 - ativar ou desativar bancas;
 - consultar o histórico financeiro.
+
+## Criação de apostas
+
+O Dashboard Pro permite:
+
+- selecionar uma partida aberta;
+- selecionar o mercado;
+- informar odd e probabilidade;
+- simular Kelly e stake;
+- aplicar o perfil de risco;
+- registrar uma aposta oficial;
+- debitar automaticamente a banca;
+- impedir apostas duplicadas ou em partidas encerradas.

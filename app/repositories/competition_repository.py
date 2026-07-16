@@ -31,3 +31,12 @@ class CompetitionRepository:
         self.session.refresh(competition)
 
         return competition
+    
+    def find_by_id(
+        self,
+        competition_id: int,
+    ) -> Competition | None:
+        return self.session.get(
+            Competition,
+            competition_id,
+        )

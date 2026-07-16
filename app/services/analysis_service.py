@@ -71,6 +71,16 @@ class AnalysisService:
 
         if not match:
             raise ValueError("Partida não encontrada.")
+        
+        if match.status == "finished":
+            raise ValueError(
+                "Não é possível apostar em uma partida encerrada."
+            )
+
+        if match.status == "cancelled":
+            raise ValueError(
+                "Não é possível apostar em uma partida cancelada."
+            )
 
         market = self.market_repository.find_by_code(
             market_code
@@ -127,6 +137,23 @@ class AnalysisService:
                     raise ValueError(
                         "Aposta oficial rejeitada: "
                         "EV não é positivo."
+                    )
+                
+                duplicate_bet = (
+                    self.bet_repository
+                    .find_pending_duplicate(
+                        match_id=match.id,
+                        market_id=market.id,
+                        selection=selection,
+                        bankroll_id=bankroll_id,
+                    )
+                )
+
+                if duplicate_bet:
+                    raise ValueError(
+                        "Já existe uma aposta oficial "
+                        "pendente com essa partida, mercado, "
+                        "seleção e banca."
                     )
 
                 if bankroll_id is not None:

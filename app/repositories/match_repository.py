@@ -44,3 +44,31 @@ class MatchRepository:
         self.session.flush()
 
         return match
+
+    def list_available_for_betting(
+        self,
+    ) -> list[Match]:
+        """
+        Lista partidas que ainda podem receber apostas.
+        """
+
+        statement = (
+            select(Match)
+            .where(
+                Match.status.in_(
+                    [
+                        "scheduled",
+                        "not_started",
+                    ]
+                )
+            )
+            .order_by(
+                Match.kickoff_at
+            )
+        )
+
+        return list(
+            self.session.scalars(
+                statement
+            ).all()
+        )

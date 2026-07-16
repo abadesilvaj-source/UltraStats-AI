@@ -3,11 +3,18 @@ from sqlalchemy.orm import Session
 from app.repositories import (
     BankrollTransactionRepository,
     BetRepository,
+    CompetitionRepository,
+    MarketRepository,
+    MatchRepository,
     PredictionRepository,
+    TeamRepository,
 )
+
 from app.services import (
+    AnalysisService,
     BankrollService,
     PerformanceService,
+    RiskService,
 )
 
 from app.services import RiskService
@@ -48,6 +55,26 @@ class DashboardService:
 
         self.risk_service = RiskService(
             session
+        )
+
+        self.analysis_service = AnalysisService(
+            session
+        )
+
+        self.match_repository = MatchRepository(
+            session
+        )
+
+        self.market_repository = MarketRepository(
+            session
+        )
+
+        self.team_repository = TeamRepository(
+            session
+        )
+
+        self.competition_repository = (
+            CompetitionRepository(session)
         )
 
     def get_home_data(self) -> dict:
@@ -565,4 +592,230 @@ class DashboardService:
             "id": bankroll.id,
             "name": bankroll.name,
             "active": bankroll.active,
+        }
+    
+    def get_betting_form_data(
+        self,
+    ) -> dict:
+        """
+        Retorna os dados necessários para
+        preencher o formulário de aposta.
+        """
+
+        matches = (
+            self.match_repository
+            .list_available_for_betting()
+        )
+
+        markets = (
+            self.market_repository
+            .list_all()
+        )
+
+        bankrolls = (
+            self.bankroll_service
+            .list_bankrolls()
+        )
+
+        match_rows = []
+
+        for match in matches:
+            home_team = (
+                self.team_repository.find_by_id(
+                    match.home_team_id
+                )
+            )
+
+            away_team = (
+                self.team_repository.find_by_id(
+                    match.away_team_id
+                )
+            )
+
+            competition = (
+                self.competition_repository
+                .find_by_id(
+                    match.competition_id
+                )
+            )
+
+            if not home_team or not away_team:
+                continue
+
+            competition_name = (
+                competition.name
+                if competition
+                else "Competição não informada"
+            )
+
+            label = (
+                f"{home_team.name} x "
+                f"{away_team.name} | "
+                f"{competition_name} | "
+                f"{match.kickoff_at:%d/%m/%Y %H:%M}"
+            )
+
+            match_rows.append(
+                {
+                    "id": match.id,
+                    "external_id": (
+                        match.external_id
+                    ),
+                    "label": label,
+                    "home_team": home_team.name,
+                    "away_team": away_team.name,
+                    "competition": competition_name,
+                    "kickoff_at": match.kickoff_at,
+                    "status": match.status,
+                }
+            )
+
+        market_rows = [
+            {
+                "id": market.id,
+                "code": market.code,
+                "name": market.name,
+                "category": market.category,
+                "label": (
+                    f"{market.name} "
+                    f"({market.category})"
+                ),
+            }
+            for market in markets
+            if market.active
+        ]
+
+        bankroll_rows = [
+            {
+                "id": bankroll.id,
+                "name": bankroll.name,
+                "currency": bankroll.currency,
+                "current_balance": float(
+                    bankroll.current_balance
+                ),
+                "unit_percentage": float(
+                    bankroll.unit_percentage
+                ),
+                "active": bankroll.active,
+                "label": (
+                    f"{bankroll.name} | "
+                    f"{bankroll.currency} "
+                    f"{float(bankroll.current_balance):.2f}"
+                ),
+            }
+            for bankroll in bankrolls
+            if bankroll.active
+        ]
+
+        return {
+            "matches": match_rows,
+            "markets": market_rows,
+            "bankrolls": bankroll_rows,
+        }
+    
+    def create_managed_bet(
+        self,
+        bankroll_id: int,
+        match_external_id: str,
+        market_code: str,
+        bookmaker: str,
+        selection: str,
+        odd_value: float,
+        model_probability: float,
+        profile_code: str,
+        model_version: str,
+        confidence: float,
+        uqs: float,
+        use_score: float,
+        confluence: float,
+        evidence_level: str,
+        risk_level: str,
+    ) -> dict:
+        """
+        Calcula o risco e registra uma aposta oficial.
+        """
+
+        recommendation = (
+            self.risk_service.recommend_stake(
+                bankroll_id=bankroll_id,
+                probability=model_probability,
+                odd_value=odd_value,
+                profile_code=profile_code,
+            )
+        )
+
+        if not recommendation["approved"]:
+            raise ValueError(
+                recommendation["reason"]
+            )
+
+        odd, prediction, bet = (
+            self.analysis_service
+            .register_analysis(
+                match_external_id=(
+                    match_external_id
+                ),
+                market_code=market_code,
+                bookmaker=bookmaker,
+                selection=selection,
+                odd_value=odd_value,
+                model_probability=(
+                    model_probability
+                ),
+                model_version=model_version,
+                confidence=confidence,
+                uqs=uqs,
+                use_score=use_score,
+                confluence=confluence,
+                evidence_level=evidence_level,
+                risk_level=risk_level,
+                create_official_bet=True,
+                stake_units=(
+                    recommendation[
+                        "stake_units"
+                    ]
+                ),
+                bankroll_id=bankroll_id,
+                stake_amount=(
+                    recommendation[
+                        "stake_amount"
+                    ]
+                ),
+            )
+        )
+
+        if bet is None:
+            raise ValueError(
+                "A aposta não foi criada."
+            )
+
+        return {
+            "bet_id": bet.id,
+            "odd_id": odd.id,
+            "prediction_id": prediction.id,
+            "selection": bet.selection,
+            "odd": float(bet.odd_value),
+            "stake_units": float(
+                bet.stake_units
+            ),
+            "stake_amount": (
+                float(bet.stake_amount)
+                if bet.stake_amount
+                is not None
+                else 0.0
+            ),
+            "expected_value": float(
+                prediction.expected_value
+                or 0
+            ),
+            "model_probability": float(
+                prediction.probability
+            ),
+            "implied_probability": float(
+                prediction.implied_probability
+                or 0
+            ),
+            "risk_profile": (
+                recommendation["profile"]
+            ),
         }
