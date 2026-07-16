@@ -32,10 +32,29 @@ class PredictionRepository:
         self,
         match_id: int,
     ) -> list[Prediction]:
-        statement = select(Prediction).where(
+        statement = select(
+            Prediction
+        ).where(
             Prediction.match_id == match_id
         )
 
         return list(
-            self.session.scalars(statement).all()
+            self.session.scalars(
+                statement
+            ).all()
+        )
+
+    def list_all(
+        self,
+    ) -> list[Prediction]:
+        statement = select(
+            Prediction
+        ).order_by(
+            Prediction.created_at.desc()
+        )
+
+        return list(
+            self.session.scalars(
+                statement
+            ).all()
         )
