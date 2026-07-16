@@ -134,3 +134,15 @@ Informações registradas:
 
 ```powershell
 python -m scripts.sync_mock_provider
+
+## Scheduler automático
+
+O UltraStats AI pode executar sincronizações automaticamente.
+
+### Configuração
+
+```env
+SYNC_ENABLED=true
+SYNC_INTERVAL_MINUTES=60
+SYNC_PROVIDER=mock_provider
+SYNC_MAX_RUNTIME_MINUTES=20

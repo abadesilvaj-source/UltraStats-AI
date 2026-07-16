@@ -43,6 +43,18 @@ def load_sync_history() -> list[dict]:
     finally:
         session.close()
 
+@st.cache_data(ttl=10)
+def load_scheduler_status() -> dict:
+    session = SessionLocal()
+
+    try:
+        return DashboardService(
+            session
+        ).get_scheduler_status()
+
+    finally:
+        session.close()
+
 
 def execute_mock_sync() -> dict:
     session = SessionLocal()
@@ -61,6 +73,95 @@ st.title("🔄 Collectors")
 st.caption(
     "Monitoramento e execução de sincronizações"
 )
+
+
+scheduler_status = load_scheduler_status()
+
+
+st.subheader("Status do Scheduler")
+
+
+scheduler_column_1, scheduler_column_2, scheduler_column_3, scheduler_column_4 = (
+    st.columns(4)
+)
+
+
+scheduler_column_1.metric(
+    "Scheduler habilitado",
+    (
+        "Sim"
+        if scheduler_status["enabled"]
+        else "Não"
+    ),
+)
+
+
+scheduler_column_2.metric(
+    "Processo ativo",
+    (
+        "Sim"
+        if scheduler_status["process_running"]
+        else "Não"
+    ),
+)
+
+
+scheduler_column_3.metric(
+    "Job em execução",
+    (
+        "Sim"
+        if scheduler_status["job_running"]
+        else "Não"
+    ),
+)
+
+
+scheduler_column_4.metric(
+    "Intervalo",
+    (
+        f"{scheduler_status['interval_minutes']} min"
+    ),
+)
+
+
+st.write(
+    f"**Provedor configurado:** "
+    f"{scheduler_status['provider']}"
+)
+
+
+latest_database_run = (
+    scheduler_status[
+        "latest_database_run"
+    ]
+)
+
+
+if latest_database_run:
+    st.write(
+        f"**Última execução no banco:** "
+        f"ID {latest_database_run['id']} | "
+        f"{latest_database_run['status']} | "
+        f"{latest_database_run['triggered_by']}"
+    )
+
+    if latest_database_run[
+        "error_message"
+    ]:
+        st.error(
+            latest_database_run[
+                "error_message"
+            ]
+        )
+
+
+if not scheduler_status["process_running"]:
+    st.info(
+        "O Dashboard não inicia o scheduler. "
+        "Execute em outro terminal: "
+        "`python -m scripts.run_scheduler`"
+    )
+
 
 st.divider()
 

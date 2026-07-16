@@ -1097,3 +1097,73 @@ class DashboardService:
                 triggered_by="dashboard",
             )
         )
+    
+    def get_scheduler_status(
+        self,
+    ) -> dict:
+        from app.core.config import settings
+        from app.scheduler import scheduler_state
+
+        latest_run = (
+            self.sync_monitor_service
+            .get_latest_run(
+                settings.sync_provider
+            )
+        )
+
+        return {
+            "enabled": settings.sync_enabled,
+            "provider": settings.sync_provider,
+            "interval_minutes": (
+                settings.sync_interval_minutes
+            ),
+            "max_runtime_minutes": (
+                settings
+                .sync_max_runtime_minutes
+            ),
+            "process_running": (
+                scheduler_state.running
+            ),
+            "job_running": (
+                scheduler_state
+                .current_job_running
+            ),
+            "scheduler_started_at": (
+                scheduler_state.started_at
+            ),
+            "last_job_started_at": (
+                scheduler_state
+                .last_job_started_at
+            ),
+            "last_job_finished_at": (
+                scheduler_state
+                .last_job_finished_at
+            ),
+            "last_job_status_memory": (
+                scheduler_state
+                .last_job_status
+            ),
+            "last_error_memory": (
+                scheduler_state.last_error
+            ),
+            "latest_database_run": (
+                {
+                    "id": latest_run.id,
+                    "status": latest_run.status,
+                    "started_at": (
+                        latest_run.started_at
+                    ),
+                    "finished_at": (
+                        latest_run.finished_at
+                    ),
+                    "triggered_by": (
+                        latest_run.triggered_by
+                    ),
+                    "error_message": (
+                        latest_run.error_message
+                    ),
+                }
+                if latest_run
+                else None
+            ),
+        }
