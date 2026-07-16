@@ -25,3 +25,24 @@ Plataforma de análise quantitativa para apostas esportivas.
 ## Status
 
 Projeto em desenvolvimento.
+## Arquitetura atual
+
+O projeto utiliza uma arquitetura em camadas:
+
+- `models`: representam as tabelas do banco.
+- `repositories`: realizam consultas e persistência.
+- `services`: concentram regras de negócio.
+- `scripts`: executam tarefas manuais.
+- `tests`: validam o comportamento do sistema.
+
+## Estrutura principal
+
+```text
+app/
+├── core/
+├── database/
+├── models/
+├── repositories/
+├── schemas/
+├── services/
+└── utils/
