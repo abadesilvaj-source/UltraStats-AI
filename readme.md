@@ -97,3 +97,18 @@ O Dashboard Pro permite:
 - calcular lucro ou prejuízo;
 - atualizar a banca;
 - criar auditorias pós-jogo.
+
+## Cliente HTTP esportivo
+
+A camada HTTP do UltraStats AI possui:
+
+- API key em variáveis de ambiente;
+- timeout configurável;
+- tentativas automáticas;
+- tratamento de HTTP 401, 403, 429 e 5xx;
+- validação de JSON;
+- logs em arquivo;
+- modo sandbox;
+- testes com `httpx.MockTransport`.
+
+As credenciais reais devem permanecer apenas no arquivo `.env`.
