@@ -10,6 +10,7 @@ from app.services import (
     PerformanceService,
 )
 
+from app.services import RiskService
 
 class DashboardService:
     """
@@ -43,6 +44,10 @@ class DashboardService:
 
         self.prediction_repository = (
             PredictionRepository(session)
+        )
+
+        self.risk_service = RiskService(
+            session
         )
 
     def get_home_data(self) -> dict:
@@ -387,3 +392,62 @@ class DashboardService:
             }
             for prediction in predictions
         ]
+    
+    def simulate_stake(
+        self,
+        bankroll_id: int,
+        probability: float,
+        odd_value: float,
+        profile_code: str,
+    ) -> dict:
+        """
+        Simula uma recomendação de stake sem criar aposta.
+
+        Nenhuma informação é salva no banco.
+        """
+
+        return self.risk_service.recommend_stake(
+            bankroll_id=bankroll_id,
+            probability=probability,
+            odd_value=odd_value,
+            profile_code=profile_code,
+        )
+
+    def get_risk_summary(
+        self,
+        bankroll_id: int,
+    ) -> dict:
+        """
+        Retorna um resumo simples do risco
+        atual da banca.
+        """
+
+        bankroll = self.bankroll_service.get_bankroll(
+            bankroll_id
+        )
+
+        balance = float(
+            bankroll.current_balance
+        )
+
+        daily_exposure = (
+            self.risk_service.get_daily_exposure(
+                bankroll_id
+            )
+        )
+
+        exposure_percentage = 0.0
+
+        if balance > 0:
+            exposure_percentage = (
+                daily_exposure
+                / balance
+                * 100
+            )
+
+        return {
+            "bankroll_id": bankroll.id,
+            "balance": balance,
+            "daily_exposure": daily_exposure,
+            "exposure_percentage": exposure_percentage,
+        }

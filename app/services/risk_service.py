@@ -185,3 +185,30 @@ class RiskService:
             ),
             "stake_units": stake_units,
         }
+    
+    def get_daily_exposure(
+        self,
+        bankroll_id: int,
+    ) -> float:
+        """
+        Retorna o valor monetário total
+        exposto em apostas no dia atual.
+        """
+
+        bankroll = (
+            self.bankroll_repository.find_by_id(
+                bankroll_id
+            )
+        )
+
+        if not bankroll:
+            raise ValueError(
+                "Banca não encontrada."
+            )
+
+        return (
+            self.transaction_repository
+            .get_daily_stake_exposure(
+                bankroll_id=bankroll_id
+            )
+        )

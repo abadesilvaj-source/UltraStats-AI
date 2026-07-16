@@ -46,3 +46,16 @@ app/
 ├── schemas/
 ├── services/
 └── utils/
+
+## Gestão de risco
+
+O Dashboard Pro possui um simulador de stake baseado em:
+
+- probabilidade estimada;
+- odd decimal;
+- valor esperado;
+- Kelly Criterion;
+- Kelly fracionado;
+- limite máximo por aposta;
+- exposição diária;
+- perfis conservador, moderado e agressivo.
