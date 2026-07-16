@@ -7,6 +7,10 @@ from app.models.match_statistics import MatchStatistics
 from app.models.odd import Odd
 from app.models.prediction import Prediction
 from app.models.team import Team
+from app.models.bankroll import Bankroll
+from app.models.bankroll_transaction import (
+    BankrollTransaction,
+)
 
 __all__ = [
     "Audit",
@@ -18,4 +22,7 @@ __all__ = [
     "Odd",
     "Prediction",
     "Team",
+    "Bankroll",
+    "BankrollTransaction",
+    
 ]
