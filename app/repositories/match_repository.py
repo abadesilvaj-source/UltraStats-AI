@@ -33,3 +33,14 @@ class MatchRepository:
         self.session.refresh(match)
 
         return match
+   
+    def find_by_id(
+        self,
+        match_id: int,
+    ) -> Match | None:
+        return self.session.get(Match, match_id)
+
+    def update(self, match: Match) -> Match:
+        self.session.flush()
+
+        return match

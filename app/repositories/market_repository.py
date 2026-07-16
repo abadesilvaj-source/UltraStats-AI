@@ -29,3 +29,8 @@ class MarketRepository:
         return list(
             self.session.scalars(statement).all()
         )
+    def find_by_id(
+        self,
+        market_id: int,
+    ) -> Market | None:
+        return self.session.get(Market, market_id)

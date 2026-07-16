@@ -16,6 +16,12 @@ class BetRepository:
 
         return bet
 
+    def find_by_id(
+        self,
+        bet_id: int,
+    ) -> Bet | None:
+        return self.session.get(Bet, bet_id)
+
     def list_all(self) -> list[Bet]:
         statement = select(Bet).order_by(
             Bet.placed_at.desc()
@@ -25,8 +31,20 @@ class BetRepository:
             self.session.scalars(statement).all()
         )
 
-    def find_by_id(
+    def list_pending_by_match_id(
         self,
-        bet_id: int,
-    ) -> Bet | None:
-        return self.session.get(Bet, bet_id)
+        match_id: int,
+    ) -> list[Bet]:
+        statement = select(Bet).where(
+            Bet.match_id == match_id,
+            Bet.status == "pending",
+        )
+
+        return list(
+            self.session.scalars(statement).all()
+        )
+
+    def update(self, bet: Bet) -> Bet:
+        self.session.flush()
+
+        return bet
