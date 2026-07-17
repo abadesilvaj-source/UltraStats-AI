@@ -1,4 +1,5 @@
 import logging
+import threading
 import time
 
 from app.core.config import settings
@@ -15,6 +16,31 @@ from app.services import (
     SchedulerHeartbeatService,
 )
 
+def run_heartbeat_loop(
+    stop_event: threading.Event,
+) -> None:
+    """
+    Atualiza o heartbeat continuamente,
+    independentemente dos jobs de sincronização.
+    """
+
+    logger = logging.getLogger(
+        "ultrastats.scheduler.heartbeat"
+    )
+
+    while not stop_event.is_set():
+        try:
+            update_scheduler_heartbeat()
+
+        except Exception as error:
+            logger.exception(
+                "Erro no loop de heartbeat: %s",
+                error,
+            )
+
+        stop_event.wait(
+            settings.scheduler_heartbeat_seconds
+        )
 
 def main() -> None:
     configure_collector_logging()
@@ -29,6 +55,7 @@ def main() -> None:
         )
         return
 
+    # Registra no banco que a instância iniciou.
     heartbeat_session = SessionLocal()
 
     try:
@@ -48,8 +75,20 @@ def main() -> None:
     finally:
         heartbeat_session.close()
 
+    heartbeat_stop_event = threading.Event()
+
+    heartbeat_thread = threading.Thread(
+        target=run_heartbeat_loop,
+        args=(heartbeat_stop_event,),
+        name="scheduler-heartbeat",
+        daemon=True,
+    )
+
+    heartbeat_thread.start()
+
     scheduler = SchedulerService()
 
+    # Job principal de sincronização esportiva.
     scheduler.add_interval_job(
         func=run_scheduled_sync,
         minutes=(
@@ -59,19 +98,15 @@ def main() -> None:
         run_immediately=True,
     )
 
-    scheduler.add_seconds_job(
-        func=update_scheduler_heartbeat,
-        seconds=(
-            settings.scheduler_heartbeat_seconds
-        ),
-        job_id="scheduler_heartbeat",
-        run_immediately=True,
-    )
-
     scheduler.start()
 
     print("\nSCHEDULER INICIADO")
     print("=" * 60)
+
+    print(
+        f"Instância: "
+        f"{settings.scheduler_instance_name}"
+    )
 
     print(
         f"Provedor: "
@@ -79,13 +114,13 @@ def main() -> None:
     )
 
     print(
-        f"Intervalo: "
+        f"Intervalo de sincronização: "
         f"{settings.sync_interval_minutes} minuto(s)"
     )
 
     print(
-        f"Tempo máximo: "
-        f"{settings.sync_max_runtime_minutes} minuto(s)"
+        f"Intervalo do heartbeat: "
+        f"{settings.scheduler_heartbeat_seconds} segundo(s)"
     )
 
     print(
@@ -101,7 +136,16 @@ def main() -> None:
             "\nEncerrando scheduler..."
         )
 
+
+
     finally:
+
+        heartbeat_stop_event.set()
+
+        heartbeat_thread.join(
+            timeout=5
+        )
+        
         heartbeat_session = SessionLocal()
 
         try:

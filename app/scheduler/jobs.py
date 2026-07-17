@@ -247,8 +247,10 @@ def run_scheduled_sync() -> None:
         
 def update_scheduler_heartbeat() -> None:
     """
-    Atualiza o sinal de vida persistente
-    do scheduler.
+    Atualiza o sinal de vida persistente do scheduler.
+
+    Se a instância ainda não estiver registrada,
+    registra seu início automaticamente.
     """
 
     session = SessionLocal()
@@ -258,12 +260,22 @@ def update_scheduler_heartbeat() -> None:
             session
         )
 
-        service.register_heartbeat(
-            settings.scheduler_instance_name
-        )
+        try:
+            service.register_heartbeat(
+                settings.scheduler_instance_name
+            )
+
+        except ValueError:
+            service.register_start(
+                instance_name=(
+                    settings.scheduler_instance_name
+                ),
+                provider=settings.sync_provider,
+            )
 
         logger.debug(
-            "Heartbeat do scheduler atualizado."
+            "Heartbeat atualizado | instância=%s",
+            settings.scheduler_instance_name,
         )
 
     except Exception as error:

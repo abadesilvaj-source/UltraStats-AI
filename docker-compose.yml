@@ -2,27 +2,172 @@ services:
   postgres:
     image: postgres:17
     container_name: ultrastats_postgres
-    restart: unless-stopped
-
-    env_file:
-      - .env
 
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-ultrastats}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ultrastats123}
+      POSTGRES_DB: ${POSTGRES_DB:-ultrastats_db}
 
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "5432:5432"
 
     volumes:
       - ultrastats_postgres_data:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-ultrastats} -d ${POSTGRES_DB:-ultrastats_db}"
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
 
+    restart: unless-stopped
+
+
+  migrations:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: ultrastats_migrations
+
+    command:
+      [
+        "python",
+        "-m",
+        "alembic",
+        "upgrade",
+        "head"
+      ]
+
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ultrastats}:${POSTGRES_PASSWORD:-ultrastats123}@postgres:5432/${POSTGRES_DB:-ultrastats_db}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    restart: "no"
+
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: ultrastats_scheduler
+
+    command:
+      [
+        "python",
+        "-m",
+        "scripts.run_scheduler"
+      ]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ultrastats}:${POSTGRES_PASSWORD:-ultrastats123}@postgres:5432/${POSTGRES_DB:-ultrastats_db}
+
+      SCHEDULER_INSTANCE_NAME: ${DOCKER_SCHEDULER_INSTANCE_NAME:-ultrastats-docker}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+      migrations:
+        condition: service_completed_successfully
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-m",
+          "scripts.check_scheduler_health"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
+    restart: unless-stopped
+
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: ultrastats_dashboard
+
+    command:
+      [
+        "python",
+        "-m",
+        "streamlit",
+        "run",
+        "dashboard/Home.py",
+        "--server.address=0.0.0.0",
+        "--server.port=8501",
+        "--server.headless=true"
+      ]
+
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ultrastats}:${POSTGRES_PASSWORD:-ultrastats123}@postgres:5432/${POSTGRES_DB:-ultrastats_db}
+
+      SYNC_ENABLED: "true"
+      SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-60}
+      SYNC_PROVIDER: ${SYNC_PROVIDER:-mock_provider}
+      SYNC_MAX_RUNTIME_MINUTES: ${SYNC_MAX_RUNTIME_MINUTES:-20}
+
+      SCHEDULER_HEARTBEAT_SECONDS: ${SCHEDULER_HEARTBEAT_SECONDS:-30}
+      SCHEDULER_OFFLINE_AFTER_SECONDS: ${SCHEDULER_OFFLINE_AFTER_SECONDS:-90}
+      SCHEDULER_INSTANCE_NAME: ${DOCKER_SCHEDULER_INSTANCE_NAME:-ultrastats-docker}
+
+      SPORTS_API_BASE_URL: ${SPORTS_API_BASE_URL:-https://sandbox.example.invalid}
+      SPORTS_API_KEY: ${SPORTS_API_KEY:-docker-test-key}
+      SPORTS_API_TIMEOUT: ${SPORTS_API_TIMEOUT:-15}
+      SPORTS_API_MAX_RETRIES: ${SPORTS_API_MAX_RETRIES:-3}
+      SPORTS_API_RETRY_DELAY: ${SPORTS_API_RETRY_DELAY:-1}
+      SPORTS_API_SANDBOX: ${SPORTS_API_SANDBOX:-true}
+
+    ports:
+      - "${DASHBOARD_PORT:-8501}:8501"
+
+    volumes:
+      - ultrastats_logs:/app/logs
+      - ultrastats_exports:/app/exports
+      - ultrastats_reports:/app/reports
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+      migrations:
+        condition: service_completed_successfully
+
+      scheduler:
+        condition: service_started
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "--fail",
+          "http://localhost:8501/_stcore/health"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    restart: unless-stopped
+
+
 volumes:
   ultrastats_postgres_data:
+  ultrastats_logs:
+  ultrastats_exports:
+  ultrastats_reports:

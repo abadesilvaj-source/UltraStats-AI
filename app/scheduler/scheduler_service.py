@@ -73,29 +73,6 @@ class SchedulerService:
             **job_kwargs
         )
 
-    def get_jobs(self) -> list[dict]:
-        """
-        Retorna os jobs registrados no scheduler.
-
-        Antes de o scheduler ser iniciado, um job pode
-        ainda não possuir next_run_time definido.
-        """
-
-        jobs = self.scheduler.get_jobs()
-
-        return [
-            {
-                "id": job.id,
-                "name": job.name,
-                "next_run_time": getattr(
-                    job,
-                    "next_run_time",
-                    None,
-                ),
-            }
-            for job in jobs
-        ]
-    
     def add_seconds_job(
         self,
         func: Callable,
@@ -130,3 +107,21 @@ class SchedulerService:
         self.scheduler.add_job(
             **job_kwargs
         )
+
+    def get_jobs(
+        self,
+    ) -> list[dict]:
+        jobs = self.scheduler.get_jobs()
+
+        return [
+            {
+                "id": job.id,
+                "name": job.name,
+                "next_run_time": getattr(
+                    job,
+                    "next_run_time",
+                    None,
+                ),
+            }
+            for job in jobs
+        ]   

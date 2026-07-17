@@ -1131,16 +1131,13 @@ class DashboardService:
                 settings.sync_interval_minutes
             ),
             "max_runtime_minutes": (
-                settings
-                .sync_max_runtime_minutes
+                settings.sync_max_runtime_minutes
             ),
             "heartbeat_seconds": (
-                settings
-                .scheduler_heartbeat_seconds
+                settings.scheduler_heartbeat_seconds
             ),
             "offline_after_seconds": (
-                settings
-                .scheduler_offline_after_seconds
+                settings.scheduler_offline_after_seconds
             ),
             "process_running": (
                 persistent_status.get(
@@ -1161,18 +1158,10 @@ class DashboardService:
                 {
                     "id": latest_run.id,
                     "status": latest_run.status,
-                    "started_at": (
-                        latest_run.started_at
-                    ),
-                    "finished_at": (
-                        latest_run.finished_at
-                    ),
-                    "triggered_by": (
-                        latest_run.triggered_by
-                    ),
-                    "error_message": (
-                        latest_run.error_message
-                    ),
+                    "started_at": latest_run.started_at,
+                    "finished_at": latest_run.finished_at,
+                    "triggered_by": latest_run.triggered_by,
+                    "error_message": latest_run.error_message,
                 }
                 if latest_run
                 else None
