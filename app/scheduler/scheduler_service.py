@@ -95,3 +95,38 @@ class SchedulerService:
             }
             for job in jobs
         ]
+    
+    def add_seconds_job(
+        self,
+        func: Callable,
+        seconds: int,
+        job_id: str,
+        run_immediately: bool = False,
+    ) -> None:
+        if seconds <= 0:
+            raise ValueError(
+                "O intervalo em segundos "
+                "deve ser maior que zero."
+            )
+
+        job_kwargs = {
+            "func": func,
+            "trigger": "interval",
+            "seconds": seconds,
+            "id": job_id,
+            "replace_existing": True,
+            "max_instances": 1,
+            "coalesce": True,
+            "misfire_grace_time": 30,
+        }
+
+        if run_immediately:
+            from datetime import datetime
+
+            job_kwargs["next_run_time"] = (
+                datetime.now()
+            )
+
+        self.scheduler.add_job(
+            **job_kwargs
+        )

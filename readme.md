@@ -146,3 +146,10 @@ SYNC_ENABLED=true
 SYNC_INTERVAL_MINUTES=60
 SYNC_PROVIDER=mock_provider
 SYNC_MAX_RUNTIME_MINUTES=20
+
+## Heartbeat do scheduler
+
+O scheduler registra seu estado na tabela:
+
+```text
+scheduler_heartbeats

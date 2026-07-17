@@ -20,6 +20,10 @@ from app.repositories.sync_run_repository import (
     SyncRunRepository,
 )
 
+from app.repositories.scheduler_heartbeat_repository import (
+    SchedulerHeartbeatRepository,
+)
+
 __all__ = [
     "AuditRepository",
     "BetRepository",
@@ -34,6 +38,7 @@ __all__ = [
     "BankrollRepository",
     "BankrollTransactionRepository"
     "SyncRunRepository",
+    "SchedulerHeartbeatRepository",
     
 ]
 

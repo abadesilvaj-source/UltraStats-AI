@@ -18,6 +18,7 @@ from app.services import (
     RiskService,
     CollectorOrchestratorService,
     SyncMonitorService,
+    SchedulerHeartbeatService,
 )
 
 from app.services import RiskService
@@ -90,6 +91,12 @@ class DashboardService:
 
         self.collector_orchestrator_service = (
             CollectorOrchestratorService(
+                session
+            )
+        )
+
+        self.scheduler_heartbeat_service = (
+            SchedulerHeartbeatService(
                 session
             )
         )
@@ -1102,7 +1109,13 @@ class DashboardService:
         self,
     ) -> dict:
         from app.core.config import settings
-        from app.scheduler import scheduler_state
+
+        persistent_status = (
+            self.scheduler_heartbeat_service
+            .get_status(
+                settings.scheduler_instance_name
+            )
+        )
 
         latest_run = (
             self.sync_monitor_service
@@ -1121,30 +1134,28 @@ class DashboardService:
                 settings
                 .sync_max_runtime_minutes
             ),
+            "heartbeat_seconds": (
+                settings
+                .scheduler_heartbeat_seconds
+            ),
+            "offline_after_seconds": (
+                settings
+                .scheduler_offline_after_seconds
+            ),
             "process_running": (
-                scheduler_state.running
+                persistent_status.get(
+                    "online",
+                    False,
+                )
             ),
             "job_running": (
-                scheduler_state
-                .current_job_running
+                persistent_status.get(
+                    "last_job_status"
+                )
+                == "running"
             ),
-            "scheduler_started_at": (
-                scheduler_state.started_at
-            ),
-            "last_job_started_at": (
-                scheduler_state
-                .last_job_started_at
-            ),
-            "last_job_finished_at": (
-                scheduler_state
-                .last_job_finished_at
-            ),
-            "last_job_status_memory": (
-                scheduler_state
-                .last_job_status
-            ),
-            "last_error_memory": (
-                scheduler_state.last_error
+            "persistent_status": (
+                persistent_status
             ),
             "latest_database_run": (
                 {

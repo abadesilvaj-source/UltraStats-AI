@@ -20,6 +20,10 @@ from app.services.collector_orchestrator_service import (
     CollectorOrchestratorService,
 )
 
+from app.services.scheduler_heartbeat_service import (
+    SchedulerHeartbeatService,
+)
+
 __all__ = [
     "AnalysisService",
     "MatchService",
@@ -32,6 +36,7 @@ __all__ = [
     "SportsSyncService",
     "SyncMonitorService",
     "CollectorOrchestratorService",
+    "SchedulerHeartbeatService",
 ]
 
 from app.services.performance_service import (

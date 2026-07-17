@@ -14,6 +14,10 @@ from app.models.bankroll_transaction import (
 
 from app.models.sync_run import SyncRun
 
+from app.models.scheduler_heartbeat import (
+    SchedulerHeartbeat,
+)
+
 __all__ = [
     "Audit",
     "Bet",
@@ -27,5 +31,6 @@ __all__ = [
     "Bankroll",
     "BankrollTransaction",
     "SyncRun",
+    "SchedulerHeartbeat",
     
 ]

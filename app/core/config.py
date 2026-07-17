@@ -68,6 +68,25 @@ class Settings:
             )
         )
 
+        self.scheduler_heartbeat_seconds = int(
+            os.getenv(
+                "SCHEDULER_HEARTBEAT_SECONDS",
+                "30",
+            )
+        )
+
+        self.scheduler_offline_after_seconds = int(
+            os.getenv(
+                "SCHEDULER_OFFLINE_AFTER_SECONDS",
+                "90",
+            )
+        )
+
+        self.scheduler_instance_name = os.getenv(
+            "SCHEDULER_INSTANCE_NAME",
+            "ultrastats-main",
+        ).strip()
+
         # Validações
         if self.sync_interval_minutes <= 0:
             raise ValueError(
@@ -82,6 +101,34 @@ class Settings:
         if not self.sync_provider:
             raise ValueError(
                 "SYNC_PROVIDER não pode ficar vazio."
+            )
+        
+        if self.scheduler_heartbeat_seconds <= 0:
+            raise ValueError(
+                "SCHEDULER_HEARTBEAT_SECONDS "
+                "deve ser maior que zero."
+            )
+
+        if self.scheduler_offline_after_seconds <= 0:
+            raise ValueError(
+                "SCHEDULER_OFFLINE_AFTER_SECONDS "
+                "deve ser maior que zero."
+            )
+
+        if (
+            self.scheduler_offline_after_seconds
+            <= self.scheduler_heartbeat_seconds
+        ):
+            raise ValueError(
+                "SCHEDULER_OFFLINE_AFTER_SECONDS "
+                "deve ser maior que "
+                "SCHEDULER_HEARTBEAT_SECONDS."
+            )
+
+        if not self.scheduler_instance_name:
+            raise ValueError(
+                "SCHEDULER_INSTANCE_NAME "
+                "não pode ficar vazio."
             )
 
 

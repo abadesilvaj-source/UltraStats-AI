@@ -5,9 +5,14 @@ from app.core.config import settings
 from app.core.logging_config import (
     configure_collector_logging,
 )
+from app.database.session import SessionLocal
 from app.scheduler import (
     SchedulerService,
     run_scheduled_sync,
+    update_scheduler_heartbeat,
+)
+from app.services import (
+    SchedulerHeartbeatService,
 )
 
 
@@ -24,6 +29,25 @@ def main() -> None:
         )
         return
 
+    heartbeat_session = SessionLocal()
+
+    try:
+        heartbeat_service = (
+            SchedulerHeartbeatService(
+                heartbeat_session
+            )
+        )
+
+        heartbeat_service.register_start(
+            instance_name=(
+                settings.scheduler_instance_name
+            ),
+            provider=settings.sync_provider,
+        )
+
+    finally:
+        heartbeat_session.close()
+
     scheduler = SchedulerService()
 
     scheduler.add_interval_job(
@@ -32,6 +56,15 @@ def main() -> None:
             settings.sync_interval_minutes
         ),
         job_id="sports_data_sync",
+        run_immediately=True,
+    )
+
+    scheduler.add_seconds_job(
+        func=update_scheduler_heartbeat,
+        seconds=(
+            settings.scheduler_heartbeat_seconds
+        ),
+        job_id="scheduler_heartbeat",
         run_immediately=True,
     )
 
@@ -69,6 +102,30 @@ def main() -> None:
         )
 
     finally:
+        heartbeat_session = SessionLocal()
+
+        try:
+            heartbeat_service = (
+                SchedulerHeartbeatService(
+                    heartbeat_session
+                )
+            )
+
+            heartbeat_service.register_stop(
+                settings.scheduler_instance_name
+            )
+
+        except Exception as error:
+            heartbeat_session.rollback()
+
+            logger.exception(
+                "Erro ao registrar parada: %s",
+                error,
+            )
+
+        finally:
+            heartbeat_session.close()
+
         scheduler.shutdown()
 
         logger.info(

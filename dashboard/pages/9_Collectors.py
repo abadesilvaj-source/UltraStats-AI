@@ -77,6 +77,10 @@ st.caption(
 
 scheduler_status = load_scheduler_status()
 
+persistent_status = scheduler_status[
+    "persistent_status"
+]
+
 
 st.subheader("Status do Scheduler")
 
@@ -123,6 +127,57 @@ scheduler_column_4.metric(
     ),
 )
 
+if persistent_status.get(
+    "registered",
+    False,
+):
+    st.write(
+        f"**Instância:** "
+        f"{persistent_status['instance_name']}"
+    )
+
+    st.write(
+        f"**Host:** "
+        f"{persistent_status.get('hostname') or '-'}"
+    )
+
+    st.write(
+        f"**PID:** "
+        f"{persistent_status.get('process_id') or '-'}"
+    )
+
+    st.write(
+        f"**Último heartbeat:** "
+        f"{persistent_status.get('last_heartbeat_at')}"
+    )
+
+    st.write(
+        f"**Segundos desde o heartbeat:** "
+        f"{persistent_status.get('seconds_since_heartbeat', 0):.1f}"
+    )
+
+    if persistent_status["online"]:
+        st.success(
+            "Scheduler online e enviando heartbeat."
+        )
+
+    else:
+        st.error(
+            "Scheduler offline ou sem heartbeat recente."
+        )
+
+    if persistent_status.get(
+        "last_error"
+    ):
+        st.error(
+            persistent_status["last_error"]
+        )
+
+else:
+    st.warning(
+        "Nenhuma instância do scheduler "
+        "foi registrada ainda."
+    )
 
 st.write(
     f"**Provedor configurado:** "

@@ -13,6 +13,8 @@ from app.scheduler.scheduler_state import (
 )
 from app.services import CollectorOrchestratorService
 
+from app.services import SchedulerHeartbeatService
+
 
 logger = logging.getLogger(
     "ultrastats.scheduler"
@@ -83,10 +85,13 @@ def run_scheduled_sync() -> None:
     Executa a sincronização automática.
 
     Esta função:
-    - impede execução simultânea;
-    - detecta execuções antigas travadas;
+
+    - impede execuções simultâneas;
+    - marca sincronizações antigas como falhas;
+    - registra o início do job no heartbeat;
     - executa o collector;
-    - registra sucesso ou falha.
+    - registra sucesso ou falha;
+    - libera a trava ao terminar.
     """
 
     lock_acquired = scheduler_lock.acquire(
@@ -105,9 +110,27 @@ def run_scheduled_sync() -> None:
     scheduler_state.last_job_status = "running"
     scheduler_state.last_error = None
 
-    session = None
+    sync_session = None
 
     try:
+        # Registra no heartbeat que o job começou.
+        heartbeat_session = SessionLocal()
+
+        try:
+            heartbeat_service = (
+                SchedulerHeartbeatService(
+                    heartbeat_session
+                )
+            )
+
+            heartbeat_service.register_job_started(
+                settings.scheduler_instance_name
+            )
+
+        finally:
+            heartbeat_session.close()
+
+        # Verifica execuções antigas que ficaram presas.
         stale_count = mark_stale_runs()
 
         if stale_count > 0:
@@ -117,6 +140,7 @@ def run_scheduled_sync() -> None:
                 stale_count,
             )
 
+        # Nesta etapa apenas o provedor mock é suportado.
         if settings.sync_provider != "mock_provider":
             raise ValueError(
                 "O provedor configurado ainda não "
@@ -127,10 +151,10 @@ def run_scheduled_sync() -> None:
             "data/providers/mock_sports_data.json"
         )
 
-        session = SessionLocal()
+        sync_session = SessionLocal()
 
         orchestrator = CollectorOrchestratorService(
-            session
+            sync_session
         )
 
         execution = orchestrator.run(
@@ -142,18 +166,68 @@ def run_scheduled_sync() -> None:
             execution["status"]
         )
 
+        # Registra no heartbeat que o job terminou
+        # com sucesso.
+        heartbeat_session = SessionLocal()
+
+        try:
+            heartbeat_service = (
+                SchedulerHeartbeatService(
+                    heartbeat_session
+                )
+            )
+
+            heartbeat_service.register_job_finished(
+                instance_name=(
+                    settings.scheduler_instance_name
+                ),
+                status="success",
+                error=None,
+            )
+
+        finally:
+            heartbeat_session.close()
+
         logger.info(
             "Sincronização agendada concluída. "
             "Execução ID: %s | duração: %.4fs",
             execution["sync_run_id"],
-            execution[
-                "duration_seconds"
-            ],
+            execution["duration_seconds"],
         )
 
     except Exception as error:
         scheduler_state.last_job_status = "failed"
         scheduler_state.last_error = str(error)
+
+        # Registra no heartbeat que o job terminou
+        # com falha.
+        heartbeat_session = SessionLocal()
+
+        try:
+            heartbeat_service = (
+                SchedulerHeartbeatService(
+                    heartbeat_session
+                )
+            )
+
+            heartbeat_service.register_job_finished(
+                instance_name=(
+                    settings.scheduler_instance_name
+                ),
+                status="failed",
+                error=str(error),
+            )
+
+        except Exception:
+            heartbeat_session.rollback()
+
+            logger.exception(
+                "Também ocorreu um erro ao registrar "
+                "a falha no heartbeat."
+            )
+
+        finally:
+            heartbeat_session.close()
 
         logger.exception(
             "Erro na sincronização agendada: %s",
@@ -161,8 +235,8 @@ def run_scheduled_sync() -> None:
         )
 
     finally:
-        if session is not None:
-            session.close()
+        if sync_session is not None:
+           sync_session.close()
 
         scheduler_state.current_job_running = False
         scheduler_state.last_job_finished_at = (
@@ -170,3 +244,35 @@ def run_scheduled_sync() -> None:
         )
 
         scheduler_lock.release()
+        
+def update_scheduler_heartbeat() -> None:
+    """
+    Atualiza o sinal de vida persistente
+    do scheduler.
+    """
+
+    session = SessionLocal()
+
+    try:
+        service = SchedulerHeartbeatService(
+            session
+        )
+
+        service.register_heartbeat(
+            settings.scheduler_instance_name
+        )
+
+        logger.debug(
+            "Heartbeat do scheduler atualizado."
+        )
+
+    except Exception as error:
+        session.rollback()
+
+        logger.exception(
+            "Erro ao atualizar heartbeat: %s",
+            error,
+        )
+
+    finally:
+        session.close()
