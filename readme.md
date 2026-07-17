@@ -153,3 +153,10 @@ O scheduler registra seu estado na tabela:
 
 ```text
 scheduler_heartbeats
+
+## Inicialização no Windows
+
+Os scripts de inicialização estão na pasta:
+
+```text
+windows
