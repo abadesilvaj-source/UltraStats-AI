@@ -171,3 +171,53 @@ windows
 .\windows\docker_start.bat
 .\windows\docker_status.bat
 .\windows\docker_stop.bat
+
+## Logs do scheduler
+
+O scheduler utiliza a configuração centralizada de logs do UltraStats AI.
+
+Os logs são enviados simultaneamente para:
+
+- terminal do Docker;
+- arquivo persistente `logs/scheduler.log`;
+- arquivo global `logs/errors.log`, quando o nível é `ERROR` ou superior.
+
+Configurações disponíveis:
+
+```env
+LOG_LEVEL=INFO
+LOG_DIRECTORY=logs
+LOG_MAX_BYTES=5000000
+LOG_BACKUP_COUNT=5
+LOG_CONSOLE_ENABLED=true
+LOG_FILE_ENABLED=true
+
+Para acompanhar os logs pelo Docker:
+
+docker compose logs -f scheduler
+
+Para consultar o arquivo dentro do container:
+
+docker exec ultrastats_scheduler tail -n 100 /app/logs/scheduler.log
+
+## Logs do Dashboard
+
+O Dashboard utiliza a configuração centralizada de logs.
+
+Os eventos são gravados em:
+
+```text
+logs/dashboard.log
+
+Erros também são enviados para:
+
+logs/errors.log
+
+## Diagnóstico de logging
+
+A configuração centralizada de logs pode ser inspecionada pela função:
+
+```python
+from app.core.logging_config import (
+    get_logging_status,
+)

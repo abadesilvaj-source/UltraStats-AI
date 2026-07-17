@@ -4,8 +4,9 @@ import time
 
 from app.core.config import settings
 from app.core.logging_config import (
-    configure_collector_logging,
+    configure_logging,
 )
+
 from app.database.session import SessionLocal
 from app.scheduler import (
     SchedulerService,
@@ -43,15 +44,13 @@ def run_heartbeat_loop(
         )
 
 def main() -> None:
-    configure_collector_logging()
-
-    logger = logging.getLogger(
-        "ultrastats.scheduler"
+    logger = configure_logging(
+        service_name="scheduler"
     )
 
     if not settings.sync_enabled:
-        print(
-            "Scheduler desativado pelo .env."
+        logger.warning(
+            "Scheduler desativado pela configuração."
         )
         return
 
@@ -100,31 +99,20 @@ def main() -> None:
 
     scheduler.start()
 
-    print("\nSCHEDULER INICIADO")
-    print("=" * 60)
-
-    print(
-        f"Instância: "
-        f"{settings.scheduler_instance_name}"
+    logger.info(
+        "Scheduler iniciado | "
+        "instância=%s | "
+        "provedor=%s | "
+        "intervalo_sync=%s minuto(s) | "
+        "intervalo_heartbeat=%s segundo(s)",
+        settings.scheduler_instance_name,
+        settings.sync_provider,
+        settings.sync_interval_minutes,
+        settings.scheduler_heartbeat_seconds,
     )
 
-    print(
-        f"Provedor: "
-        f"{settings.sync_provider}"
-    )
-
-    print(
-        f"Intervalo de sincronização: "
-        f"{settings.sync_interval_minutes} minuto(s)"
-    )
-
-    print(
-        f"Intervalo do heartbeat: "
-        f"{settings.scheduler_heartbeat_seconds} segundo(s)"
-    )
-
-    print(
-        "Pressione Ctrl+C para encerrar."
+    logger.info(
+        "Scheduler aguardando execuções."
     )
 
     try:
@@ -132,8 +120,8 @@ def main() -> None:
             time.sleep(1)
 
     except KeyboardInterrupt:
-        print(
-            "\nEncerrando scheduler..."
+        logger.info(
+            "Solicitação de encerramento recebida."
         )
 
 
@@ -175,11 +163,6 @@ def main() -> None:
         logger.info(
             "Scheduler encerrado."
         )
-
-        print(
-            "Scheduler encerrado com sucesso."
-        )
-
 
 if __name__ == "__main__":
     main()

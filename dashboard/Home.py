@@ -14,6 +14,9 @@ if str(PROJECT_ROOT) not in sys.path:
         str(PROJECT_ROOT),
     )
 
+from app.core.logging_config import (
+    configure_logging,
+)
 
 from app.database.session import SessionLocal
 from dashboard.components import (
@@ -23,6 +26,9 @@ from dashboard.services import (
     DashboardService,
 )
 
+logger = configure_logging(
+    service_name="dashboard"
+)
 
 st.set_page_config(
     page_title="UltraStats AI",
@@ -30,6 +36,9 @@ st.set_page_config(
     layout="wide",
 )
 
+logger.info(
+    "Página principal do Dashboard carregada."
+)
 
 @st.cache_data(ttl=30)
 def load_home_data() -> dict:

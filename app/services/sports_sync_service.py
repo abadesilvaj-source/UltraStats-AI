@@ -1,3 +1,6 @@
+import logging
+from time import perf_counter
+
 from sqlalchemy.orm import Session
 
 from app.collectors import (
@@ -14,6 +17,9 @@ from app.repositories import (
     TeamRepository,
 )
 
+logger = logging.getLogger(
+    "ultrastats.collectors"
+)
 
 class SportsSyncService:
     """
@@ -327,6 +333,13 @@ class SportsSyncService:
         Sincroniza tudo em uma transação.
         """
 
+        started_at = perf_counter()
+
+        logger.info(
+            "Sincronização iniciada | provider=%s",
+            collector.source_name,
+        )
+
         try:
             competition_result = (
                 self.sync_competitions(
@@ -344,7 +357,7 @@ class SportsSyncService:
 
             self.session.commit()
 
-            return {
+            result = {
                 "source": collector.source_name,
                 "competitions": (
                     competition_result
@@ -353,6 +366,41 @@ class SportsSyncService:
                 "matches": match_result,
             }
 
+            duration_seconds = (
+                perf_counter()
+                - started_at
+            )
+
+            logger.info(
+                "Sincronização concluída | "
+                "provider=%s | "
+                "duração=%.2fs | "
+                "competições=%s | "
+                "equipes=%s | "
+                "partidas=%s",
+                collector.source_name,
+                duration_seconds,
+                competition_result,
+                team_result,
+                match_result,
+            )
+
+            return result
+
         except Exception:
             self.session.rollback()
+
+            duration_seconds = (
+                perf_counter()
+                - started_at
+            )
+
+            logger.exception(
+                "Falha na sincronização | "
+                "provider=%s | "
+                "duração=%.2fs",
+                collector.source_name,
+                duration_seconds,
+            )
+
             raise

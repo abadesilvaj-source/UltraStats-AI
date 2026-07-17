@@ -130,6 +130,13 @@ class Settings:
                 "SCHEDULER_INSTANCE_NAME "
                 "não pode ficar vazio."
             )
+    # Logging
+    log_level: str = "INFO"
+    log_directory: str = "logs"
+    log_max_bytes: int = 5_000_000
+    log_backup_count: int = 5
+    log_console_enabled: bool = True
+    log_file_enabled: bool = True        
 
 
 settings = Settings()

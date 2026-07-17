@@ -40,3 +40,7 @@ reports/generated/
 .mypy_cache/
 
 docker-compose.backup.yml
+
+# Logs gerados pela aplicação
+logs/*
+!logs/.gitkeep
