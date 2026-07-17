@@ -160,3 +160,14 @@ Os scripts de inicialização estão na pasta:
 
 ```text
 windows
+
+
+
+## Inicialização
+
+### Produção / Desenvolvimento (recomendado)
+
+```powershell
+.\windows\docker_start.bat
+.\windows\docker_status.bat
+.\windows\docker_stop.bat
