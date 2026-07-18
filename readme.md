@@ -251,3 +251,59 @@ PROVIDER_HTTP_MAX_RETRIES=3
 PROVIDER_HTTP_RETRY_DELAY_SECONDS=1
 PROVIDER_DEFAULT_REQUESTS_PER_MINUTE=10
 PROVIDER_USER_AGENT=UltraStats-AI/1.0
+
+
+## Framework de providers
+
+O UltraStats AI utiliza um contrato comum para integrar diferentes fontes de dados esportivos.
+
+Componentes principais:
+
+```text
+app/providers/base.py
+app/providers/registry.py
+app/providers/mock_provider.py
+```
+
+Cada provider declara:
+
+- nome interno;
+- nome de exibição;
+- capacidades suportadas;
+- necessidade de chave de API;
+- disponibilidade da integração;
+- verificação de saúde.
+
+O registro global permite selecionar um provider pelo nome:
+
+```python
+from app.providers import (
+    provider_registry,
+)
+
+provider = provider_registry.create(
+    "mock"
+)
+```
+
+O provider padrão pode ser configurado no ambiente:
+
+```env
+PROVIDER_NAME=mock
+```
+
+Capacidades previstas:
+
+```text
+competitions
+teams
+matches
+standings
+players
+lineups
+injuries
+match_events
+match_statistics
+odds
+expected_goals
+```

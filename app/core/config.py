@@ -139,6 +139,7 @@ class Settings:
     log_file_enabled: bool = True        
     
     # Providers
+    provider_name: str = "mock"
     provider_http_timeout_seconds: float = 15.0
     provider_http_max_retries: int = 3
     provider_http_retry_delay_seconds: float = 1.0

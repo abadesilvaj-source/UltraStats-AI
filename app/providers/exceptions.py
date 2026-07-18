@@ -67,3 +67,21 @@ class ProviderDataError(
     Indica que a resposta recebida não
     possui o formato esperado.
     """
+
+    
+
+class ProviderRegistrationError(
+    ProviderError
+):
+    """
+    Indica uma falha ao registrar uma
+    implementação de provider.
+    """
+    
+class ProviderNotFoundError(
+    ProviderError
+):
+    """
+    Indica que o provider solicitado
+    não está registrado.
+    """
