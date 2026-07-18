@@ -229,6 +229,13 @@ Não contém probabilidades de aposta nem recomendações.
 
 ---
 
+Documentos detalhados:
+
+- `docs/architecture/football-domain.md`
+- `docs/architecture/provider-identity-mappings.md`
+- `docs/architecture/match-lifecycle.md`
+
+
 ## 9. Statistics Context
 
 Responsável por estatísticas observadas e derivadas.

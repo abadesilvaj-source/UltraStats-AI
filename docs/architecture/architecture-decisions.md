@@ -235,3 +235,142 @@ Consequência:
 
 A interface deverá incluir comunicação de risco e recursos de jogo
 responsável.
+
+
+---
+
+## ADR-018 — UUID como identificador canônico
+
+**Status:** Aprovada
+
+### Decisão
+
+Todas as entidades canônicas do UltraStats AI utilizarão identificadores internos
+(UUID), independentes dos identificadores fornecidos pelos provedores externos.
+
+### Motivação
+
+Cada provedor utiliza seus próprios identificadores. Caso esses IDs sejam usados
+como chave principal do sistema, a troca ou inclusão de novos provedores se torna
+complexa.
+
+Ao utilizar um UUID interno, a identidade da entidade permanece estável mesmo
+que um provedor seja removido ou substituído.
+
+### Consequências
+
+- O domínio passa a ser independente dos provedores.
+- Um mesmo objeto pode possuir vários identificadores externos.
+- Os identificadores externos serão armazenados em estruturas de mapeamento.
+
+---
+
+## ADR-019 — Histórico de vínculos esportivos
+
+**Status:** Aprovada
+
+### Decisão
+
+Os vínculos entre jogadores, treinadores, equipes e estádios deverão preservar
+o histórico completo.
+
+### Motivação
+
+Jogadores mudam de clube.
+
+Treinadores mudam de equipe.
+
+Clubes mudam de estádio.
+
+Essas alterações não podem sobrescrever informações antigas.
+
+### Consequências
+
+- Transferências poderão ser analisadas historicamente.
+- Estatísticas antigas continuarão consistentes.
+- Modelos preditivos poderão utilizar informações históricas.
+
+---
+
+## ADR-020 — Partidas possuem ciclo de vida explícito
+
+**Status:** Aprovada
+
+### Decisão
+
+Uma partida deverá possuir estados bem definidos e transições controladas.
+
+### Motivação
+
+Nem todas as partidas seguem o fluxo simples:
+
+```text
+Agendada → Em andamento → Finalizada
+```
+
+Também existem situações como:
+
+- adiamento;
+- atraso;
+- suspensão;
+- abandono;
+- resultado administrativo;
+- disputa por pênaltis.
+
+### Consequências
+
+O sistema poderá tratar corretamente cada situação sem ambiguidades.
+
+---
+
+## ADR-021 — Escalação provável e confirmada são registros diferentes
+
+**Status:** Aprovada
+
+### Decisão
+
+Escalações previstas e escalações confirmadas deverão ser armazenadas como
+registros independentes.
+
+### Motivação
+
+Uma escalação provável representa uma previsão.
+
+Uma escalação confirmada representa um fato observado.
+
+A previsão não deve ser perdida quando a confirmação ocorrer.
+
+### Consequências
+
+Será possível:
+
+- comparar previsão e realidade;
+- medir a qualidade das previsões;
+- analisar o impacto das alterações de última hora.
+
+---
+
+## ADR-022 — Dados históricos não serão removidos por inatividade
+
+**Status:** Aprovada
+
+### Decisão
+
+Entidades esportivas históricas utilizarão inativação lógica.
+
+### Motivação
+
+Equipes, jogadores, treinadores e competições antigas continuam sendo
+referenciados por partidas e estatísticas.
+
+Removê-los fisicamente quebraria o histórico.
+
+### Consequências
+
+Será utilizado, sempre que aplicável:
+
+```text
+is_active = false
+```
+
+A exclusão física ficará restrita a registros criados por erro ou duplicidade.
