@@ -221,3 +221,33 @@ A configuração centralizada de logs pode ser inspecionada pela função:
 from app.core.logging_config import (
     get_logging_status,
 )
+
+## Cliente HTTP para providers
+
+O UltraStats AI possui um cliente HTTP reutilizável para integração com APIs externas.
+
+Recursos:
+
+- timeout configurável;
+- retries automáticos;
+- backoff progressivo;
+- controle de requisições por minuto;
+- tratamento padronizado de falhas;
+- suporte ao cabeçalho `Retry-After`;
+- logs;
+- testes com transporte HTTP simulado.
+
+Componentes:
+
+```text
+app/providers/http_client.py
+app/providers/rate_limiter.py
+app/providers/exceptions.py
+
+Configurações:
+
+PROVIDER_HTTP_TIMEOUT_SECONDS=15
+PROVIDER_HTTP_MAX_RETRIES=3
+PROVIDER_HTTP_RETRY_DELAY_SECONDS=1
+PROVIDER_DEFAULT_REQUESTS_PER_MINUTE=10
+PROVIDER_USER_AGENT=UltraStats-AI/1.0

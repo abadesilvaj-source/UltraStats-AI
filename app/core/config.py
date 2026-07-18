@@ -137,6 +137,14 @@ class Settings:
     log_backup_count: int = 5
     log_console_enabled: bool = True
     log_file_enabled: bool = True        
-
+    
+    # Providers
+    provider_http_timeout_seconds: float = 15.0
+    provider_http_max_retries: int = 3
+    provider_http_retry_delay_seconds: float = 1.0
+    provider_default_requests_per_minute: int = 10
+    provider_user_agent: str = (
+        "UltraStats-AI/1.0"
+    )
 
 settings = Settings()
