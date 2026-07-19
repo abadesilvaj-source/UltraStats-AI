@@ -73,6 +73,7 @@ docs/architecture/context-map.md
 docs/architecture/architecture-decisions.md
 docs/architecture/canonical-domain-model.md
 docs/architecture/domain-aggregates-and-rules.md
+docs/architecture/package-structure.md
 ```
 
 ### 3.1 Domain Overview
@@ -190,8 +191,38 @@ Responsabilidade:
 - definir arquitetura preditiva.
 
 O documento descreve como o domínio se comporta.
-
 ---
+---
+
+### 3.6 Package Structure
+
+Arquivo:
+
+```text
+docs/architecture/package-structure.md
+```
+
+Responsabilidade:
+
+- definir a estrutura dos pacotes Python;
+- definir a separação entre camadas;
+- definir a direção das dependências;
+- registrar dependências proibidas;
+- organizar os Bounded Contexts;
+- orientar a estrutura dos testes.
+
+Este documento estabelece a organização física do código-fonte e as regras de
+dependência entre os módulos da aplicação.
+
+Ele complementa a arquitetura definida em:
+
+```text
+canonical-domain-model.md
+domain-aggregates-and-rules.md
+```
+
+Enquanto esses documentos definem **o domínio**, o `package-structure.md`
+define **como o código será organizado para implementá-lo**.
 
 ## 4. Relação entre os documentos de arquitetura
 

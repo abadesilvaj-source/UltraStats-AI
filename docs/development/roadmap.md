@@ -622,9 +622,19 @@ Escopo:
 Status:
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
+Entregas concluídas:
 
+- estrutura principal de pacotes;
+- separação entre domínio, aplicação, infraestrutura e interfaces;
+- pacotes iniciais dos Bounded Contexts;
+- estrutura inicial dos testes;
+- arquivos `__init__.py`;
+- documentação da estrutura de pacotes;
+- regras de dependência;
+- regras de importação;
+- convenções de nomenclatura.
 ---
 
 ### G5.2 — Base Compartilhada do Domínio
@@ -645,7 +655,7 @@ Escopo:
 Status:
 
 ```text
-PLANEJADO
+PRÓXIMO
 ```
 
 ---
@@ -1484,19 +1494,16 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Subfase atual:
+G5.2 — Base Compartilhada do Domínio
+
+Última etapa concluída:
 G5.1 — Estrutura dos Pacotes do Domínio
 
-Última fase concluída:
-G4 — Arquitetura do Domínio
-
-Última entrega concluída:
-G4.D — Organização da Documentação
-
 Objetivo atual:
-Criar a estrutura oficial de pacotes do domínio.
+Implementar as abstrações fundamentais compartilhadas pelo domínio.
 
 Próxima etapa:
-G5.2 — Base Compartilhada do Domínio
+G5.3 — Value Objects e Tipos Canônicos
 ```
 ---
 
