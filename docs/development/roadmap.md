@@ -542,13 +542,27 @@ EM ANDAMENTO
 ### Status geral da G4
 
 ```text
-EM ANDAMENTO
+CONCLUÍDO
 ```
 
-A arquitetura técnica principal está concluída.
+A arquitetura conceitual do UltraStats AI encontra-se oficialmente concluída.
 
-A G4 permanecerá em andamento até a conclusão da G4.D e da revisão final da
-documentação.
+Foram finalizadas:
+
+- Arquitetura do Domínio;
+- Modelo Canônico;
+- Arquitetura dos Agregados;
+- Regras de Domínio;
+- Arquitetura de Providers;
+- Arquitetura de Dados;
+- Organização da Documentação.
+
+A partir deste ponto, alterações estruturais deverão ser realizadas
+preferencialmente por meio de novas decisões arquiteturais (ADR) ou pela
+evolução controlada da documentação existente.
+
+A próxima fase do projeto será a implementação do domínio canônico (G5).
+
 ---
 
 ## 7. G5 — Domínio Canônico
@@ -1066,11 +1080,26 @@ PLANEJADO
 ### Status geral da G5
 
 ```text
-PLANEJADO
+PRONTO PARA INICIAR
 ```
 
-A fase será iniciada somente após a conclusão da G4.D.
+A arquitetura necessária para implementação do domínio foi concluída durante a
+G4.
+
+O desenvolvimento da G5 deverá seguir rigorosamente os documentos:
+
+```text
+docs/architecture/canonical-domain-model.md
+docs/architecture/domain-aggregates-and-rules.md
+```
+
+Primeira etapa autorizada:
+
+```text
+G5.1 — Estrutura dos Pacotes do Domínio
+```
 ---
+
 ## 8. G6 — Integração com Providers
 
 ### Objetivo
@@ -1450,25 +1479,24 @@ O desenvolvimento deverá seguir estes princípios:
 ---
 
 ## 19. Status atual
-
 ```text
 Fase principal atual:
-G4 — Arquitetura do Domínio
-
-Subfase atual:
-G4.D — Organização da Documentação
-
-Última etapa técnica concluída:
-G4.A.4 — Arquitetura dos Agregados e Regras do Domínio
-
-Atividade atual:
-Atualização dos índices, READMEs, referências cruzadas, changelog e roadmap
-
-Próxima fase principal:
 G5 — Domínio Canônico
 
-Primeira etapa prevista do G5:
+Subfase atual:
 G5.1 — Estrutura dos Pacotes do Domínio
+
+Última fase concluída:
+G4 — Arquitetura do Domínio
+
+Última entrega concluída:
+G4.D — Organização da Documentação
+
+Objetivo atual:
+Criar a estrutura oficial de pacotes do domínio.
+
+Próxima etapa:
+G5.2 — Base Compartilhada do Domínio
 ```
 ---
 
@@ -1504,3 +1532,21 @@ Cada atualização deverá revisar, no mínimo:
 
 O roadmap não deverá indicar uma etapa como concluída enquanto ainda existirem
 entregas obrigatórias de documentação, revisão ou validação associadas a ela.
+---
+
+## Histórico de marcos
+
+```text
+✔ G1 concluído
+✔ G2 concluído
+✔ G3 concluído
+✔ G4 concluído
+
+Próxima grande fase:
+G5 — Domínio Canônico
+```
+
+A G4 representa o congelamento da arquitetura do UltraStats AI.
+
+Toda implementação realizada a partir da G5 deverá respeitar a arquitetura
+definida nos documentos oficiais do domínio.

@@ -1,472 +1,451 @@
 # UltraStats AI
 
-Plataforma de análise quantitativa para apostas esportivas focada exclusivamente em futebol.
+O UltraStats AI é uma plataforma de análise estatística, modelagem preditiva e
+avaliação de oportunidades em partidas de futebol.
+
+O projeto foi estruturado para reunir dados esportivos provenientes de múltiplas
+fontes, transformá-los em um modelo canônico independente de providers e
+utilizá-los na produção de estatísticas, probabilidades, previsões e
+recomendações.
 
 ---
 
-# Objetivos
+## 1. Objetivo do projeto
 
-O UltraStats AI tem como principais objetivos:
+O objetivo do UltraStats AI é construir uma plataforma capaz de:
 
-- armazenar partidas e estatísticas de futebol;
-- consolidar dados provenientes de múltiplos provedores;
-- calcular probabilidades utilizando modelos estatísticos;
-- comparar probabilidades com odds de casas de apostas;
-- identificar apostas com valor esperado positivo (Expected Value);
-- registrar previsões;
-- auditar resultados;
-- acompanhar métricas de desempenho como ROI, Yield e Drawdown;
-- fornecer recomendações explicáveis para apostas esportivas.
-
----
-
-# Tecnologias
-
-- Python
-- PostgreSQL
-- SQLAlchemy
-- Alembic
-- Docker
-- Docker Compose
-- Pandas
-- Streamlit
-- Git
+- coletar dados de múltiplos providers;
+- armazenar payloads brutos;
+- normalizar dados externos;
+- resolver identidades;
+- consolidar informações conflitantes;
+- manter um domínio canônico de futebol;
+- produzir estatísticas históricas;
+- gerar features;
+- executar modelos preditivos;
+- calcular probabilidades próprias;
+- calcular odds justas;
+- identificar oportunidades;
+- avaliar risco;
+- registrar apostas e movimentações de banca;
+- acompanhar o desempenho das previsões;
+- preservar histórico, auditoria e proveniência.
 
 ---
 
-# Status
+## 2. Princípios arquiteturais
 
-## Etapa atual
+O UltraStats AI segue os seguintes princípios:
 
-O projeto encontra-se na etapa **G4.A.2 — Entidades Centrais do Futebol**.
-
-Documentos principais:
-
-- `docs/architecture/domain-overview.md`
-- `docs/architecture/architecture-decisions.md`
-- `docs/architecture/context-map.md`
-- `docs/architecture/football-domain.md`
-- `docs/architecture/provider-identity-mappings.md`
-- `docs/architecture/match-lifecycle.md`
-
-Projeto em desenvolvimento.
-
----
-
-# Arquitetura atual
-
-O projeto utiliza uma arquitetura em camadas.
-
-- `models` representam as entidades persistidas.
-- `repositories` concentram acesso ao banco de dados.
-- `services` implementam as regras de negócio.
-- `schemas` realizam validação e serialização.
-- `core` contém configurações globais.
-- `database` concentra infraestrutura de persistência.
-- `utils` contém funções auxiliares reutilizáveis.
-- `scripts` executam operações administrativas.
-- `tests` validam o comportamento da aplicação.
+- domínio independente de providers;
+- separação entre dados brutos, normalizados, canônicos e derivados;
+- identidade canônica própria;
+- histórico preservado;
+- proveniência rastreável;
+- processamento idempotente;
+- integração orientada a eventos;
+- consistência forte dentro dos agregados;
+- consistência eventual entre contextos;
+- modelos preditivos versionados;
+- previsões imutáveis;
+- documentação sincronizada com o desenvolvimento.
 
 ---
 
-# Estrutura principal
+## 3. Arquitetura geral
+
+O fluxo principal de dados será:
 
 ```text
-app/
-├── core/
-├── database/
-├── models/
-├── repositories/
-├── schemas/
-├── services/
-└── utils/
-```
----
-
-# Gestão de risco
-
-O Dashboard Pro possui um simulador de stake baseado em:
-
-- probabilidade estimada;
-- odd decimal;
-- valor esperado;
-- Kelly Criterion;
-- Kelly fracionado;
-- limite máximo por aposta;
-- exposição diária;
-- perfis conservador, moderado e agressivo.
-
----
-
-# Operações financeiras
-
-O Dashboard Pro permite:
-
-- criar bancas;
-- realizar depósitos;
-- realizar retiradas;
-- realizar ajustes administrativos;
-- ativar ou desativar bancas;
-- consultar o histórico financeiro.
-
----
-
-# Criação de apostas
-
-O Dashboard Pro permite:
-
-- selecionar uma partida aberta;
-- selecionar o mercado;
-- informar odd e probabilidade;
-- simular Kelly e stake;
-- aplicar o perfil de risco;
-- registrar uma aposta oficial;
-- debitar automaticamente a banca;
-- impedir apostas duplicadas ou em partidas encerradas.
-
----
-
-# Liquidação administrativa
-
-O Dashboard Pro permite:
-
-- selecionar uma partida aberta;
-- informar o placar oficial;
-- registrar escanteios, cartões e finalizações;
-- registrar posse de bola;
-- registrar xG;
-- encerrar a partida;
-- liquidar apostas pendentes;
-- calcular lucro ou prejuízo;
-- atualizar automaticamente a banca;
-- criar auditorias pós-jogo.
-
----
-
-# Cliente HTTP esportivo
-
-A camada HTTP do UltraStats AI possui:
-
-- API Key em variáveis de ambiente;
-- timeout configurável;
-- tentativas automáticas (retries);
-- tratamento para HTTP 401, 403, 429 e erros 5xx;
-- validação de JSON;
-- logs em arquivo;
-- modo sandbox;
-- testes utilizando `httpx.MockTransport`.
-
-As credenciais reais devem permanecer exclusivamente no arquivo `.env`.
-
----
-
-# Monitoramento de sincronizações
-
-Cada execução de um collector é registrada na tabela:
-
-```text
-sync_runs
-```
-
-As seguintes informações são armazenadas:
-
-- provedor;
-- status;
-- horário de início;
-- horário de término;
-- duração;
-- quantidade de registros criados;
-- quantidade de registros atualizados;
-- quantidade de entidades vinculadas;
-- partidas ignoradas;
-- mensagem de erro;
-- origem da execução.
-
-## Execução manual
-
-```powershell
-python -m scripts.sync_mock_provider
-```
----
-
-# Scheduler automático
-
-O UltraStats AI pode executar sincronizações automaticamente por meio de um scheduler.
-
-## Configuração
-
-```env
-SYNC_ENABLED=true
-SYNC_INTERVAL_MINUTES=60
-SYNC_PROVIDER=mock_provider
-SYNC_MAX_RUNTIME_MINUTES=20
-```
-
----
-
-# Heartbeat do scheduler
-
-O scheduler registra periodicamente seu estado na tabela:
-
-```text
-scheduler_heartbeats
-```
-
-Esse mecanismo permite verificar se o scheduler continua ativo mesmo quando nenhuma sincronização está sendo executada.
-
----
-
-# Inicialização no Windows
-
-Os scripts auxiliares para execução local encontram-se em:
-
-```text
-windows/
-```
-
-## Produção / Desenvolvimento
-
-```powershell
-.\windows\docker_start.bat
-.\windows\docker_status.bat
-.\windows\docker_stop.bat
-```
-
----
-
-# Logs do scheduler
-
-O scheduler utiliza a configuração centralizada de logs do UltraStats AI.
-
-Os registros são enviados simultaneamente para:
-
-- terminal do Docker;
-- arquivo persistente `logs/scheduler.log`;
-- arquivo global `logs/errors.log`, quando o nível for `ERROR` ou superior.
-
-## Configuração
-
-```env
-LOG_LEVEL=INFO
-LOG_DIRECTORY=logs
-LOG_MAX_BYTES=5000000
-LOG_BACKUP_COUNT=5
-LOG_CONSOLE_ENABLED=true
-LOG_FILE_ENABLED=true
-```
-
-### Acompanhar logs pelo Docker
-
-```powershell
-docker compose logs -f scheduler
-```
-
-### Consultar o arquivo dentro do container
-
-```powershell
-docker exec ultrastats_scheduler tail -n 100 /app/logs/scheduler.log
-```
-
----
-
-# Logs do Dashboard
-
-O Dashboard utiliza a configuração centralizada de logs.
-
-Os eventos são gravados em:
-
-```text
-logs/dashboard.log
-```
-
-Erros também são registrados em:
-
-```text
-logs/errors.log
-```
-
----
-
-# Diagnóstico de logging
-
-A configuração centralizada pode ser inspecionada utilizando:
-
-```python
-from app.core.logging_config import (
-    get_logging_status,
-)
-```
-
-Essa função permite verificar rapidamente a configuração atual do sistema de logging.
-
----
-
-# Cliente HTTP para providers
-
-O UltraStats AI possui um cliente HTTP reutilizável para integração com APIs esportivas externas.
-
-## Recursos
-
-- timeout configurável;
-- tentativas automáticas (retries);
-- backoff progressivo;
-- controle de requisições por minuto (Rate Limiting);
-- tratamento padronizado de falhas;
-- suporte ao cabeçalho `Retry-After`;
-- logging centralizado;
-- testes utilizando transporte HTTP simulado.
-
-## Componentes
-
-```text
-app/providers/http_client.py
-app/providers/rate_limiter.py
-app/providers/exceptions.py
-```
-
-## Configurações
-
-```env
-PROVIDER_HTTP_TIMEOUT_SECONDS=15
-PROVIDER_HTTP_MAX_RETRIES=3
-PROVIDER_HTTP_RETRY_DELAY_SECONDS=1
-PROVIDER_DEFAULT_REQUESTS_PER_MINUTE=10
-PROVIDER_USER_AGENT=UltraStats-AI/1.0
-```
-
----
-
-# Framework de Providers
-
-O UltraStats AI utiliza um framework próprio para integração com múltiplos provedores de dados esportivos.
-
-Todos os providers implementam uma interface comum, permitindo adicionar novos provedores sem alterar a lógica de negócio da aplicação.
-
-## Componentes principais
-
-```text
-app/providers/base.py
-app/providers/registry.py
-app/providers/mock_provider.py
-```
-
-Cada provider declara:
-
-- nome interno;
-- nome de exibição;
-- capacidades suportadas;
-- necessidade de API Key;
-- disponibilidade da integração;
-- verificação de saúde (Health Check).
-
-O registro global permite instanciar um provider pelo seu nome:
-
-```python
-from app.providers import provider_registry
-
-provider = provider_registry.create("mock")
-```
-
-O provider padrão pode ser definido por variável de ambiente:
-
-```env
-PROVIDER_NAME=mock
-```
-
----
-
-# Capacidades previstas para os providers
-
-Os providers poderão fornecer uma ou mais das seguintes capacidades:
-
-```text
-competitions
-teams
-matches
-standings
-players
-coaches
-referees
-stadiums
-lineups
-injuries
-suspensions
-match_events
-match_statistics
-odds
-expected_goals
-```
-
-Cada provider informará quais dessas capacidades suporta, permitindo que o sistema adapte automaticamente o fluxo de sincronização.
-
----
-
-# Visão de longo prazo
-
-A arquitetura do UltraStats AI foi projetada para trabalhar com múltiplos provedores simultaneamente.
-
-O fluxo geral de processamento seguirá a seguinte estrutura:
-
-```text
-Providers
-      │
-      ▼
+Providers externos
+    ↓
 Collectors
-      │
-      ▼
+    ↓
+Raw Payloads
+    ↓
+Validação
+    ↓
 Normalização
-      │
-      ▼
-Resolução de Identidade
-      │
-      ▼
-Data Fusion Engine
-      │
-      ▼
-Domínio Canônico
-      │
-      ▼
-Banco PostgreSQL
-      │
-      ▼
-Motor Estatístico
-      │
-      ▼
-Modelos Preditivos
-      │
-      ▼
-Dashboard / API
+    ↓
+Resolução de identidade
+    ↓
+Fusão de dados
+    ↓
+Domínio canônico
+    ↓
+Estatísticas e features
+    ↓
+Modelos preditivos
+    ↓
+Previsões
+    ↓
+Recomendações
+    ↓
+Gestão de risco e banca
 ```
 
-Os dados provenientes dos provedores **nunca serão gravados diretamente nas tabelas principais**.
+---
 
-Todo dado deverá passar pelas etapas de:
+## 4. Contextos principais
 
-- validação;
+A arquitetura foi dividida em contextos responsáveis por áreas específicas do
+domínio.
+
+```text
+Geography
+Competition
+People
+Team
+Match
+Identity Resolution
+Data Fusion
+Betting Market
+Statistics
+Prediction
+Recommendation
+Risk and Portfolio
+Provider Integration
+```
+
+Cada contexto possui responsabilidades próprias e não deverá alterar diretamente
+dados pertencentes a outro contexto.
+
+---
+
+## 5. Domínio canônico
+
+O domínio canônico representa a visão oficial dos dados dentro do UltraStats AI.
+
+Ele não deverá utilizar diretamente:
+
+- nomes de campos específicos de providers;
+- identificadores externos como identificadores principais;
+- status exclusivos de uma API;
+- estruturas particulares de payloads;
+- regras implícitas de uma única fonte.
+
+Os providers serão integrados por meio de:
+
+- identificadores externos;
 - normalização;
 - resolução de identidade;
 - fusão de dados;
-- persistência no domínio canônico.
+- proveniência;
+- comandos canônicos.
 
 ---
 
-# Estado atual do projeto
+## 6. Documentação
 
-Atualmente o projeto encontra-se na construção da arquitetura do domínio do futebol.
+A documentação principal está localizada em:
 
-As próximas etapas incluem:
+```text
+docs/
+```
 
-- modelagem das entidades canônicas;
-- implementação do domínio em SQLAlchemy;
-- integração com provedores reais;
-- resolução automática de identidade;
-- Data Fusion Engine;
-- modelos estatísticos;
-- motor de recomendações;
-- dashboard avançado.
+Índice da documentação:
+
+```text
+docs/README.md
+```
+
+Roadmap:
+
+```text
+docs/development/roadmap.md
+```
+
+Documentos arquiteturais principais:
+
+```text
+docs/architecture/domain-overview.md
+docs/architecture/context-map.md
+docs/architecture/architecture-decisions.md
+docs/architecture/canonical-domain-model.md
+docs/architecture/domain-aggregates-and-rules.md
+```
 
 ---
 
-# Licença
+## 7. Ordem recomendada de leitura
 
-Este projeto encontra-se em desenvolvimento e, até o momento, não possui uma licença pública definida.
+Para compreender o projeto:
+
+```text
+README.md
+    ↓
+docs/README.md
+    ↓
+docs/architecture/domain-overview.md
+    ↓
+docs/architecture/context-map.md
+```
+
+Para compreender o domínio:
+
+```text
+docs/architecture/canonical-domain-model.md
+    ↓
+docs/architecture/domain-aggregates-and-rules.md
+```
+
+Para acompanhar o desenvolvimento:
+
+```text
+docs/development/roadmap.md
+```
+
+---
+
+## 8. Estrutura principal do projeto
+
+A estrutura poderá evoluir durante o desenvolvimento, mas deverá preservar a
+separação entre domínio, aplicação, infraestrutura, integrações, testes e
+documentação.
+
+```text
+ultrastats-ai/
+├── src/
+├── tests/
+├── docs/
+│   ├── api/
+│   ├── architecture/
+│   ├── database/
+│   ├── deployment/
+│   ├── development/
+│   ├── images/
+│   └── providers/
+├── scripts/
+├── migrations/
+├── README.md
+└── CHANGELOG.md
+```
+
+A estrutura real do código será consolidada durante:
+
+```text
+G5.1 — Estrutura dos Pacotes do Domínio
+```
+
+---
+
+## 9. Tecnologias previstas
+
+As tecnologias deverão ser confirmadas durante as etapas de implementação.
+
+Base prevista:
+
+- Python;
+- PostgreSQL;
+- SQLAlchemy;
+- Alembic;
+- Pydantic;
+- Pytest;
+- Docker;
+- APIs HTTP;
+- processamento assíncrono;
+- modelos estatísticos e de machine learning.
+
+A adoção definitiva de bibliotecas deverá ser registrada na documentação
+arquitetural ou em decisões específicas.
+
+---
+
+## 10. Estado atual
+
+```text
+G1 — Fundação do Projeto
+CONCLUÍDO
+
+G2 — Banco de Dados
+CONCLUÍDO
+
+G3 — Coleta de Dados
+CONCLUÍDO
+
+G4 — Arquitetura do Domínio
+EM ANDAMENTO
+
+G4.A — Arquitetura do Domínio
+CONCLUÍDO
+
+G4.B — Arquitetura de Providers
+CONCLUÍDO
+
+G4.C — Arquitetura de Dados
+CONCLUÍDO
+
+G4.D — Organização da Documentação
+EM ANDAMENTO
+
+G5 — Domínio Canônico
+PLANEJADO
+```
+
+A arquitetura técnica principal da G4 está concluída.
+
+A atividade atual é finalizar a organização documental antes do início da
+implementação do domínio canônico.
+
+---
+
+## 11. Próxima fase técnica
+
+Após a conclusão da G4.D, será iniciada:
+
+```text
+G5 — Domínio Canônico
+```
+
+Primeira etapa:
+
+```text
+G5.1 — Estrutura dos Pacotes do Domínio
+```
+
+O G5 transformará a arquitetura em:
+
+- módulos Python;
+- entidades;
+- Aggregate Roots;
+- Value Objects;
+- enums;
+- Domain Services;
+- Domain Policies;
+- repositories;
+- Unit of Work;
+- modelos SQLAlchemy;
+- migrations;
+- constraints;
+- testes automatizados.
+
+---
+
+## 12. Roadmap
+
+O roadmap oficial está disponível em:
+
+[Roadmap do UltraStats AI](docs/development/roadmap.md)
+
+O roadmap deverá ser utilizado como referência para:
+
+- etapa atual;
+- etapas concluídas;
+- próximas etapas;
+- dependências;
+- entregas;
+- mudanças de escopo.
+
+---
+
+## 13. Documentação arquitetural
+
+### Modelo canônico
+
+[Modelo Canônico do Domínio](docs/architecture/canonical-domain-model.md)
+
+Define:
+
+- entidades;
+- atributos;
+- relacionamentos;
+- ciclos de vida;
+- regras estruturais;
+- histórico esportivo.
+
+### Agregados e regras
+
+[Agregados e Regras do Domínio](docs/architecture/domain-aggregates-and-rules.md)
+
+Define:
+
+- Bounded Contexts;
+- Aggregate Roots;
+- ownership;
+- Value Objects;
+- invariantes;
+- serviços;
+- políticas;
+- eventos;
+- transações;
+- concorrência;
+- histórico;
+- integração;
+- processamento analítico.
+
+---
+
+## 14. Desenvolvimento
+
+Antes de implementar uma nova funcionalidade, deverá ser verificado:
+
+1. se a funcionalidade pertence à etapa atual;
+2. qual contexto é responsável;
+3. qual Aggregate Root controla a alteração;
+4. quais regras de domínio devem ser respeitadas;
+5. quais documentos precisam ser atualizados;
+6. quais testes serão necessários.
+
+Funcionalidades fora da etapa atual deverão ser registradas no roadmap em vez de
+serem implementadas sem planejamento.
+
+---
+
+## 15. Testes
+
+O projeto deverá possuir testes para:
+
+- Value Objects;
+- entidades;
+- Aggregate Roots;
+- invariantes;
+- Domain Services;
+- Domain Policies;
+- repositories;
+- Unit of Work;
+- migrations;
+- integrações;
+- idempotência;
+- concorrência;
+- contratos;
+- reprocessamento;
+- modelos preditivos.
+
+Os comandos definitivos de execução serão documentados quando a estrutura do G5
+for criada.
+
+---
+
+## 16. Changelog
+
+O histórico de alterações relevantes está disponível em:
+
+[CHANGELOG.md](CHANGELOG.md)
+
+O changelog deverá registrar:
+
+- novas funcionalidades;
+- alterações arquiteturais;
+- mudanças incompatíveis;
+- correções relevantes;
+- remoções;
+- mudanças de documentação que alterem o planejamento oficial.
+
+---
+
+## 17. Regra de documentação
+
+Uma etapa não deverá ser considerada totalmente concluída enquanto existirem
+alterações obrigatórias de documentação pendentes.
+
+Sempre que necessário, deverão ser atualizados:
+
+- README principal;
+- índice da documentação;
+- roadmap;
+- changelog;
+- documentos arquiteturais;
+- documentação de banco;
+- documentação de providers;
+- documentação de API;
+- documentação de deployment.
