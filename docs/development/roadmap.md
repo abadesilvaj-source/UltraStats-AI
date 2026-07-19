@@ -131,6 +131,20 @@ CONCLUÍDO
 Definir a arquitetura conceitual que servirá de base para todo o domínio do
 UltraStats AI.
 
+A fase estabelece:
+
+- os limites do domínio;
+- os contextos funcionais;
+- as entidades canônicas;
+- os relacionamentos;
+- os agregados;
+- as regras de identidade;
+- as regras de consistência;
+- as fronteiras transacionais;
+- a arquitetura de providers;
+- a arquitetura de dados;
+- a organização da documentação técnica.
+
 ### Subfases
 
 ```text
@@ -140,13 +154,27 @@ G4.C — Arquitetura de Dados
 G4.D — Organização da Documentação
 ```
 
+---
+
 ### G4.A — Arquitetura do Domínio
 
-#### G4.A.1 — Visão geral do domínio
+#### G4.A.1 — Visão Geral do Domínio
+
+Escopo:
 
 - definição dos contextos;
 - mapa de contexto;
-- decisões arquiteturais iniciais.
+- responsabilidades principais;
+- decisões arquiteturais iniciais;
+- independência entre domínio e providers.
+
+Documentos relacionados:
+
+```text
+docs/architecture/domain-overview.md
+docs/architecture/context-map.md
+docs/architecture/architecture-decisions.md
+```
 
 Status:
 
@@ -154,11 +182,17 @@ Status:
 CONCLUÍDO
 ```
 
+---
+
 #### G4.A.2 — Entidades Centrais do Futebol
 
+Escopo:
+
 - domínio central de futebol;
+- entidades esportivas principais;
 - mapeamentos de identidade;
 - ciclo de vida de partidas;
+- histórico;
 - ADRs relacionadas.
 
 Status:
@@ -167,30 +201,335 @@ Status:
 CONCLUÍDO
 ```
 
+---
+
 #### G4.A.3 — Modelo Canônico do Domínio
 
-- entidades definitivas;
-- relacionamentos;
-- agregados;
-- value objects;
-- regras de identidade;
-- regras de histórico;
+Objetivo:
+
+Definir as entidades, relacionamentos e regras estruturais que formam o modelo
+canônico do UltraStats AI.
+
+Documento principal:
+
+```text
+docs/architecture/canonical-domain-model.md
+```
+
+Escopo concluído:
+
+- entidades geográficas;
+- competições;
+- temporadas;
+- fases;
+- rodadas;
+- equipes;
+- pessoas;
+- jogadores;
+- treinadores;
+- árbitros;
+- vínculos;
+- inscrições;
+- estádios;
+- partidas;
+- participantes;
+- locais;
+- oficiais;
+- períodos;
+- elencos;
+- escalações;
+- eventos;
+- estatísticas;
+- interrupções;
+- alterações de agenda;
+- decisões oficiais;
+- revisões;
+- confrontos eliminatórios;
+- relacionamentos canônicos;
+- regras históricas;
 - regras de integridade.
+
+Entregas concluídas:
+
+```text
+Capítulo 5 — Geography
+Capítulo 6 — Competition
+Capítulo 7 — Teams and People
+Capítulo 8 — Matches and Sporting Calendar
+```
 
 Status:
 
 ```text
-PRÓXIMO
+CONCLUÍDO
 ```
 
+---
+
+#### G4.A.4 — Arquitetura dos Agregados e Regras do Domínio
+
+Objetivo:
+
+Definir as fronteiras comportamentais, transacionais e históricas do domínio
+antes da implementação persistente.
+
+Documento principal:
+
+```text
+docs/architecture/domain-aggregates-and-rules.md
+```
+
+Subetapas:
+
+```text
+G4.A.4.1 — Agregados, Bounded Contexts e Value Objects
+G4.A.4.2 — Regras de Consistência, Serviços, Políticas e Eventos de Domínio
+G4.A.4.3 — Arquitetura Transacional, Histórico e Evolução
+```
+
+##### G4.A.4.1 — Agregados, Bounded Contexts e Value Objects
+
+Escopo concluído:
+
+- filosofia do domínio;
+- Bounded Contexts;
+- responsabilidades dos contextos;
+- relações entre contextos;
+- Aggregate Roots;
+- fronteiras dos agregados;
+- entidades internas;
+- regras de ownership;
+- Value Objects;
+- identidade canônica;
+- identificadores externos;
+- aliases;
+- snapshots;
+- normalização;
+- igualdade por identidade;
+- igualdade por valor.
+
+Status:
+
+```text
+CONCLUÍDO
+```
+
+##### G4.A.4.2 — Regras de Consistência, Serviços, Políticas e Eventos de Domínio
+
+Escopo concluído:
+
+- invariantes;
+- consistência forte;
+- consistência eventual;
+- validações internas;
+- validações externas;
+- Domain Services;
+- Domain Policies;
+- Commands;
+- Application Services;
+- Domain Events;
+- Integration Events;
+- Transactional Outbox;
+- Inbox;
+- idempotência;
+- retries;
+- reprocessamento;
+- compensações;
+- erros de domínio;
+- fluxos de escrita.
+
+Status:
+
+```text
+CONCLUÍDO
+```
+
+##### G4.A.4.3 — Arquitetura Transacional, Histórico e Evolução
+
+Escopo concluído:
+
+- Unit of Work;
+- fronteiras transacionais;
+- Optimistic Locking;
+- Pessimistic Locking;
+- versionamento;
+- histórico;
+- auditoria;
+- retenção;
+- exclusão lógica;
+- estratégia de identificadores;
+- projeções;
+- Read Models;
+- CQRS seletivo;
+- cache;
+- Sagas;
+- migrations;
+- evolução de contratos;
+- arquitetura de integração;
+- raw payloads;
+- Data Lineage;
+- arquitetura estatística;
+- arquitetura preditiva;
+- arquitetura de recomendações;
+- arquitetura de banca;
+- segurança;
+- observabilidade;
+- reconciliação;
+- backups;
+- estratégia de testes.
+
+Status:
+
+```text
+CONCLUÍDO
+```
+
+Status geral da G4.A.4:
+
+```text
+CONCLUÍDO
+```
+
+Status geral da G4.A:
+
+```text
+CONCLUÍDO
+```
+
+---
+
+### G4.B — Arquitetura de Providers
+
+Objetivo:
+
+Definir como fontes externas serão integradas sem acoplar o domínio canônico aos
+formatos específicos de cada provider.
+
+Escopo concluído:
+
+- separação entre provider e domínio;
+- Provider Client;
+- Collector;
+- armazenamento de payload bruto;
+- validação;
+- normalização intermediária;
+- rate limiting;
+- retries;
+- rastreabilidade;
+- health check;
+- contratos de integração;
+- idempotência;
+- reprocessamento;
+- geração de comandos canônicos.
+
+Decisão arquitetural:
+
+A arquitetura de providers foi consolidada durante a G4.A.4.3, especialmente nas
+definições de integração, raw payloads, Data Lineage, idempotência, Outbox,
+Inbox e reprocessamento.
+
+Documentos relacionados:
+
+```text
+docs/architecture/domain-aggregates-and-rules.md
+docs/providers/
+```
+
+Status:
+
+```text
+CONCLUÍDO
+```
+
+---
+
+### G4.C — Arquitetura de Dados
+
+Objetivo:
+
+Definir como dados brutos, normalizados, canônicos, históricos e derivados serão
+armazenados, relacionados e reprocessados.
+
+Escopo concluído:
+
+- dados canônicos;
+- dados brutos;
+- dados normalizados;
+- proveniência;
+- Data Lineage;
+- histórico;
+- auditoria;
+- dados derivados;
+- projeções;
+- features;
+- previsões;
+- versionamento;
+- retenção;
+- reprocessamento;
+- point-in-time correctness.
+
+Decisão arquitetural:
+
+A arquitetura de dados foi consolidada durante a G4.A.4.3, especialmente nas
+definições de histórico, raw storage, Data Lineage, arquitetura estatística,
+features e modelos preditivos.
+
+Documentos relacionados:
+
+```text
+docs/architecture/canonical-domain-model.md
+docs/architecture/domain-aggregates-and-rules.md
+docs/database/
+```
+
+Status:
+
+```text
+CONCLUÍDO
+```
+
+---
+
 ### G4.D — Organização da Documentação
+
+Objetivo:
+
+Manter a documentação técnica sincronizada com as decisões arquiteturais e com
+o estado real do projeto.
+
+Escopo:
 
 - organização da pasta `docs/`;
 - índice principal;
 - roadmap;
 - changelog;
 - documentação técnica;
-- simplificação do README da raiz.
+- referências cruzadas;
+- atualização do README da documentação;
+- simplificação do README da raiz;
+- verificação de links internos;
+- revisão de documentos obsoletos;
+- preparação da documentação para o G5.
+
+Entregas concluídas:
+
+- estrutura principal da pasta `docs/`;
+- documentação do modelo canônico;
+- documentação dos agregados;
+- documentação das regras do domínio;
+- documentação da arquitetura transacional;
+- atualização do roadmap após a conclusão da G4.A.4.
+
+Entregas restantes:
+
+- atualizar `docs/README.md`;
+- atualizar o README da raiz;
+- incluir os novos documentos nos índices;
+- revisar referências cruzadas;
+- verificar links internos;
+- revisar o changelog;
+- registrar a conclusão completa da G4;
+- preparar a entrada formal no G5.
 
 Status:
 
@@ -200,58 +539,73 @@ EM ANDAMENTO
 
 ---
 
+### Status geral da G4
+
+```text
+EM ANDAMENTO
+```
+
+A arquitetura técnica principal está concluída.
+
+A G4 permanecerá em andamento até a conclusão da G4.D e da revisão final da
+documentação.
+---
+
 ## 7. G5 — Domínio Canônico
 
 ### Objetivo
 
-Transformar a arquitetura conceitual em modelos persistentes e regras de
-negócio reais.
+Transformar a arquitetura conceitual definida na G4 em código de domínio,
+persistência, migrations e testes automatizados.
 
-### Entidades previstas
+O G5 deverá implementar o modelo canônico sem acoplá-lo aos formatos específicos
+dos providers.
+
+### Dependências
+
+O início do G5 depende da conclusão de:
 
 ```text
-Country
-Competition
-Season
-Stage
-Round
-Team
-Player
-Coach
-Referee
-Stadium
-Match
-MatchScheduleHistory
-MatchStatusHistory
-Formation
-Lineup
-LineupPlayer
-MatchEvent
-MatchStatistics
-Injury
-Suspension
-Bookmaker
-BettingMarket
-BettingSelection
-Odd
-Prediction
-BetRecommendation
+G4.A — Arquitetura do Domínio
+G4.B — Arquitetura de Providers
+G4.C — Arquitetura de Dados
+G4.D — Organização da Documentação
 ```
 
-### Escopo
+### Subfases previstas
 
-- modelos SQLAlchemy;
-- schemas;
-- repositories;
-- services;
-- migrations;
-- constraints;
-- índices;
-- histórico;
-- auditoria;
-- testes.
+```text
+G5.1  — Estrutura dos Pacotes do Domínio
+G5.2  — Base Compartilhada do Domínio
+G5.3  — Value Objects e Tipos Canônicos
+G5.4  — Enums e Estados do Domínio
+G5.5  — Geography e Venue
+G5.6  — Competition
+G5.7  — People e Team
+G5.8  — Match e Tie
+G5.9  — Betting, Prediction e Bankroll
+G5.10 — Domain Services e Policies
+G5.11 — Repositories e Unit of Work
+G5.12 — Modelos SQLAlchemy e Mapeamentos
+G5.13 — Migrations e Constraints
+G5.14 — Testes e Validação Arquitetural
+G5.15 — Consolidação do Domínio Canônico
+```
 
-### Status
+---
+
+### G5.1 — Estrutura dos Pacotes do Domínio
+
+Escopo:
+
+- organização dos módulos;
+- separação entre domínio, aplicação e infraestrutura;
+- convenções de importação;
+- prevenção de dependências circulares;
+- definição de módulos compartilhados;
+- preparação da estrutura de testes.
+
+Status:
 
 ```text
 PLANEJADO
@@ -259,6 +613,464 @@ PLANEJADO
 
 ---
 
+### G5.2 — Base Compartilhada do Domínio
+
+Escopo:
+
+- Entity;
+- AggregateRoot;
+- ValueObject;
+- DomainEvent;
+- DomainError;
+- Result;
+- interfaces de Repository;
+- interfaces de Unit of Work;
+- suporte a versionamento;
+- suporte a eventos pendentes.
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### G5.3 — Value Objects e Tipos Canônicos
+
+Escopo inicial:
+
+- CanonicalId;
+- ExternalIdentifier;
+- EntityReference;
+- EntityAlias;
+- NormalizedName;
+- LocalizedName;
+- GeoCoordinate;
+- Address;
+- DateRange;
+- DateTimeRange;
+- SeasonPeriod;
+- MatchClock;
+- Score;
+- AggregateScore;
+- PenaltyScore;
+- FormationCode;
+- ShirtNumber;
+- FieldPosition;
+- Probability;
+- Percentage;
+- DecimalOdd;
+- Money;
+- Stake;
+- ExpectedValue;
+- ConfidenceScore;
+- OpportunityScore;
+- SampleQuality;
+- ModelVersion;
+- DataProvenance;
+- EntitySnapshot.
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### G5.4 — Enums e Estados do Domínio
+
+Escopo:
+
+- tipos de competição;
+- tipos de fase;
+- tipos de rodada;
+- status de temporada;
+- status de partida;
+- papéis de participantes;
+- papéis de oficiais;
+- tipos de eventos;
+- tipos de interrupção;
+- tipos de decisão;
+- tipos de revisão;
+- tipos de mercado;
+- status de previsão;
+- status de recomendação;
+- status de aposta;
+- tipos de movimentação;
+- classificações de risco.
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### G5.5 — Geography e Venue
+
+Entidades previstas:
+
+```text
+Country
+Region
+City
+Stadium
+```
+
+Escopo:
+
+- entidades;
+- agregados;
+- aliases;
+- localização;
+- regras de identidade;
+- histórico;
+- persistência;
+- testes.
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### G5.6 — Competition
+
+Entidades previstas:
+
+```text
+Competition
+Season
+Stage
+Round
+Tie
+TieMatchReference
+```
+
+Escopo:
+
+- estrutura competitiva;
+- temporadas;
+- fases;
+- rodadas;
+- confrontos;
+- regras de vigência;
+- ordenação;
+- relacionamentos;
+- persistência;
+- testes.
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### G5.7 — People e Team
+
+Entidades previstas:
+
+```text
+Person
+Player
+Coach
+Referee
+Team
+TeamMembership
+SquadRegistration
+```
+
+Escopo:
+
+- identidade compartilhada de pessoas;
+- especializações profissionais;
+- equipes;
+- vínculos;
+- inscrições;
+- aliases;
+- vigência;
+- histórico;
+- persistência;
+- testes.
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### G5.8 — Match e Tie
+
+Entidades previstas:
+
+```text
+Match
+MatchParticipant
+MatchVenue
+MatchOfficial
+MatchPeriod
+MatchSquad
+Lineup
+LineupEntry
+MatchEvent
+MatchStatistic
+MatchInterruption
+MatchScheduleChange
+MatchDecision
+MatchRevision
+Tie
+TieMatchReference
+```
+
+Escopo:
+
+- ciclo de vida da partida;
+- participantes;
+- local;
+- oficiais;
+- períodos;
+- elenco da partida;
+- escalação;
+- eventos;
+- estatísticas oficiais;
+- interrupções;
+- alterações de agenda;
+- decisões oficiais;
+- revisões;
+- confrontos;
+- invariantes;
+- histórico;
+- persistência;
+- testes.
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### G5.9 — Betting, Prediction e Bankroll
+
+Entidades previstas:
+
+```text
+Bookmaker
+BettingMarket
+BettingSelection
+OddsSnapshot
+Prediction
+PredictionResult
+PredictionExplanation
+Recommendation
+Bankroll
+BankrollTransaction
+Bet
+BetLeg
+Settlement
+```
+
+Escopo:
+
+- mercados;
+- seleções;
+- odds;
+- previsões;
+- resultados preditivos;
+- explicações;
+- recomendações;
+- banca;
+- ledger;
+- apostas;
+- liquidação;
+- histórico;
+- persistência;
+- testes.
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### G5.10 — Domain Services e Policies
+
+Domain Services previstos:
+
+```text
+IdentityResolutionService
+DataFusionService
+MatchResultService
+TieResolutionService
+ProbabilityCalibrationService
+FairOddCalculationService
+ExpectedValueCalculationService
+RecommendationEvaluationService
+StakeCalculationService
+BetSettlementService
+```
+
+Domain Policies previstas:
+
+```text
+ProviderPriorityPolicy
+ConflictResolutionPolicy
+AutoMatchThresholdPolicy
+ManualReviewThresholdPolicy
+MatchWinnerPolicy
+AwayGoalsPolicy
+MinimumExpectedValuePolicy
+MinimumConfidencePolicy
+MaximumStakePolicy
+DailyExposurePolicy
+KellyFractionPolicy
+```
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### G5.11 — Repositories e Unit of Work
+
+Escopo:
+
+- contratos de repositories;
+- repositories por Aggregate Root;
+- Unit of Work;
+- transações;
+- carregamento de agregados;
+- persistência de eventos;
+- controle de concorrência;
+- isolamento entre domínio e SQLAlchemy.
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### G5.12 — Modelos SQLAlchemy e Mapeamentos
+
+Escopo:
+
+- modelos persistentes;
+- mapeamento entre domínio e banco;
+- UUID;
+- Decimal;
+- timezone;
+- relacionamentos;
+- composites;
+- versionamento;
+- auditoria;
+- soft delete;
+- Optimistic Locking.
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### G5.13 — Migrations e Constraints
+
+Escopo:
+
+- migrations com Alembic;
+- tabelas;
+- chaves estrangeiras;
+- índices;
+- constraints;
+- unicidade;
+- checks;
+- Outbox;
+- Inbox;
+- Audit Log;
+- dados iniciais;
+- validação de upgrade;
+- validação de downgrade.
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### G5.14 — Testes e Validação Arquitetural
+
+Escopo:
+
+- testes de Value Objects;
+- testes de entidades;
+- testes de agregados;
+- testes de invariantes;
+- testes de Domain Services;
+- testes de policies;
+- testes de repositories;
+- testes de Unit of Work;
+- testes de migrations;
+- testes de concorrência;
+- testes de idempotência;
+- testes de contratos.
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### G5.15 — Consolidação do Domínio Canônico
+
+Escopo:
+
+- revisão dos módulos;
+- revisão das dependências;
+- revisão do banco;
+- revisão de migrations;
+- revisão de testes;
+- revisão da documentação;
+- atualização do roadmap;
+- preparação do G6.
+
+Status:
+
+```text
+PLANEJADO
+```
+
+---
+
+### Status geral da G5
+
+```text
+PLANEJADO
+```
+
+A fase será iniciada somente após a conclusão da G4.D.
+---
 ## 8. G6 — Integração com Providers
 
 ### Objetivo
@@ -640,21 +1452,55 @@ O desenvolvimento deverá seguir estes princípios:
 ## 19. Status atual
 
 ```text
-Fase atual:
+Fase principal atual:
+G4 — Arquitetura do Domínio
+
+Subfase atual:
 G4.D — Organização da Documentação
 
-Próxima fase principal:
-G4.A.3 — Modelo Canônico do Domínio
-```
+Última etapa técnica concluída:
+G4.A.4 — Arquitetura dos Agregados e Regras do Domínio
 
+Atividade atual:
+Atualização dos índices, READMEs, referências cruzadas, changelog e roadmap
+
+Próxima fase principal:
+G5 — Domínio Canônico
+
+Primeira etapa prevista do G5:
+G5.1 — Estrutura dos Pacotes do Domínio
+```
 ---
 
 ## 20. Atualização deste documento
 
-Este roadmap deverá ser atualizado sempre que:
+A atualização do roadmap faz parte do desenvolvimento do UltraStats AI e deverá
+ser tratada como uma entrega da fase de documentação.
 
+Este documento deverá ser atualizado sempre que:
+
+- uma etapa for iniciada;
 - uma etapa for concluída;
+- uma etapa for dividida;
 - uma nova etapa for criada;
-- o escopo mudar;
+- o escopo for alterado;
+- uma funcionalidade for adicionada;
 - uma funcionalidade for removida;
-- uma decisão arquitetural alterar a ordem de desenvolvimento.
+- uma decisão arquitetural alterar a ordem do desenvolvimento;
+- uma dependência entre fases for modificada;
+- o início da próxima fase for autorizado.
+
+Cada atualização deverá revisar, no mínimo:
+
+- status da fase principal;
+- status das subfases;
+- etapa atual;
+- última etapa concluída;
+- próxima etapa;
+- entregas realizadas;
+- entregas pendentes;
+- documentos relacionados;
+- dependências para avanço.
+
+O roadmap não deverá indicar uma etapa como concluída enquanto ainda existirem
+entregas obrigatórias de documentação, revisão ou validação associadas a ela.
