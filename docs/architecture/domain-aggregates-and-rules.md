@@ -1218,3 +1218,364 @@ Nela serão estabelecidos:
 - quais operações devem passar pela raiz;
 - quais limites transacionais deverão ser preservados;
 - quais referências entre agregados serão permitidas.
+---
+
+# Parte II — Aggregate Roots e Fronteiras dos Agregados
+
+## 16. Objetivo
+
+Esta parte define os Aggregate Roots do UltraStats AI, estabelecendo quais entidades controlam o ciclo de vida das demais e quais fronteiras transacionais deverão ser respeitadas durante a implementação.
+
+Ao final desta seção deverá estar claramente definido:
+
+- quais entidades são Aggregate Roots;
+- quais entidades pertencem a cada agregado;
+- quais entidades possuem existência independente;
+- quais entidades dependem obrigatoriamente de outra entidade;
+- quais operações devem ser executadas através do Aggregate Root;
+- quais referências entre agregados são permitidas.
+
+---
+
+# 17. O que é um Aggregate
+
+Um Aggregate é um conjunto de entidades e objetos de valor tratados como uma única unidade de consistência.
+
+Todas as alterações relevantes devem ocorrer através de sua entidade principal, denominada Aggregate Root.
+
+O Aggregate Root protege as invariantes do domínio e impede que entidades internas sejam modificadas de maneira inconsistente.
+
+Uma transação nunca deverá alterar diretamente uma entidade interna ignorando sua raiz.
+
+---
+
+# 18. Critérios adotados
+
+Uma entidade será considerada Aggregate Root quando atender à maioria dos seguintes critérios:
+
+- possuir identidade própria;
+- possuir ciclo de vida independente;
+- representar um conceito de negócio completo;
+- controlar invariantes importantes;
+- ser frequentemente referenciada por outros agregados;
+- existir independentemente de outras entidades;
+- sobreviver à remoção de entidades internas.
+
+Nem toda entidade canônica será uma Aggregate Root.
+
+---
+
+# 19. Aggregate Roots do UltraStats AI
+
+Os Aggregate Roots definidos para o domínio são:
+
+| Aggregate Root | Contexto |
+|----------------|----------|
+| Country | Geography |
+| Competition | Competition |
+| Season | Competition |
+| Team | Team |
+| Person | People |
+| Stadium | Venue |
+| Match | Match |
+| Tie | Competition |
+| Bookmaker | Betting Market |
+| Prediction | Prediction |
+| Bankroll | Risk and Portfolio |
+
+Cada um desses agregados possui responsabilidade exclusiva sobre suas entidades internas.
+
+---
+
+# 20. Aggregate: Country
+
+## Responsabilidade
+
+Representar a identidade canônica de um país.
+
+### Entidades pertencentes
+
+- Region
+- City
+
+### Não pertencem ao agregado
+
+- Stadium
+- Team
+- Person
+
+Essas entidades apenas referenciam um país.
+
+### Invariantes
+
+- toda região pertence a um único país;
+- toda cidade pertence a uma única região;
+- regiões não podem existir sem um país.
+
+---
+
+# 21. Aggregate: Competition
+
+## Responsabilidade
+
+Controlar toda a estrutura organizacional de uma competição.
+
+### Entidades pertencentes
+
+- Stage
+- Round
+
+### Relacionamentos externos
+
+- Season
+- Match
+- Tie
+
+### Invariantes
+
+- toda fase pertence a uma competição;
+- toda rodada pertence à fase correspondente;
+- fases não existem isoladamente.
+
+---
+
+# 22. Aggregate: Season
+
+Embora relacionada a uma competição, Season possui ciclo de vida próprio.
+
+Ela pode ser criada antes da definição completa das fases e continua existindo mesmo que novas estruturas organizacionais sejam adicionadas posteriormente.
+
+### Responsabilidades
+
+- calendário esportivo;
+- período oficial;
+- identificação da temporada.
+
+### Referências
+
+- Competition
+- Match
+- Tie
+
+---
+
+# 23. Aggregate: Team
+
+O agregado Team controla toda a identidade esportiva de uma equipe.
+
+### Entidades pertencentes
+
+- TeamMembership
+- SquadRegistration
+
+### Não pertencem
+
+- MatchParticipant
+- MatchSquad
+- Lineup
+
+Essas entidades pertencem ao agregado Match.
+
+### Invariantes
+
+- um vínculo sempre pertence a uma equipe;
+- registros históricos nunca alteram a identidade da equipe.
+
+---
+
+# 24. Aggregate: Person
+
+Representa qualquer pessoa do domínio esportivo.
+
+### Especializações
+
+- Player
+- Coach
+- Referee
+
+Essas especializações compartilham a mesma identidade canônica.
+
+### Invariantes
+
+Uma pessoa nunca poderá possuir múltiplas identidades canônicas.
+
+Especializações representam papéis, não novas pessoas.
+
+---
+
+# 25. Aggregate: Stadium
+
+Controla a identidade oficial dos locais esportivos.
+
+### Responsabilidades
+
+- nomes;
+- localização;
+- capacidade;
+- aliases.
+
+### Não pertencem
+
+- MatchVenue
+
+MatchVenue pertence ao agregado Match.
+
+---
+
+# 26. Aggregate: Match
+
+Este é o agregado mais complexo de todo o domínio.
+
+Sua responsabilidade é representar completamente uma partida.
+
+### Entidades pertencentes
+
+- MatchParticipant
+- MatchVenue
+- MatchOfficial
+- MatchPeriod
+- MatchSquad
+- Lineup
+- LineupEntry
+- MatchEvent
+- MatchStatistic
+- MatchInterruption
+- MatchScheduleChange
+- MatchDecision
+- MatchRevision
+
+Todas essas entidades possuem ciclo de vida subordinado à partida.
+
+Nenhuma delas poderá existir sem um Match.
+
+---
+
+### Invariantes
+
+O agregado Match deverá preservar, entre outras, as seguintes regras:
+
+- existe exatamente uma identidade oficial para cada partida;
+- toda partida possui exatamente dois participantes esportivos;
+- toda escalação pertence a uma única partida;
+- todo evento pertence a uma única partida;
+- toda estatística pertence a uma única partida;
+- toda revisão pertence ao histórico daquela partida.
+
+---
+
+### Responsabilidade exclusiva
+
+Somente o agregado Match poderá modificar:
+
+- participantes;
+- oficiais;
+- local da partida;
+- escalações;
+- eventos;
+- estatísticas;
+- interrupções;
+- histórico operacional.
+
+Outros contextos apenas referenciam essas informações.
+
+---
+
+# 27. Aggregate: Tie
+
+Responsável por confrontos compostos por múltiplas partidas.
+
+### Responsabilidades
+
+- jogos de ida e volta;
+- placar agregado;
+- critérios de classificação;
+- vencedor do confronto.
+
+As partidas permanecem pertencendo ao agregado Match.
+
+---
+
+# 28. Aggregate: Bookmaker
+
+Responsável pela identidade de uma casa de apostas.
+
+Controla:
+
+- mercados;
+- seleções;
+- histórico de odds.
+
+---
+
+# 29. Aggregate: Prediction
+
+Representa o resultado imutável de uma execução de modelo.
+
+Uma Prediction nunca deverá ser modificada após publicada.
+
+Novas execuções gerarão novas Predictions.
+
+---
+
+# 30. Aggregate: Bankroll
+
+Responsável pela gestão financeira do usuário.
+
+Controla:
+
+- saldo;
+- movimentações;
+- apostas;
+- liquidações;
+- exposição.
+
+---
+
+# 31. Relações entre Agregados
+
+Os agregados comunicam-se exclusivamente através de referências.
+
+Exemplo:
+
+```text
+Match
+ ├── competition_id
+ ├── season_id
+ ├── home_team_id
+ ├── away_team_id
+ ├── stadium_id
+ └── referee_id
+```
+
+O agregado Match nunca controla diretamente essas entidades.
+
+Ele apenas mantém referências para suas identidades.
+
+---
+
+# 32. Regras Gerais dos Aggregate Roots
+
+Todos os Aggregate Roots deverão obedecer às seguintes regras:
+
+1. somente o Aggregate Root pode modificar entidades internas;
+2. entidades internas não poderão ser modificadas diretamente por outros agregados;
+3. agregados comunicam-se por identificadores canônicos;
+4. transações não deverão atravessar múltiplos agregados sem necessidade explícita;
+5. cada agregado preserva suas próprias invariantes;
+6. remoções deverão respeitar regras de integridade e histórico;
+7. entidades internas nunca deverão sobreviver à remoção do Aggregate Root quando sua existência depender dele.
+
+---
+
+# 33. Resultado da Parte II
+
+Com a conclusão desta etapa ficam definidos:
+
+- os Aggregate Roots oficiais do UltraStats AI;
+- as fronteiras dos agregados;
+- as entidades pertencentes a cada agregado;
+- as regras de composição;
+- as referências permitidas entre agregados;
+- as responsabilidades de cada Aggregate Root.
+
+A próxima parte detalhará as entidades internas, as regras de ownership e os critérios que determinam quando uma entidade deve existir de forma independente ou subordinada a outra.
