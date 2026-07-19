@@ -1579,3 +1579,1275 @@ Com a conclusão desta etapa ficam definidos:
 - as responsabilidades de cada Aggregate Root.
 
 A próxima parte detalhará as entidades internas, as regras de ownership e os critérios que determinam quando uma entidade deve existir de forma independente ou subordinada a outra.
+---
+
+# Parte III — Entidades Internas e Regras de Ownership
+
+## 34. Objetivo
+
+Esta parte define as entidades internas dos agregados do UltraStats AI e estabelece as regras de ownership responsáveis por controlar seus ciclos de vida.
+
+As entidades internas representam conceitos que possuem identidade própria dentro de um agregado, mas não possuem existência independente fora dele.
+
+Ao final desta parte deverá estar claramente definido:
+
+- quais entidades são internas;
+- qual Aggregate Root controla cada entidade;
+- quais entidades podem ser criadas isoladamente;
+- quais entidades dependem obrigatoriamente de outra;
+- quais operações deverão passar pelo Aggregate Root;
+- quais referências externas poderão ser mantidas;
+- como deverá ocorrer a remoção de entidades dependentes;
+- quais dados deverão permanecer preservados como histórico.
+
+---
+
+## 35. Definição de Entidade Interna
+
+Uma entidade interna é uma entidade que:
+
+- possui identidade própria dentro de um agregado;
+- possui estado e comportamento;
+- apresenta ciclo de vida subordinado;
+- não deve ser acessada como unidade independente de escrita;
+- não pode existir sem o Aggregate Root ao qual pertence;
+- deve ser criada, alterada ou removida através da raiz do agregado.
+
+Uma entidade interna poderá possuir identificador próprio para permitir:
+
+- rastreabilidade;
+- auditoria;
+- referências internas;
+- persistência;
+- versionamento;
+- comparação histórica.
+
+A existência de um identificador próprio não transforma automaticamente uma entidade interna em Aggregate Root.
+
+---
+
+## 36. Definição de Ownership
+
+Ownership representa a responsabilidade de um Aggregate Root sobre o ciclo de vida de uma entidade interna.
+
+Quando um Aggregate Root possui ownership sobre uma entidade, ele controla:
+
+- criação;
+- validação;
+- alteração;
+- inativação;
+- remoção;
+- histórico;
+- consistência;
+- relacionamento com outras entidades internas.
+
+A entidade proprietária será responsável por garantir que nenhuma operação viole as invariantes do agregado.
+
+---
+
+## 37. Tipos de Ownership
+
+O UltraStats AI utilizará três formas principais de ownership.
+
+### 37.1 Ownership exclusivo
+
+A entidade interna pertence a exatamente um Aggregate Root e não pode ser compartilhada por outros agregados.
+
+Exemplos:
+
+- MatchEvent pertence a um Match;
+- MatchPeriod pertence a um Match;
+- MatchScheduleChange pertence a um Match;
+- LineupEntry pertence a uma Lineup subordinada a um Match.
+
+---
+
+### 37.2 Ownership hierárquico
+
+Uma entidade interna pertence diretamente a outra entidade interna, mas todo o conjunto permanece subordinado ao mesmo Aggregate Root.
+
+Exemplo:
+
+```text
+Match
+    └── Lineup
+            └── LineupEntry
+```
+
+Nesse caso:
+
+- Match é o Aggregate Root;
+- Lineup é uma entidade interna;
+- LineupEntry é uma entidade interna subordinada à Lineup;
+- todas as alterações permanecem controladas pelo Match.
+
+---
+
+### 37.3 Referência sem ownership
+
+Um agregado pode referenciar uma entidade pertencente a outro agregado sem controlar seu ciclo de vida.
+
+Exemplo:
+
+```text
+MatchParticipant
+    └── team_id
+```
+
+O Match controla o MatchParticipant, mas não controla a Team referenciada por `team_id`.
+
+A remoção ou alteração de MatchParticipant não deverá alterar a Team.
+
+---
+
+## 38. Regras Gerais de Ownership
+
+As seguintes regras deverão ser aplicadas a todas as entidades internas.
+
+### 38.1 Criação através da raiz
+
+Uma entidade interna deverá ser criada através do Aggregate Root ou de um serviço autorizado que execute a operação em nome da raiz.
+
+Exemplo conceitual:
+
+```text
+match.add_participant(...)
+match.add_event(...)
+match.register_lineup(...)
+match.change_schedule(...)
+```
+
+Não deverá existir uma operação pública independente como:
+
+```text
+match_event_repository.create(...)
+```
+
+quando essa operação permitir contornar as invariantes do Match.
+
+---
+
+### 38.2 Alteração através da raiz
+
+Alterações em entidades internas deverão passar pelo Aggregate Root.
+
+Exemplo:
+
+```text
+match.correct_event(...)
+match.replace_official(...)
+match.update_lineup_entry(...)
+```
+
+A implementação poderá utilizar repositories internos para persistência, mas as decisões de negócio deverão permanecer sob controle da raiz.
+
+---
+
+### 38.3 Remoção controlada
+
+Uma entidade interna não deverá ser removida sem validação do Aggregate Root.
+
+A remoção poderá assumir uma das seguintes formas:
+
+- remoção física;
+- inativação;
+- cancelamento;
+- substituição;
+- revisão histórica;
+- marcação como incorreta.
+
+A estratégia dependerá da importância histórica da entidade.
+
+---
+
+### 38.4 Proibição de compartilhamento
+
+Uma mesma instância de entidade interna não poderá pertencer simultaneamente a dois Aggregate Roots.
+
+Um MatchEvent não poderá pertencer a duas partidas.
+
+Uma Lineup não poderá pertencer a dois Matches.
+
+Uma SquadRegistration não poderá pertencer simultaneamente a duas equipes.
+
+---
+
+### 38.5 Referências externas por identidade
+
+Entidades internas poderão referenciar Aggregate Roots externos apenas por identificadores canônicos.
+
+Exemplo:
+
+```text
+MatchOfficial
+    person_id
+    role
+```
+
+O MatchOfficial pertence ao Match, enquanto a pessoa identificada por `person_id` pertence ao People Context.
+
+---
+
+### 38.6 Não propagação automática de alterações externas
+
+Alterações em um Aggregate Root externo não deverão modificar automaticamente o histórico interno de outro agregado.
+
+Exemplo:
+
+Se o nome atual de uma equipe for alterado, o registro histórico de uma partida poderá continuar preservando o nome exibido no momento do jogo através de snapshot.
+
+---
+
+### 38.7 Validação de referência
+
+Antes de aceitar uma referência externa, o Aggregate Root poderá validar:
+
+- existência;
+- estado ativo;
+- compatibilidade;
+- papel;
+- vigência;
+- pertencimento ao contexto esperado.
+
+Essa validação não transfere ownership.
+
+---
+
+## 39. Entidades Internas do Geography Aggregate
+
+### 39.1 Region
+
+Region representa uma divisão territorial pertencente a um Country.
+
+Ownership:
+
+```text
+Country
+    └── Region
+```
+
+Regras:
+
+- toda Region pertence a exatamente um Country;
+- uma Region não poderá existir sem Country;
+- o código regional deverá ser único dentro do Country quando aplicável;
+- a remoção do Country deverá considerar a existência de referências históricas;
+- uma Region não poderá ser movida silenciosamente para outro Country.
+
+A transferência de uma Region entre países, quando necessária por razões históricas ou políticas, deverá ser representada como alteração auditável e não como simples substituição de chave estrangeira.
+
+---
+
+### 39.2 City
+
+City representa uma cidade vinculada a uma Region ou diretamente a um Country quando não houver divisão regional aplicável.
+
+Ownership conceitual:
+
+```text
+Country
+    └── Region
+            └── City
+```
+
+Em territórios sem divisão regional:
+
+```text
+Country
+    └── City
+```
+
+Regras:
+
+- uma City deverá possuir Country;
+- Region poderá ser opcional conforme a estrutura territorial;
+- uma City não poderá pertencer a Country incompatível com sua Region;
+- mudanças territoriais deverão preservar histórico;
+- aliases de cidade deverão permanecer associados à identidade canônica.
+
+---
+
+## 40. Entidades Internas do Competition Aggregate
+
+### 40.1 Stage
+
+Stage representa uma fase de uma competição ou temporada.
+
+Ownership:
+
+```text
+Competition
+    └── Stage
+```
+
+Quando a fase for específica de uma temporada, deverá manter referência à Season correspondente.
+
+Regras:
+
+- uma Stage deverá pertencer a uma Competition;
+- uma Stage poderá estar limitada a uma Season;
+- a ordem das fases deverá ser coerente;
+- fases eliminatórias e classificatórias poderão possuir regras diferentes;
+- uma Stage não deverá ser reutilizada entre competições distintas;
+- alterações estruturais deverão preservar o histórico da temporada.
+
+---
+
+### 40.2 Round
+
+Round representa uma rodada dentro de uma fase ou temporada.
+
+Ownership hierárquico:
+
+```text
+Competition
+    └── Stage
+            └── Round
+```
+
+Regras:
+
+- uma Round deverá pertencer a uma Stage;
+- sua Stage deverá pertencer à mesma Competition;
+- a numeração ou ordenação deverá ser única dentro do escopo definido;
+- rodadas não deverão existir isoladamente;
+- alterações de nome ou ordem deverão ser auditáveis;
+- a remoção de uma Round não deverá apagar partidas históricas.
+
+---
+
+## 41. Entidades Internas do Team Aggregate
+
+### 41.1 TeamMembership
+
+TeamMembership representa o vínculo de uma pessoa com uma equipe durante determinado período.
+
+Ownership:
+
+```text
+Team
+    └── TeamMembership
+```
+
+Referências externas:
+
+- Person;
+- função ou papel;
+- período de vigência.
+
+Regras:
+
+- todo TeamMembership pertence a uma Team;
+- toda associação deverá referenciar uma Person válida;
+- períodos de vínculo deverão ser consistentes;
+- vínculos históricos não deverão ser sobrescritos;
+- uma pessoa poderá possuir múltiplos vínculos históricos;
+- vínculos simultâneos poderão existir apenas quando permitidos pelo domínio;
+- o encerramento de um vínculo não deverá remover seu histórico.
+
+---
+
+### 41.2 SquadRegistration
+
+SquadRegistration representa o registro de uma pessoa em um elenco específico.
+
+Ownership:
+
+```text
+Team
+    └── SquadRegistration
+```
+
+Referências externas:
+
+- Person;
+- Competition;
+- Season;
+- função esportiva;
+- número de inscrição.
+
+Regras:
+
+- toda SquadRegistration pertence a uma Team;
+- deverá existir período ou contexto de validade;
+- a pessoa registrada deverá possuir papel compatível;
+- registros duplicados deverão ser impedidos;
+- o número da camisa poderá variar por temporada ou competição;
+- alterações deverão preservar o histórico;
+- o registro não garante participação em uma partida específica.
+
+A participação em uma partida pertence ao Match Aggregate.
+
+---
+
+## 42. Entidades Internas do Person Aggregate
+
+### 42.1 Player
+
+Player representa uma especialização esportiva de Person.
+
+Ownership:
+
+```text
+Person
+    └── Player
+```
+
+Player não deverá possuir identidade canônica independente de Person.
+
+Regras:
+
+- um Player deverá referenciar exatamente uma Person;
+- a identidade principal será a identidade da Person;
+- atributos específicos de jogador permanecerão na especialização;
+- a remoção da especialização não deverá remover a Person;
+- uma Person poderá adquirir ou perder um papel profissional ao longo do tempo;
+- histórico profissional deverá ser preservado.
+
+---
+
+### 42.2 Coach
+
+Coach representa uma especialização profissional de Person.
+
+Ownership:
+
+```text
+Person
+    └── Coach
+```
+
+Regras:
+
+- Coach deverá compartilhar a identidade da Person;
+- licenças, funções e especialidades poderão possuir histórico;
+- vínculos com equipes não pertencem ao Person Aggregate;
+- a atuação em uma partida pertence ao Match Aggregate;
+- uma Person poderá ser Player e Coach em períodos diferentes ou simultaneamente, quando aplicável.
+
+---
+
+### 42.3 Referee
+
+Referee representa uma especialização profissional de Person.
+
+Ownership:
+
+```text
+Person
+    └── Referee
+```
+
+Regras:
+
+- Referee deverá compartilhar a identidade da Person;
+- categorias e credenciais poderão possuir vigência;
+- designações para partidas não pertencem ao Person Aggregate;
+- MatchOfficial será responsável pelo papel exercido em uma partida específica;
+- alterações de categoria deverão preservar histórico.
+
+---
+
+## 43. Entidades Internas do Match Aggregate
+
+O Match Aggregate possui a maior quantidade de entidades internas do domínio.
+
+Todas as entidades descritas nesta seção dependem de um Match.
+
+---
+
+### 43.1 MatchParticipant
+
+MatchParticipant representa uma equipe participante de uma partida.
+
+Ownership:
+
+```text
+Match
+    └── MatchParticipant
+```
+
+Referência externa:
+
+- Team.
+
+Regras:
+
+- deverá pertencer a exatamente um Match;
+- deverá referenciar exatamente uma Team;
+- uma Team não poderá ocupar papéis incompatíveis na mesma partida;
+- os papéis deverão ser únicos quando o formato exigir;
+- alterações de participante deverão preservar histórico;
+- o participante não controla a Team referenciada;
+- placares e resultados deverão permanecer vinculados ao participante correto.
+
+---
+
+### 43.2 MatchVenue
+
+MatchVenue representa o local designado para a realização da partida.
+
+Ownership:
+
+```text
+Match
+    └── MatchVenue
+```
+
+Referência externa:
+
+- Stadium.
+
+Regras:
+
+- deverá pertencer a exatamente um Match;
+- poderá representar local confirmado, provisório ou histórico;
+- mudanças de estádio deverão gerar histórico;
+- o MatchVenue não poderá alterar o Stadium;
+- dados históricos relevantes poderão ser preservados por snapshot;
+- uma partida poderá possuir múltiplos registros históricos de local, mas apenas um local vigente por vez.
+
+---
+
+### 43.3 MatchOfficial
+
+MatchOfficial representa a atuação de uma pessoa como oficial em uma partida.
+
+Ownership:
+
+```text
+Match
+    └── MatchOfficial
+```
+
+Referência externa:
+
+- Person ou Referee.
+
+Regras:
+
+- deverá pertencer a exatamente um Match;
+- deverá possuir papel definido;
+- papéis exclusivos não poderão ser duplicados;
+- substituições deverão preservar histórico;
+- uma pessoa não poderá exercer papéis incompatíveis na mesma partida;
+- o MatchOfficial não altera o perfil profissional da pessoa.
+
+---
+
+### 43.4 MatchPeriod
+
+MatchPeriod representa um período regulamentar ou adicional da partida.
+
+Ownership:
+
+```text
+Match
+    └── MatchPeriod
+```
+
+Regras:
+
+- deverá pertencer a exatamente um Match;
+- a ordem dos períodos deverá ser válida;
+- intervalos de tempo não deverão se sobrepor de forma inválida;
+- períodos adicionais dependerão das regras da competição;
+- placares parciais deverão ser coerentes com os eventos;
+- períodos encerrados não deverão ser alterados sem revisão auditável.
+
+---
+
+### 43.5 MatchSquad
+
+MatchSquad representa o grupo de pessoas disponibilizadas por uma equipe para uma partida.
+
+Ownership:
+
+```text
+Match
+    └── MatchSquad
+```
+
+Referências externas:
+
+- Team;
+- Person;
+- SquadRegistration.
+
+Regras:
+
+- deverá pertencer a exatamente um Match;
+- deverá estar associado a um MatchParticipant;
+- pessoas incluídas deverão possuir vínculo ou justificativa válida;
+- uma pessoa não poderá integrar os dois lados da mesma partida;
+- alterações posteriores à confirmação deverão ser auditadas;
+- MatchSquad não substitui o elenco permanente da Team.
+
+---
+
+### 43.6 Lineup
+
+Lineup representa a escalação de uma equipe em uma partida.
+
+Ownership:
+
+```text
+Match
+    └── Lineup
+```
+
+Regras:
+
+- deverá pertencer a exatamente um Match;
+- deverá estar vinculada a um MatchParticipant;
+- uma equipe deverá possuir no máximo uma escalação vigente por tipo;
+- versões anteriores deverão ser preservadas quando substituídas;
+- a escalação oficial deverá respeitar as regras da competição;
+- Lineup controla suas LineupEntries internamente.
+
+---
+
+### 43.7 LineupEntry
+
+LineupEntry representa a participação planejada de uma pessoa em uma Lineup.
+
+Ownership hierárquico:
+
+```text
+Match
+    └── Lineup
+            └── LineupEntry
+```
+
+Referências externas:
+
+- Person;
+- Player;
+- MatchSquad.
+
+Regras:
+
+- deverá pertencer a exatamente uma Lineup;
+- a pessoa deverá pertencer ao lado correspondente;
+- uma pessoa não poderá aparecer duplicada na mesma escalação;
+- titular e reserva deverão possuir classificações compatíveis;
+- número de camisa deverá respeitar as regras aplicáveis;
+- posição poderá ser representada por Value Object;
+- alterações após confirmação deverão gerar revisão.
+
+---
+
+### 43.8 MatchEvent
+
+MatchEvent representa um acontecimento registrado durante a partida.
+
+Ownership:
+
+```text
+Match
+    └── MatchEvent
+```
+
+Referências externas possíveis:
+
+- MatchParticipant;
+- Person;
+- MatchPeriod;
+- outro MatchEvent.
+
+Regras:
+
+- deverá pertencer a exatamente um Match;
+- deverá possuir tipo válido;
+- o tempo deverá ser compatível com o período;
+- participantes referenciados deverão pertencer à partida;
+- pessoas referenciadas deverão estar relacionadas à equipe correta;
+- eventos anulados deverão permanecer preservados;
+- correções deverão gerar revisão ou histórico;
+- eventos que alteram o placar deverão passar pelas regras do Match.
+
+---
+
+### 43.9 MatchStatistic
+
+MatchStatistic representa uma estatística oficial ou consolidada da partida.
+
+Ownership:
+
+```text
+Match
+    └── MatchStatistic
+```
+
+Referências internas possíveis:
+
+- MatchParticipant;
+- Person;
+- MatchPeriod.
+
+Regras:
+
+- deverá pertencer a exatamente um Match;
+- deverá possuir métrica definida;
+- unidade e escopo deverão ser compatíveis;
+- estatísticas de equipe deverão referenciar participante válido;
+- estatísticas individuais deverão referenciar pessoa válida;
+- valores concorrentes de providers deverão passar por fusão;
+- revisões deverão preservar proveniência;
+- estatísticas derivadas poderão pertencer ao Statistics Context quando não forem fatos oficiais da partida.
+
+---
+
+### 43.10 MatchInterruption
+
+MatchInterruption representa uma interrupção operacional da partida.
+
+Ownership:
+
+```text
+Match
+    └── MatchInterruption
+```
+
+Regras:
+
+- deverá pertencer a exatamente um Match;
+- deverá registrar motivo;
+- deverá registrar início e, quando aplicável, encerramento;
+- interrupções não poderão produzir intervalos temporais inválidos;
+- suspensão e abandono deverão seguir políticas específicas;
+- a retomada deverá ser auditável;
+- interrupções históricas não deverão ser apagadas.
+
+---
+
+### 43.11 MatchScheduleChange
+
+MatchScheduleChange representa uma alteração de data, horário ou planejamento da partida.
+
+Ownership:
+
+```text
+Match
+    └── MatchScheduleChange
+```
+
+Regras:
+
+- deverá pertencer a exatamente um Match;
+- deverá preservar valor anterior e novo valor;
+- deverá registrar motivo quando disponível;
+- deverá registrar origem da alteração;
+- múltiplas alterações deverão formar uma sequência cronológica;
+- o estado atual do Match deverá ser coerente com a alteração mais recente;
+- alterações não deverão apagar o planejamento anterior.
+
+---
+
+### 43.12 MatchDecision
+
+MatchDecision representa uma decisão oficial que afeta a interpretação ou o resultado da partida.
+
+Ownership:
+
+```text
+Match
+    └── MatchDecision
+```
+
+Regras:
+
+- deverá pertencer a exatamente um Match;
+- deverá possuir autoridade ou fonte;
+- deverá registrar data de vigência;
+- deverá preservar o estado anterior;
+- decisões posteriores poderão substituir efeitos anteriores sem apagar o histórico;
+- decisões poderão alterar placar oficial, vencedor ou classificação;
+- alterações deverão gerar eventos e revisões apropriadas.
+
+---
+
+### 43.13 MatchRevision
+
+MatchRevision representa uma revisão auditável do estado da partida.
+
+Ownership:
+
+```text
+Match
+    └── MatchRevision
+```
+
+Regras:
+
+- deverá pertencer a exatamente um Match;
+- deverá identificar o dado revisado;
+- deverá preservar valor anterior e novo valor;
+- deverá registrar origem;
+- deverá registrar justificativa;
+- deverá possuir ordem cronológica;
+- revisões não deverão ser editadas silenciosamente;
+- correções de revisão deverão gerar nova revisão.
+
+---
+
+## 44. Entidades Internas do Tie Aggregate
+
+### 44.1 TieMatchReference
+
+O Tie poderá manter referências para as partidas que compõem o confronto.
+
+Ownership:
+
+```text
+Tie
+    └── TieMatchReference
+```
+
+Referência externa:
+
+- Match.
+
+Regras:
+
+- cada referência deverá apontar para uma partida válida;
+- uma partida não deverá ser duplicada no mesmo confronto;
+- a ordem dos jogos deverá ser preservada;
+- o Tie não controla o ciclo de vida do Match;
+- alterações no resultado oficial de uma partida poderão exigir recálculo do confronto;
+- referências removidas deverão preservar auditoria quando já utilizadas oficialmente.
+
+---
+
+### 44.2 TieScore
+
+O placar agregado poderá ser representado como estado interno calculado ou como Value Object.
+
+Ele não deverá ser mantido como fonte independente quando puder ser derivado das partidas oficiais.
+
+Quando persistido por desempenho, deverá ser tratado como projeção recalculável.
+
+---
+
+## 45. Entidades Internas do Bookmaker Aggregate
+
+A estrutura definitiva do Betting Market Context será aprofundada durante a modelagem específica de mercados e odds.
+
+Inicialmente, o ownership deverá seguir:
+
+```text
+Bookmaker
+    └── OddsSourceConfiguration
+```
+
+Mercados canônicos e seleções não deverão necessariamente pertencer ao Bookmaker, pois devem permanecer reutilizáveis entre diferentes casas de apostas.
+
+Odds e snapshots poderão exigir agregados próprios devido ao volume, frequência de atualização e necessidade de escrita independente.
+
+Essa decisão deverá ser revisada antes da implementação do Betting Market Context.
+
+---
+
+## 46. Entidades Internas do Prediction Aggregate
+
+### 46.1 PredictionResult
+
+PredictionResult representa uma probabilidade calculada para um mercado ou seleção.
+
+Ownership:
+
+```text
+Prediction
+    └── PredictionResult
+```
+
+Regras:
+
+- deverá pertencer a exatamente uma Prediction;
+- deverá referenciar mercado e seleção válidos;
+- a probabilidade deverá respeitar os limites permitidos;
+- resultados publicados serão imutáveis;
+- nova execução deverá gerar nova Prediction;
+- valores não deverão ser sobrescritos por versões futuras do modelo.
+
+---
+
+### 46.2 PredictionExplanation
+
+PredictionExplanation registra fatores utilizados para explicar uma previsão.
+
+Ownership:
+
+```text
+Prediction
+    └── PredictionExplanation
+```
+
+Regras:
+
+- deverá pertencer a exatamente uma Prediction;
+- deverá referenciar a versão do modelo utilizada;
+- deverá preservar os fatores relevantes;
+- não deverá expor informações técnicas sensíveis desnecessárias;
+- deverá permanecer coerente com o resultado publicado.
+
+---
+
+## 47. Entidades Internas do Bankroll Aggregate
+
+### 47.1 BankrollTransaction
+
+BankrollTransaction representa uma movimentação financeira da banca.
+
+Ownership:
+
+```text
+Bankroll
+    └── BankrollTransaction
+```
+
+Regras:
+
+- deverá pertencer a exatamente uma Bankroll;
+- deverá possuir tipo e valor;
+- deverá preservar data e origem;
+- movimentações confirmadas deverão ser imutáveis;
+- correções deverão ocorrer por movimentação compensatória;
+- o saldo deverá ser derivável das movimentações.
+
+---
+
+### 47.2 Bet
+
+Bet representa uma aposta registrada dentro da banca.
+
+Ownership inicial:
+
+```text
+Bankroll
+    └── Bet
+```
+
+Regras:
+
+- deverá pertencer a exatamente uma Bankroll;
+- deverá possuir stake válida;
+- deverá preservar odd registrada;
+- deverá possuir status controlado;
+- liquidação deverá ser auditável;
+- uma aposta confirmada não deverá ser alterada silenciosamente;
+- correções deverão preservar o estado anterior.
+
+Dependendo do crescimento do domínio, Bet poderá futuramente tornar-se Aggregate Root independente. Essa decisão deverá considerar:
+
+- volume de operações;
+- concorrência;
+- necessidade de acesso individual;
+- complexidade de liquidação;
+- múltiplas seleções;
+- integração com portfólio.
+
+---
+
+### 47.3 BetLeg
+
+BetLeg representa uma seleção individual dentro de uma aposta múltipla.
+
+Ownership hierárquico:
+
+```text
+Bankroll
+    └── Bet
+            └── BetLeg
+```
+
+Regras:
+
+- deverá pertencer a exatamente uma Bet;
+- deverá referenciar mercado e seleção;
+- deverá preservar odd registrada;
+- deverá possuir resultado individual;
+- não poderá existir sem Bet;
+- alterações após confirmação deverão ser proibidas ou auditadas.
+
+---
+
+### 47.4 Settlement
+
+Settlement representa a liquidação de uma aposta.
+
+Ownership:
+
+```text
+Bankroll
+    └── Bet
+            └── Settlement
+```
+
+Regras:
+
+- deverá pertencer a uma Bet;
+- deverá registrar resultado;
+- deverá registrar retorno;
+- deverá registrar horário;
+- deverá preservar regra aplicada;
+- reliquidações deverão gerar novo histórico;
+- a liquidação não deverá apagar o resultado anterior.
+
+---
+
+## 48. Matriz de Ownership
+
+| Aggregate Root | Entidade interna | Tipo de ownership |
+|---|---|---|
+| Country | Region | Exclusivo |
+| Country | City | Hierárquico |
+| Competition | Stage | Exclusivo |
+| Competition | Round | Hierárquico |
+| Team | TeamMembership | Exclusivo |
+| Team | SquadRegistration | Exclusivo |
+| Person | Player | Exclusivo |
+| Person | Coach | Exclusivo |
+| Person | Referee | Exclusivo |
+| Match | MatchParticipant | Exclusivo |
+| Match | MatchVenue | Exclusivo |
+| Match | MatchOfficial | Exclusivo |
+| Match | MatchPeriod | Exclusivo |
+| Match | MatchSquad | Exclusivo |
+| Match | Lineup | Exclusivo |
+| Match | LineupEntry | Hierárquico |
+| Match | MatchEvent | Exclusivo |
+| Match | MatchStatistic | Exclusivo |
+| Match | MatchInterruption | Exclusivo |
+| Match | MatchScheduleChange | Exclusivo |
+| Match | MatchDecision | Exclusivo |
+| Match | MatchRevision | Exclusivo |
+| Tie | TieMatchReference | Exclusivo |
+| Prediction | PredictionResult | Exclusivo |
+| Prediction | PredictionExplanation | Exclusivo |
+| Bankroll | BankrollTransaction | Exclusivo |
+| Bankroll | Bet | Exclusivo inicial |
+| Bankroll | BetLeg | Hierárquico |
+| Bankroll | Settlement | Hierárquico |
+
+---
+
+## 49. Regras de Persistência
+
+A persistência deverá respeitar as fronteiras de ownership.
+
+### 49.1 Repository por Aggregate Root
+
+A regra preferencial será criar repositories para Aggregate Roots.
+
+Exemplos:
+
+```text
+CountryRepository
+CompetitionRepository
+TeamRepository
+PersonRepository
+MatchRepository
+PredictionRepository
+BankrollRepository
+```
+
+Entidades internas não deverão possuir repositories públicos independentes quando isso permitir contornar a raiz.
+
+---
+
+### 49.2 Carregamento do agregado
+
+O repository deverá carregar os dados necessários para executar a operação de domínio.
+
+Isso não significa que todas as coleções deverão ser carregadas integralmente em todas as consultas.
+
+Poderão ser utilizadas:
+
+- estratégias de carregamento específicas;
+- consultas direcionadas;
+- projeções;
+- paginação;
+- comandos especializados;
+- persistência incremental controlada.
+
+A otimização não deverá permitir a violação das invariantes.
+
+---
+
+### 49.3 Persistência de grandes coleções
+
+Agregados como Match poderão possuir milhares de eventos ou estatísticas.
+
+Nesses casos, a implementação poderá adotar estratégias específicas para evitar carregamento integral.
+
+Entretanto:
+
+- Match continuará sendo a fronteira conceitual;
+- operações deverão validar a identidade da partida;
+- regras críticas deverão permanecer centralizadas;
+- gravações deverão ser idempotentes;
+- entidades internas não deverão tornar-se independentes apenas por conveniência técnica.
+
+---
+
+## 50. Regras de Exclusão
+
+### 50.1 Exclusão de entidades históricas
+
+Entidades que representam fatos históricos não deverão ser removidas fisicamente após confirmação oficial, salvo em processos administrativos controlados.
+
+Exemplos:
+
+- MatchEvent;
+- MatchScheduleChange;
+- MatchDecision;
+- MatchRevision;
+- BankrollTransaction;
+- PredictionResult;
+- Settlement.
+
+A estratégia preferencial será:
+
+- cancelamento;
+- anulação;
+- substituição;
+- revisão;
+- inativação;
+- registro compensatório.
+
+---
+
+### 50.2 Exclusão do Aggregate Root
+
+A exclusão de um Aggregate Root deverá avaliar:
+
+- referências externas;
+- registros históricos;
+- impacto analítico;
+- auditoria;
+- obrigações de retenção;
+- possibilidade de anonimização;
+- possibilidade de inativação.
+
+Aggregate Roots relevantes deverão preferencialmente ser inativados em vez de removidos.
+
+---
+
+### 50.3 Cascade técnico e cascade de domínio
+
+Cascade de banco de dados não deverá substituir decisões de domínio.
+
+Uma configuração `ON DELETE CASCADE` poderá ser tecnicamente conveniente, mas somente deverá ser utilizada quando a remoção automática estiver alinhada às regras históricas e de auditoria.
+
+---
+
+## 51. Regras de Acesso
+
+### 51.1 Escrita
+
+A escrita em entidades internas deverá ocorrer através:
+
+- do Aggregate Root;
+- de Application Services;
+- de Domain Services autorizados;
+- de comandos de domínio;
+- de processos internos idempotentes.
+
+---
+
+### 51.2 Leitura
+
+A leitura poderá ocorrer através de:
+
+- repositories;
+- query services;
+- read models;
+- projeções;
+- views;
+- materialized views;
+- caches;
+- APIs de consulta.
+
+A liberdade de leitura não implica liberdade de escrita.
+
+---
+
+### 51.3 Exposição por API
+
+Schemas externos não deverão expor automaticamente toda a estrutura interna do agregado.
+
+A API deverá apresentar apenas:
+
+- dados necessários;
+- comandos permitidos;
+- identificadores estáveis;
+- estados relevantes;
+- erros de domínio compreensíveis.
+
+---
+
+## 52. Decisões desta Parte
+
+As seguintes decisões passam a integrar a arquitetura oficial:
+
+1. entidades internas possuem identidade, mas não ciclo de vida independente;
+2. toda entidade interna possui exatamente um proprietário;
+3. entidades internas deverão ser criadas e alteradas através do Aggregate Root;
+4. referências externas não transferem ownership;
+5. entidades históricas não deverão ser apagadas silenciosamente;
+6. repositories públicos deverão ser preferencialmente criados por Aggregate Root;
+7. otimizações técnicas não poderão eliminar as fronteiras conceituais;
+8. snapshots poderão preservar informações históricas externas;
+9. entidades internas não poderão pertencer a múltiplas raízes;
+10. exclusões deverão respeitar histórico, auditoria e integridade.
+
+---
+
+## 53. Pontos para Revisão Antes do G5
+
+Antes da implementação persistente, os seguintes pontos deverão ser revisitados:
+
+- Season como Aggregate Root independente ou parte de Competition;
+- Tie como Aggregate Root independente;
+- estrutura definitiva de mercados e odds;
+- Bookmaker como proprietário ou apenas referência de Odds;
+- Bet como entidade interna ou Aggregate Root;
+- estratégia de persistência de grandes coleções de Match;
+- granularidade dos repositories;
+- política de exclusão física;
+- regras de snapshot;
+- limites entre estatísticas oficiais e estatísticas derivadas.
+
+Esses pontos não impedem o avanço da arquitetura, mas deverão ser resolvidos antes das migrations definitivas.
+
+---
+
+## 54. Resultado da G4.A.4.1 — Parte 3
+
+Com a conclusão desta parte, ficam definidos:
+
+- o conceito de entidade interna;
+- o conceito de ownership;
+- os tipos de ownership;
+- as entidades internas de cada agregado;
+- as regras de criação e alteração;
+- as referências externas permitidas;
+- as regras de persistência;
+- as regras de exclusão;
+- os limites de leitura e escrita;
+- os principais pontos que exigirão revisão antes do G5.
+
+A próxima parte concluirá a G4.A.4.1 com a definição dos Value Objects e das regras de identidade.
+
+Serão documentados:
+
+- objetos imutáveis;
+- igualdade por valor;
+- identificadores canônicos;
+- identificadores externos;
+- aliases;
+- snapshots;
+- regras de comparação;
+- normalização de valores;
+- critérios de criação de novos Value Objects.
