@@ -2851,3 +2851,1688 @@ Serão documentados:
 - regras de comparação;
 - normalização de valores;
 - critérios de criação de novos Value Objects.
+---
+
+# Parte IV — Value Objects e Regras de Identidade
+
+## 55. Objetivo
+
+Esta parte define os Value Objects do UltraStats AI e estabelece as regras de identidade aplicáveis às entidades canônicas, entidades internas, aliases, snapshots e identificadores externos.
+
+Ao final desta parte deverá estar claramente definido:
+
+- o que caracteriza um Value Object;
+- quando um conceito deve ser modelado como Value Object;
+- quais Value Objects serão utilizados no domínio;
+- como ocorre a igualdade por valor;
+- como ocorre a imutabilidade;
+- como identificadores canônicos serão gerados;
+- como identificadores externos serão armazenados;
+- como aliases serão tratados;
+- como snapshots preservarão contexto histórico;
+- como duplicações de identidade serão evitadas.
+
+---
+
+## 56. Definição de Value Object
+
+Um Value Object representa um conceito do domínio definido por seus valores e não por uma identidade própria.
+
+Dois Value Objects serão considerados equivalentes quando todos os seus componentes relevantes forem equivalentes.
+
+Exemplo:
+
+```text
+GeoCoordinate
+    latitude: -21.7946
+    longitude: -48.1756
+```
+
+Duas instâncias com os mesmos valores representam a mesma coordenada, independentemente de terem sido criadas em momentos diferentes.
+
+Value Objects não deverão possuir identificadores canônicos próprios apenas para diferenciar instâncias equivalentes.
+
+---
+
+## 57. Características dos Value Objects
+
+Os Value Objects deverão seguir as características descritas nesta seção.
+
+### 57.1 Igualdade por valor
+
+A comparação entre dois Value Objects deverá ocorrer por meio dos valores que os compõem.
+
+Exemplo:
+
+```text
+Money(100.00, "BRL") == Money(100.00, "BRL")
+```
+
+O resultado deverá ser verdadeiro.
+
+Por outro lado:
+
+```text
+Money(100.00, "BRL") != Money(100.00, "USD")
+```
+
+O resultado deverá ser verdadeiro, pois a moeda faz parte do valor.
+
+---
+
+### 57.2 Imutabilidade
+
+Value Objects deverão ser preferencialmente imutáveis.
+
+Quando um valor precisar mudar, uma nova instância deverá ser criada.
+
+Exemplo conceitual:
+
+```text
+current_score = Score(home=1, away=0)
+
+updated_score = Score(home=2, away=0)
+```
+
+O objeto anterior não deverá ser alterado internamente.
+
+Essa regra facilita:
+
+- previsibilidade;
+- rastreabilidade;
+- comparação;
+- testes;
+- concorrência;
+- auditoria.
+
+---
+
+### 57.3 Validação na criação
+
+Um Value Object deverá nascer em estado válido.
+
+Exemplo:
+
+```text
+Probability(1.4)
+```
+
+deverá ser rejeitado, pois uma probabilidade não pode ser superior a `1`.
+
+Da mesma forma:
+
+```text
+Percentage(-10)
+```
+
+deverá ser rejeitado quando o domínio não permitir percentuais negativos.
+
+---
+
+### 57.4 Ausência de ciclo de vida independente
+
+Um Value Object não possui ciclo de vida próprio.
+
+Ele existe como parte de:
+
+- uma entidade;
+- outro Value Object;
+- um comando;
+- um evento;
+- um resultado de cálculo;
+- um snapshot.
+
+---
+
+### 57.5 Comportamento próprio
+
+Value Objects não devem ser tratados apenas como estruturas passivas de dados.
+
+Eles poderão possuir métodos relacionados ao próprio conceito.
+
+Exemplos:
+
+```text
+Money.add(...)
+Money.subtract(...)
+Probability.to_percentage(...)
+Score.total_goals(...)
+DateRange.contains(...)
+GeoCoordinate.distance_to(...)
+```
+
+Esses comportamentos deverão preservar as invariantes do objeto.
+
+---
+
+## 58. Critérios para Criação de um Value Object
+
+Um conceito deverá ser modelado como Value Object quando atender à maioria dos critérios a seguir:
+
+- não possuir identidade própria;
+- ser definido completamente por seus valores;
+- exigir validação específica;
+- possuir comportamento próprio;
+- ser reutilizado em diferentes entidades;
+- representar uma unidade semântica;
+- ser naturalmente imutável;
+- reduzir o uso de tipos primitivos sem significado.
+
+Exemplo inadequado:
+
+```text
+probability: float
+```
+
+Exemplo preferencial:
+
+```text
+probability: Probability
+```
+
+O segundo formato expressa melhor o domínio e impede valores inválidos.
+
+---
+
+## 59. Primitive Obsession
+
+O domínio deverá evitar o uso excessivo de tipos primitivos para representar conceitos relevantes.
+
+Tipos como:
+
+- `str`;
+- `int`;
+- `float`;
+- `Decimal`;
+- `datetime`;
+- `tuple`;
+
+não carregam significado suficiente quando utilizados isoladamente.
+
+Exemplo:
+
+```text
+latitude: float
+longitude: float
+```
+
+Esse formato permite combinações inválidas.
+
+Uma alternativa mais segura será:
+
+```text
+location: GeoCoordinate
+```
+
+O Value Object poderá validar limites, precisão e ausência de valores incompatíveis.
+
+---
+
+# 60. Catálogo Inicial de Value Objects
+
+Os Value Objects descritos nesta seção formam o catálogo inicial do UltraStats AI.
+
+O catálogo poderá ser expandido durante a implementação, desde que novos objetos respeitem os critérios arquiteturais definidos.
+
+---
+
+## 61. CanonicalId
+
+### Finalidade
+
+Representar o identificador canônico interno de uma entidade.
+
+Estrutura conceitual:
+
+```text
+CanonicalId
+    value
+```
+
+Regras:
+
+- deverá ser único;
+- deverá ser imutável;
+- não deverá depender de provider;
+- não deverá carregar significado de negócio mutável;
+- deverá possuir representação estável;
+- deverá ser validado na criação.
+
+O tipo concreto poderá utilizar UUID, desde que a decisão permaneça consistente em todo o domínio.
+
+---
+
+## 62. ExternalIdentifier
+
+### Finalidade
+
+Representar um identificador atribuído por um provider externo.
+
+Estrutura conceitual:
+
+```text
+ExternalIdentifier
+    provider_id
+    entity_type
+    external_value
+```
+
+Regras:
+
+- deverá identificar o provider de origem;
+- deverá identificar o tipo da entidade;
+- deverá preservar o valor original;
+- deverá ser único dentro do escopo do provider e tipo;
+- não deverá ser utilizado como identidade canônica;
+- deverá permitir rastreabilidade até o payload de origem.
+
+Exemplo:
+
+```text
+provider_id: football_data_org
+entity_type: team
+external_value: "64"
+```
+
+---
+
+## 63. EntityReference
+
+### Finalidade
+
+Representar uma referência canônica entre agregados.
+
+Estrutura conceitual:
+
+```text
+EntityReference
+    entity_type
+    canonical_id
+```
+
+Regras:
+
+- deverá apontar para um Aggregate Root válido;
+- não deverá carregar estado mutável da entidade;
+- poderá ser usada em comandos, eventos e snapshots;
+- não transfere ownership;
+- deverá ser comparável por tipo e identificador.
+
+---
+
+## 64. EntityAlias
+
+### Finalidade
+
+Representar um nome alternativo ou representação textual associada a uma entidade canônica.
+
+Estrutura conceitual:
+
+```text
+EntityAlias
+    value
+    language
+    alias_type
+    provider_id
+    valid_from
+    valid_until
+```
+
+Possíveis tipos:
+
+- nome abreviado;
+- nome histórico;
+- nome comercial;
+- nome transliterado;
+- nome fornecido por provider;
+- sigla;
+- apelido esportivo.
+
+Regras:
+
+- deverá preservar o valor original;
+- poderá ser normalizado para comparação;
+- deverá possuir contexto de origem;
+- não deverá substituir silenciosamente o nome oficial;
+- aliases duplicados deverão ser evitados dentro do mesmo escopo;
+- aliases históricos deverão preservar vigência quando conhecida.
+
+---
+
+## 65. NormalizedName
+
+### Finalidade
+
+Representar uma versão normalizada de nome utilizada para busca, comparação e resolução de identidade.
+
+Estrutura conceitual:
+
+```text
+NormalizedName
+    original
+    normalized
+```
+
+A normalização poderá considerar:
+
+- caixa;
+- acentuação;
+- pontuação;
+- espaços;
+- abreviações;
+- caracteres especiais;
+- transliteração.
+
+Regras:
+
+- o valor original deverá ser preservado;
+- a normalização deverá ser determinística;
+- alterações no algoritmo deverão ser versionadas;
+- o nome normalizado não deverá substituir o nome oficial;
+- igualdade de nome normalizado não garante igualdade de entidade.
+
+---
+
+## 66. LocalizedName
+
+### Finalidade
+
+Representar um nome em determinado idioma ou localidade.
+
+Estrutura conceitual:
+
+```text
+LocalizedName
+    value
+    language_code
+    country_code
+```
+
+Regras:
+
+- o idioma deverá utilizar código padronizado;
+- o país poderá ser opcional;
+- valores vazios não serão permitidos;
+- múltiplas traduções poderão coexistir;
+- deverá ser preservada a distinção entre tradução e alias.
+
+---
+
+## 67. GeoCoordinate
+
+### Finalidade
+
+Representar uma coordenada geográfica.
+
+Estrutura conceitual:
+
+```text
+GeoCoordinate
+    latitude
+    longitude
+```
+
+Regras:
+
+- latitude entre `-90` e `90`;
+- longitude entre `-180` e `180`;
+- precisão deverá ser controlada;
+- coordenadas incompletas não serão permitidas;
+- o objeto poderá calcular distância aproximada;
+- a ausência de localização deverá ser representada por valor nulo e não por coordenadas artificiais.
+
+---
+
+## 68. Address
+
+### Finalidade
+
+Representar um endereço estruturado.
+
+Estrutura conceitual:
+
+```text
+Address
+    street
+    number
+    complement
+    district
+    postal_code
+    city_id
+    region_id
+    country_id
+```
+
+Regras:
+
+- campos obrigatórios dependerão do contexto;
+- códigos postais deverão preservar o formato original;
+- referências geográficas deverão ser coerentes;
+- o endereço poderá ser parcial;
+- campos não disponíveis não deverão receber valores artificiais;
+- snapshots de endereço poderão ser preservados em eventos históricos.
+
+---
+
+## 69. DateRange
+
+### Finalidade
+
+Representar um período delimitado por datas.
+
+Estrutura conceitual:
+
+```text
+DateRange
+    start_date
+    end_date
+```
+
+Regras:
+
+- `start_date` deverá ser anterior ou igual a `end_date`;
+- `end_date` poderá ser opcional para períodos abertos;
+- o objeto poderá verificar sobreposição;
+- o objeto poderá verificar contenção;
+- limites deverão possuir semântica explícita;
+- intervalos históricos não deverão ser alterados sem auditoria.
+
+---
+
+## 70. DateTimeRange
+
+### Finalidade
+
+Representar um intervalo de data e hora.
+
+Estrutura conceitual:
+
+```text
+DateTimeRange
+    start_at
+    end_at
+    timezone
+```
+
+Regras:
+
+- `start_at` deverá ser anterior ou igual a `end_at`;
+- timezone deverá ser explícito;
+- armazenamento deverá preferencialmente utilizar UTC;
+- exibição poderá utilizar timezone local;
+- intervalos abertos poderão ser permitidos;
+- horários ambíguos deverão ser tratados de forma explícita.
+
+---
+
+## 71. SeasonPeriod
+
+### Finalidade
+
+Representar o período oficial de uma temporada.
+
+Estrutura conceitual:
+
+```text
+SeasonPeriod
+    start_date
+    end_date
+```
+
+Regras:
+
+- deverá formar intervalo válido;
+- poderá cruzar anos civis;
+- não deverá presumir formato anual;
+- deverá permitir temporadas curtas ou especiais;
+- sobreposição entre temporadas dependerá da competição.
+
+---
+
+## 72. MatchClock
+
+### Finalidade
+
+Representar o tempo esportivo de um evento dentro da partida.
+
+Estrutura conceitual:
+
+```text
+MatchClock
+    period
+    minute
+    second
+    added_minute
+```
+
+Regras:
+
+- valores negativos não serão permitidos;
+- o período deverá existir na partida;
+- acréscimo deverá ser representado separadamente;
+- o tempo esportivo não deverá ser confundido com timestamp de coleta;
+- o objeto poderá fornecer representação textual como `90+4`.
+
+---
+
+## 73. Score
+
+### Finalidade
+
+Representar um placar entre dois participantes.
+
+Estrutura conceitual:
+
+```text
+Score
+    home
+    away
+```
+
+Regras:
+
+- valores não poderão ser negativos;
+- deverá utilizar números inteiros;
+- poderá representar placar parcial ou final;
+- o contexto deverá indicar o tipo do placar;
+- o objeto poderá calcular total de gols;
+- o objeto poderá identificar vencedor ou empate;
+- placares administrativos deverão manter origem explícita.
+
+---
+
+## 74. AggregateScore
+
+### Finalidade
+
+Representar o placar agregado de um confronto com múltiplas partidas.
+
+Estrutura conceitual:
+
+```text
+AggregateScore
+    participant_a
+    participant_b
+```
+
+Regras:
+
+- valores não poderão ser negativos;
+- deverá ser derivável das partidas oficiais sempre que possível;
+- critérios como gols fora não deverão ser embutidos no valor;
+- o vencedor poderá depender de Domain Policy;
+- o objeto poderá representar igualdade sem decidir classificação.
+
+---
+
+## 75. PenaltyScore
+
+### Finalidade
+
+Representar o resultado de uma disputa de pênaltis.
+
+Estrutura conceitual:
+
+```text
+PenaltyScore
+    participant_a
+    participant_b
+```
+
+Regras:
+
+- deverá ser tratado separadamente do placar regulamentar;
+- valores não poderão ser negativos;
+- deverá estar associado a uma decisão ou período válido;
+- não deverá ser somado automaticamente ao placar oficial.
+
+---
+
+## 76. FormationCode
+
+### Finalidade
+
+Representar uma formação tática.
+
+Exemplos:
+
+```text
+4-3-3
+4-2-3-1
+3-5-2
+```
+
+Regras:
+
+- deverá possuir formato válido;
+- a soma dos jogadores de linha deverá ser coerente;
+- o goleiro poderá ser implícito;
+- formações incomuns deverão ser permitidas quando válidas;
+- o valor original do provider poderá ser preservado separadamente.
+
+---
+
+## 77. ShirtNumber
+
+### Finalidade
+
+Representar o número de camisa de uma pessoa em determinado contexto.
+
+Estrutura conceitual:
+
+```text
+ShirtNumber
+    value
+```
+
+Regras:
+
+- deverá utilizar número inteiro positivo;
+- os limites poderão variar por competição;
+- poderá ser temporário;
+- não deverá fazer parte da identidade da pessoa;
+- duplicações deverão ser avaliadas dentro do contexto apropriado.
+
+---
+
+## 78. FieldPosition
+
+### Finalidade
+
+Representar uma posição ou função em campo.
+
+Estrutura conceitual:
+
+```text
+FieldPosition
+    category
+    role
+    side
+```
+
+Exemplos:
+
+```text
+goalkeeper
+center_back
+left_back
+defensive_midfielder
+right_winger
+center_forward
+```
+
+Regras:
+
+- deverá utilizar vocabulário canônico;
+- valores de providers deverão ser normalizados;
+- posição principal e posição na partida poderão ser diferentes;
+- o objeto poderá preservar nível de detalhe variável.
+
+---
+
+## 79. Probability
+
+### Finalidade
+
+Representar uma probabilidade matemática.
+
+Estrutura conceitual:
+
+```text
+Probability
+    value
+```
+
+Regras:
+
+- valor entre `0` e `1`;
+- precisão deverá ser controlada;
+- cálculos deverão evitar erros de ponto flutuante;
+- poderá ser convertido em percentual;
+- não deverá aceitar valores ausentes como zero;
+- probabilidades complementares deverão respeitar tolerância definida.
+
+---
+
+## 80. Percentage
+
+### Finalidade
+
+Representar um percentual.
+
+Estrutura conceitual:
+
+```text
+Percentage
+    value
+```
+
+Regras:
+
+- limites dependerão do contexto;
+- o padrão será entre `0` e `100`;
+- percentuais acima de `100` somente serão permitidos em conceitos específicos;
+- deverá preservar precisão;
+- não deverá ser confundido com Probability.
+
+---
+
+## 81. DecimalOdd
+
+### Finalidade
+
+Representar uma odd decimal.
+
+Estrutura conceitual:
+
+```text
+DecimalOdd
+    value
+```
+
+Regras:
+
+- deverá ser maior que `1` para odds comuns;
+- odds especiais poderão exigir política própria;
+- deverá utilizar Decimal;
+- deverá preservar a precisão coletada;
+- poderá calcular probabilidade implícita;
+- não deverá ser alterada após o registro histórico.
+
+---
+
+## 82. Money
+
+### Finalidade
+
+Representar um valor monetário.
+
+Estrutura conceitual:
+
+```text
+Money
+    amount
+    currency
+```
+
+Regras:
+
+- deverá utilizar Decimal;
+- moeda deverá ser explícita;
+- operações entre moedas diferentes deverão ser bloqueadas sem conversão;
+- precisão deverá respeitar a moeda;
+- arredondamento deverá utilizar regra definida;
+- valores negativos dependerão do contexto.
+
+---
+
+## 83. Stake
+
+### Finalidade
+
+Representar o valor financeiro arriscado em uma aposta.
+
+Estrutura conceitual:
+
+```text
+Stake
+    money
+```
+
+Regras:
+
+- deverá ser maior que zero;
+- deverá possuir moeda compatível com a Bankroll;
+- deverá respeitar limites configurados;
+- não deverá exceder o saldo disponível quando essa regra estiver ativa.
+
+---
+
+## 84. ExpectedValue
+
+### Finalidade
+
+Representar o valor esperado de uma oportunidade.
+
+Estrutura conceitual:
+
+```text
+ExpectedValue
+    value
+```
+
+Regras:
+
+- poderá ser positivo, negativo ou zero;
+- deverá registrar fórmula ou versão de cálculo;
+- deverá usar Probability e DecimalOdd;
+- precisão deverá ser controlada;
+- não deverá ser tratado como garantia de retorno.
+
+---
+
+## 85. ConfidenceScore
+
+### Finalidade
+
+Representar o grau de confiança de uma decisão ou correspondência.
+
+Estrutura conceitual:
+
+```text
+ConfidenceScore
+    value
+```
+
+Regras:
+
+- valor entre `0` e `1`;
+- deverá possuir interpretação definida por contexto;
+- não deverá ser comparado entre algoritmos diferentes sem calibração;
+- limiares deverão ser configuráveis;
+- a versão do algoritmo deverá ser preservada.
+
+---
+
+## 86. OpportunityScore
+
+### Finalidade
+
+Representar a classificação consolidada de uma oportunidade de aposta.
+
+Estrutura conceitual:
+
+```text
+OpportunityScore
+    value
+    version
+```
+
+Regras:
+
+- escala deverá ser documentada;
+- cálculo deverá ser versionado;
+- deverá combinar apenas fatores definidos;
+- não deverá ocultar os componentes utilizados;
+- alterações no cálculo deverão gerar nova versão.
+
+---
+
+## 87. SampleQuality
+
+### Finalidade
+
+Representar a confiabilidade estatística de uma amostra.
+
+Estrutura conceitual:
+
+```text
+SampleQuality
+    score
+    sample_size
+    completeness
+    recency
+```
+
+Regras:
+
+- deverá registrar fatores principais;
+- não deverá ser reduzida apenas ao tamanho da amostra;
+- critérios deverão ser versionados;
+- poderá bloquear ou reduzir confiança de previsões;
+- deverá ser explicável.
+
+---
+
+## 88. ModelVersion
+
+### Finalidade
+
+Representar uma versão imutável de modelo preditivo.
+
+Estrutura conceitual:
+
+```text
+ModelVersion
+    model_name
+    version
+    artifact_hash
+```
+
+Regras:
+
+- deverá identificar unicamente o artefato;
+- não poderá ser reutilizada para modelos diferentes;
+- alterações exigem nova versão;
+- deverá permitir rastrear treinamento e inferência;
+- deverá preservar hash do artefato.
+
+---
+
+## 89. DataProvenance
+
+### Finalidade
+
+Representar a origem de um dado.
+
+Estrutura conceitual:
+
+```text
+DataProvenance
+    provider_id
+    payload_id
+    collected_at
+    processed_at
+    rule_version
+```
+
+Regras:
+
+- deverá apontar para origem rastreável;
+- poderá representar origem manual;
+- deverá preservar versão da regra aplicada;
+- não deverá ser alterada silenciosamente;
+- múltiplas proveniências poderão coexistir para o mesmo campo.
+
+---
+
+## 90. EntitySnapshot
+
+### Finalidade
+
+Preservar uma representação histórica de uma entidade externa ao agregado.
+
+Estrutura conceitual:
+
+```text
+EntitySnapshot
+    entity_id
+    display_name
+    relevant_attributes
+    captured_at
+```
+
+Regras:
+
+- deverá preservar apenas os dados relevantes ao contexto;
+- não substituirá a referência canônica;
+- deverá ser imutável;
+- deverá registrar quando foi capturado;
+- não deverá ser atualizado quando a entidade original mudar.
+
+---
+
+# 91. Regras de Identidade Canônica
+
+## 91.1 Identidade independente de provider
+
+Toda entidade canônica deverá possuir identidade própria gerada pelo UltraStats AI.
+
+Exemplo:
+
+```text
+Team
+    id: canonical_uuid
+
+ExternalIdentifier
+    provider: football_data_org
+    external_value: 64
+```
+
+O identificador `64` não deverá ser usado como `Team.id`.
+
+---
+
+## 91.2 Identidade estável
+
+A identidade canônica deverá permanecer estável ao longo do tempo.
+
+Alterações em:
+
+- nome;
+- estádio;
+- escudo;
+- país;
+- treinador;
+- competição;
+- provider;
+- status;
+
+não deverão gerar automaticamente uma nova identidade.
+
+---
+
+## 91.3 Identidade sem significado mutável
+
+Identificadores canônicos não deverão incorporar informações mutáveis.
+
+Exemplo inadequado:
+
+```text
+team_id = "BRA-SP-PALMEIRAS"
+```
+
+Esse identificador depende de nome e localização.
+
+Exemplo preferencial:
+
+```text
+team_id = UUID
+```
+
+Nomes, códigos e localizações permanecem como atributos.
+
+---
+
+## 91.4 Identidade por entidade
+
+Cada entidade canônica deverá possuir exatamente uma identidade principal.
+
+Especializações não deverão gerar identidades paralelas quando representam a mesma entidade.
+
+Exemplo:
+
+```text
+Person
+    id: person_id
+
+Player
+    person_id: person_id
+```
+
+Player reutiliza a identidade da Person.
+
+---
+
+## 91.5 Identidade interna
+
+Entidades internas poderão possuir identificador próprio para persistência e auditoria.
+
+Exemplo:
+
+```text
+MatchEvent
+    id
+    match_id
+```
+
+A identidade do MatchEvent será válida apenas dentro de sua fronteira conceitual.
+
+Mesmo possuindo `id`, MatchEvent não se torna Aggregate Root.
+
+---
+
+## 91.6 Identidade temporal
+
+Determinadas entidades representam uma relação em certo período.
+
+Exemplo:
+
+```text
+TeamMembership
+    team_id
+    person_id
+    valid_from
+    valid_until
+```
+
+A combinação dos valores poderá participar de constraints de unicidade, mas a entidade ainda poderá possuir identificador próprio para auditoria.
+
+---
+
+# 92. Estratégia de Identificadores
+
+## 92.1 UUID como padrão
+
+A estratégia preferencial será utilizar UUID para identidades canônicas.
+
+Vantagens:
+
+- geração distribuída;
+- independência do banco;
+- menor risco de colisão entre ambientes;
+- ausência de informação de negócio;
+- facilidade de sincronização;
+- menor acoplamento com providers.
+
+A versão concreta do UUID deverá ser definida antes do G5.
+
+---
+
+## 92.2 Identificadores sequenciais
+
+Identificadores sequenciais poderão ser utilizados internamente em tabelas de grande volume quando houver justificativa técnica.
+
+Entretanto, o uso de identificador sequencial deverá avaliar:
+
+- exposição pública;
+- previsibilidade;
+- replicação;
+- fusão entre ambientes;
+- migração de dados;
+- desempenho.
+
+Quando necessário, uma entidade poderá possuir:
+
+- identificador técnico sequencial;
+- identificador canônico UUID.
+
+Essa duplicidade somente deverá ser adotada com justificativa clara.
+
+---
+
+## 92.3 Identificadores públicos
+
+Identificadores expostos em APIs ou URLs poderão utilizar:
+
+- UUID;
+- identificador codificado;
+- slug estável;
+- chave pública específica.
+
+Slugs não deverão substituir identidades canônicas.
+
+---
+
+## 92.4 IDs de eventos de integração
+
+Eventos de integração deverão possuir identificador próprio.
+
+Exemplo:
+
+```text
+event_id
+event_type
+aggregate_id
+occurred_at
+```
+
+O `event_id` será utilizado para:
+
+- idempotência;
+- rastreabilidade;
+- deduplicação;
+- reprocessamento.
+
+---
+
+# 93. Regras de Identificadores Externos
+
+## 93.1 Escopo composto
+
+Um identificador externo somente será único dentro do conjunto:
+
+```text
+provider
+entity_type
+external_value
+```
+
+O valor `64` poderá identificar entidades diferentes em providers distintos.
+
+---
+
+## 93.2 Preservação do valor original
+
+O valor externo deverá ser armazenado sem perda de informação.
+
+Caso o provider utilize string, não deverá ser convertido automaticamente para inteiro.
+
+Exemplo:
+
+```text
+"00064"
+```
+
+não deverá ser transformado em:
+
+```text
+64
+```
+
+quando os zeros fizerem parte do identificador original.
+
+---
+
+## 93.3 Histórico de mapeamento
+
+Alterações de mapeamento deverão preservar histórico.
+
+Exemplo:
+
+```text
+ExternalIdentifier X
+    previously mapped to Team A
+    corrected to Team B
+```
+
+A correção deverá registrar:
+
+- valor anterior;
+- novo valor;
+- motivo;
+- autor;
+- data;
+- evidência.
+
+---
+
+## 93.4 Um externo para um canônico
+
+Como regra geral, um ExternalIdentifier ativo deverá apontar para uma única entidade canônica.
+
+Exceções deverão ser tratadas explicitamente.
+
+---
+
+## 93.5 Múltiplos externos para um canônico
+
+Uma entidade canônica poderá possuir vários identificadores externos.
+
+Exemplo:
+
+```text
+Team A
+    Football-Data.org: 64
+    Provider B: "palmeiras"
+    Provider C: 9921
+```
+
+Todos representam a mesma equipe canônica.
+
+---
+
+# 94. Regras de Aliases
+
+## 94.1 Alias não cria identidade
+
+Um alias não deverá criar uma nova entidade automaticamente.
+
+Exemplo:
+
+```text
+Manchester United
+Man United
+Manchester Utd
+```
+
+Esses valores poderão representar a mesma entidade.
+
+---
+
+## 94.2 Alias ambíguo
+
+Um mesmo alias poderá estar relacionado a múltiplas entidades.
+
+Exemplo:
+
+```text
+United
+```
+
+A resolução não poderá utilizar apenas igualdade textual.
+
+Deverão ser considerados:
+
+- país;
+- competição;
+- período;
+- tipo da entidade;
+- provider;
+- relações conhecidas;
+- contexto do payload.
+
+---
+
+## 94.3 Normalização de alias
+
+Aliases poderão possuir versões normalizadas para matching.
+
+Exemplo:
+
+```text
+São Paulo FC
+sao paulo fc
+```
+
+A normalização não deverá apagar o valor original.
+
+---
+
+## 94.4 Alias histórico
+
+Nomes históricos deverão possuir vigência quando possível.
+
+Exemplo:
+
+```text
+official_name
+valid_from
+valid_until
+```
+
+A ausência de vigência não deverá impedir o armazenamento, mas reduzirá a confiança em processos automáticos.
+
+---
+
+## 94.5 Alias de provider
+
+Aliases provenientes de providers deverão registrar origem.
+
+Eles não deverão ser promovidos automaticamente a nome oficial.
+
+---
+
+# 95. Regras de Snapshots
+
+## 95.1 Finalidade histórica
+
+Snapshots serão utilizados quando o estado histórico de uma entidade externa precisar ser preservado.
+
+Exemplo:
+
+Uma partida poderá preservar o nome exibido da equipe no momento do jogo, mesmo que a equipe seja renomeada posteriormente.
+
+---
+
+## 95.2 Snapshot mínimo
+
+O snapshot deverá conter apenas os atributos necessários ao contexto histórico.
+
+Ele não deverá copiar toda a entidade externa.
+
+---
+
+## 95.3 Imutabilidade
+
+Snapshots deverão ser imutáveis.
+
+Alterações na entidade original não deverão alterar snapshots existentes.
+
+---
+
+## 95.4 Referência conjunta
+
+Sempre que possível, o snapshot deverá manter:
+
+```text
+canonical_id
+captured_values
+captured_at
+```
+
+Assim, o sistema preserva simultaneamente:
+
+- identidade atual;
+- representação histórica.
+
+---
+
+# 96. Regras de Igualdade
+
+## 96.1 Entidades
+
+Entidades serão comparadas por identidade.
+
+Exemplo:
+
+```text
+Team(id=A, name="Name 1")
+Team(id=A, name="Name 2")
+```
+
+Representam a mesma entidade, mesmo com nomes diferentes.
+
+---
+
+## 96.2 Value Objects
+
+Value Objects serão comparados por seus componentes.
+
+Exemplo:
+
+```text
+GeoCoordinate(-21.1, -48.2)
+GeoCoordinate(-21.1, -48.2)
+```
+
+Representam o mesmo valor.
+
+---
+
+## 96.3 Snapshots
+
+Snapshots deverão ser comparados pelo conjunto:
+
+- entidade referenciada;
+- instante de captura;
+- valores capturados.
+
+Dois snapshots iguais em conteúdo, mas capturados em momentos diferentes, poderão representar registros históricos distintos.
+
+---
+
+# 97. Regras de Normalização
+
+## 97.1 Normalização não destrutiva
+
+Toda normalização deverá preservar o valor original.
+
+Exemplo:
+
+```text
+original: "  São   Paulo F.C. "
+normalized: "sao paulo fc"
+```
+
+---
+
+## 97.2 Algoritmo versionado
+
+Algoritmos de normalização deverão possuir versão.
+
+Mudanças poderão alterar resultados de matching.
+
+Exemplo:
+
+```text
+normalization_version: 2
+```
+
+---
+
+## 97.3 Normalização específica por tipo
+
+Diferentes tipos de entidade poderão utilizar regras diferentes.
+
+Exemplos:
+
+- nomes de pessoas;
+- nomes de equipes;
+- nomes de estádios;
+- códigos de competição;
+- nomes de cidades.
+
+Não deverá existir uma única função genérica aplicada indiscriminadamente.
+
+---
+
+## 97.4 Normalização cultural
+
+A normalização deverá considerar diferenças linguísticas e culturais.
+
+Exemplos:
+
+- acentuação;
+- transliteração;
+- partículas de sobrenome;
+- abreviações esportivas;
+- sufixos jurídicos de clubes;
+- nomes históricos.
+
+---
+
+# 98. Regras de Criação de Novos Value Objects
+
+Antes de criar um novo Value Object, deverá ser avaliado:
+
+1. o conceito possui significado próprio no domínio?
+2. possui regras de validação?
+3. possui comportamento?
+4. aparece em mais de uma entidade?
+5. tipos primitivos permitiriam estados inválidos?
+6. a igualdade é baseada em valor?
+7. o conceito é imutável?
+8. o nome melhora a clareza do modelo?
+
+Um Value Object não deverá ser criado apenas para envolver um único campo sem ganho semântico.
+
+---
+
+# 99. Persistência de Value Objects
+
+Value Objects poderão ser persistidos de diferentes formas:
+
+- colunas embutidas;
+- composite types;
+- JSON estruturado;
+- tabelas auxiliares;
+- tipos customizados;
+- serialização específica.
+
+A estratégia concreta dependerá de:
+
+- frequência de consulta;
+- necessidade de índices;
+- volume;
+- portabilidade;
+- suporte do ORM;
+- necessidade de constraints.
+
+A persistência não deverá alterar a semântica do objeto.
+
+---
+
+# 100. Serialização
+
+Value Objects expostos por APIs deverão possuir serialização estável.
+
+Exemplo:
+
+```json
+{
+  "amount": "150.00",
+  "currency": "BRL"
+}
+```
+
+A serialização deverá:
+
+- evitar perda de precisão;
+- preservar timezone;
+- preservar códigos;
+- utilizar formatos documentados;
+- ser compatível com versionamento.
+
+---
+
+# 101. Decisões desta Parte
+
+As seguintes decisões passam a integrar a arquitetura oficial do UltraStats AI:
+
+1. Value Objects serão definidos por valor e não por identidade.
+2. Value Objects serão preferencialmente imutáveis.
+3. Value Objects deverão nascer válidos.
+4. Conceitos relevantes não deverão ser representados apenas por tipos primitivos.
+5. Identidades canônicas serão independentes de providers.
+6. UUID será a estratégia preferencial para IDs canônicos.
+7. Identificadores externos serão armazenados separadamente.
+8. Aliases não criarão identidades automaticamente.
+9. Normalizações preservarão o valor original.
+10. Snapshots serão utilizados para preservar contexto histórico.
+11. Entidades serão comparadas por identidade.
+12. Value Objects serão comparados por valor.
+13. Algoritmos de normalização deverão ser versionados.
+14. Especializações reutilizarão a identidade da entidade principal.
+15. A persistência não poderá alterar a semântica dos Value Objects.
+
+---
+
+# 102. Pontos para Revisão Antes do G5
+
+Antes da implementação persistente, deverão ser confirmados:
+
+- versão de UUID adotada;
+- uso de UUID nativo no PostgreSQL;
+- necessidade de identificadores técnicos sequenciais;
+- estratégia de composite types no SQLAlchemy;
+- precisão de Probability;
+- precisão de DecimalOdd;
+- precisão de Money;
+- política de arredondamento;
+- representação de timezone;
+- catálogo inicial de moedas;
+- estratégia de normalização textual;
+- versionamento dos algoritmos;
+- persistência de snapshots;
+- constraints de ExternalIdentifier;
+- índices de aliases normalizados.
+
+---
+
+# 103. Resultado da G4.A.4.1 — Parte 4
+
+Com a conclusão desta parte, ficam definidos:
+
+- o conceito de Value Object;
+- os critérios para criação de Value Objects;
+- o catálogo inicial de objetos de valor;
+- as regras de igualdade;
+- as regras de imutabilidade;
+- a estratégia de identidade canônica;
+- a estratégia de identificadores externos;
+- as regras de aliases;
+- as regras de snapshots;
+- as regras de normalização;
+- as diretrizes de persistência e serialização.
+
+---
+
+# 104. Conclusão da G4.A.4.1
+
+A subetapa G4.A.4.1 — Agregados, Bounded Contexts e Value Objects está concluída.
+
+Foram definidos:
+
+- os Bounded Contexts do UltraStats AI;
+- as responsabilidades de cada contexto;
+- os Aggregate Roots;
+- as fronteiras dos agregados;
+- as entidades internas;
+- as regras de ownership;
+- os Value Objects;
+- as regras de identidade;
+- as regras de aliases;
+- as regras de snapshots;
+- as regras de normalização.
+
+A próxima subetapa será:
+
+```text
+G4.A.4.2 — Regras de Consistência, Serviços, Políticas e Eventos de Domínio
+```
+
+Essa subetapa definirá:
+
+- invariantes;
+- regras de consistência;
+- consistência forte;
+- consistência eventual;
+- Domain Services;
+- Domain Policies;
+- Domain Events;
+- Integration Events;
+- comandos;
+- fluxos de alteração;
+- validações entre agregados;
+- tratamento de falhas de domínio.
