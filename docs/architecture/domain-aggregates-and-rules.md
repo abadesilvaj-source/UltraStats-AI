@@ -4536,3 +4536,3627 @@ Essa subetapa definirá:
 - fluxos de alteração;
 - validações entre agregados;
 - tratamento de falhas de domínio.
+---
+
+# Parte V — Regras de Consistência, Serviços, Políticas e Eventos de Domínio
+
+## 105. Objetivo da G4.A.4.2
+
+Esta parte define como o UltraStats AI preservará a consistência do domínio durante operações de criação, alteração, integração, processamento estatístico e geração de previsões.
+
+Ao final desta subetapa deverão estar definidos:
+
+- invariantes dos agregados;
+- regras de consistência forte;
+- regras de consistência eventual;
+- validações internas e externas;
+- responsabilidades dos Domain Services;
+- responsabilidades das Domain Policies;
+- comandos de domínio;
+- Domain Events;
+- Integration Events;
+- fluxos de escrita;
+- tratamento de falhas;
+- idempotência;
+- reprocessamento;
+- compensações;
+- limites entre domínio e aplicação.
+
+---
+
+## 106. Consistência do Domínio
+
+Consistência representa a garantia de que o estado do sistema respeita as regras de negócio definidas.
+
+Um estado será considerado consistente quando:
+
+- entidades obrigatórias existirem;
+- relacionamentos forem válidos;
+- valores respeitarem limites;
+- identidades não forem duplicadas;
+- ciclos de vida forem respeitados;
+- transições de estado forem permitidas;
+- históricos forem preservados;
+- operações concorrentes não produzirem resultados incompatíveis;
+- dados derivados puderem ser rastreados até suas fontes.
+
+A consistência do domínio não deverá depender exclusivamente do banco de dados.
+
+Ela deverá ser preservada por uma combinação de:
+
+- Value Objects;
+- entidades;
+- Aggregate Roots;
+- Domain Services;
+- Domain Policies;
+- Application Services;
+- constraints;
+- transações;
+- eventos;
+- processos de reconciliação.
+
+---
+
+## 107. Invariantes
+
+Uma invariante é uma regra que deverá permanecer verdadeira durante todo o ciclo de vida de um agregado.
+
+Uma operação somente poderá ser confirmada quando todas as invariantes relevantes estiverem satisfeitas.
+
+Exemplos:
+
+```text
+Uma partida não pode possuir a mesma equipe como mandante e visitante.
+
+Uma probabilidade não pode ser menor que zero ou maior que um.
+
+Uma odd histórica confirmada não pode ser sobrescrita.
+
+Uma aposta não pode ser liquidada antes de ser confirmada.
+
+Um evento de partida não pode referenciar uma pessoa sem relação válida com a partida.
+```
+
+As invariantes deverão ser protegidas dentro da fronteira do agregado sempre que dependerem apenas de seu próprio estado.
+
+---
+
+## 108. Classificação das Regras
+
+As regras do domínio serão classificadas em cinco grupos.
+
+| Tipo | Responsabilidade |
+|---|---|
+| Regra de Value Object | Garante validade de um valor isolado. |
+| Regra de entidade | Garante validade do estado de uma entidade. |
+| Invariante de agregado | Garante consistência entre entidades do mesmo agregado. |
+| Domain Policy | Define regra variável ou estratégia de negócio. |
+| Domain Service | Executa operação envolvendo múltiplos conceitos ou agregados. |
+
+Essa classificação deverá evitar a concentração de toda a lógica em services genéricos.
+
+---
+
+## 109. Regras de Value Objects
+
+Value Objects deverão rejeitar estados inválidos no momento de sua criação.
+
+Exemplos:
+
+```text
+Probability
+    0 <= value <= 1
+
+GeoCoordinate
+    -90 <= latitude <= 90
+    -180 <= longitude <= 180
+
+Money
+    currency obrigatória
+    precisão compatível
+
+DateRange
+    start_date <= end_date
+```
+
+Uma entidade não deverá receber um Value Object inválido.
+
+---
+
+## 110. Regras de Entidade
+
+Uma entidade será responsável por regras relacionadas ao próprio estado, desde que não dependam de outras entidades do agregado.
+
+Exemplos:
+
+- MatchEvent valida seu tipo;
+- MatchScheduleChange valida os valores anterior e posterior;
+- BankrollTransaction valida seu tipo e valor;
+- ExternalIdentifier valida provider, tipo e valor externo;
+- PredictionResult valida probabilidade e seleção.
+
+Uma entidade não deverá validar regras que dependam de todo o agregado sem acesso à raiz.
+
+---
+
+## 111. Regras do Aggregate Root
+
+O Aggregate Root deverá controlar regras que envolvam múltiplas entidades internas.
+
+Exemplos do Match Aggregate:
+
+- impedir participantes duplicados;
+- impedir papéis incompatíveis;
+- impedir duas escalações oficiais vigentes para a mesma equipe;
+- validar que um jogador pertence ao lado correto;
+- validar que um evento referencia um período existente;
+- validar coerência entre eventos e placar;
+- validar transições de status;
+- registrar revisão quando um fato oficial for alterado.
+
+Exemplos do Bankroll Aggregate:
+
+- impedir stake inválida;
+- validar moeda;
+- validar saldo;
+- controlar liquidação;
+- impedir duplicação de movimentação;
+- manter saldo coerente com transações.
+
+---
+
+# 112. Consistência Forte
+
+## 112.1 Definição
+
+Consistência forte será exigida quando uma operação não puder ser considerada concluída enquanto todas as regras críticas do agregado não forem validadas e persistidas.
+
+A operação deverá ser confirmada como uma única unidade transacional.
+
+---
+
+## 112.2 Casos de consistência forte
+
+A consistência forte deverá ser utilizada principalmente em:
+
+- criação de Aggregate Roots;
+- alteração de estado oficial;
+- atualização de entidades internas;
+- movimentações financeiras;
+- confirmação de apostas;
+- liquidação;
+- resolução manual de identidade;
+- alteração de participante de partida;
+- correção de placar oficial;
+- publicação de previsão;
+- registro de decisão oficial.
+
+---
+
+## 112.3 Limite da consistência forte
+
+A consistência forte deverá permanecer preferencialmente dentro de um único agregado.
+
+Exemplo:
+
+```text
+Match
+    ↓
+validar participantes
+    ↓
+validar estado
+    ↓
+registrar alteração
+    ↓
+criar revisão
+    ↓
+persistir Match
+```
+
+Todas essas ações poderão ocorrer na mesma transação por pertencerem ao mesmo agregado.
+
+---
+
+## 112.4 Operações entre agregados
+
+Operações que envolvam múltiplos agregados não deverão criar transações distribuídas por padrão.
+
+A estratégia preferencial será:
+
+```text
+Agregado A confirma operação
+    ↓
+publica evento
+    ↓
+Agregado B processa evento
+    ↓
+Agregado B confirma sua própria operação
+```
+
+---
+
+# 113. Consistência Eventual
+
+## 113.1 Definição
+
+Consistência eventual significa que diferentes partes do sistema poderão ser atualizadas em momentos distintos, desde que o sistema possua mecanismos para convergir para o estado correto.
+
+Essa estratégia será utilizada quando:
+
+- a operação atravessar contextos;
+- o processamento for derivado;
+- houver grande volume;
+- houver dependência de serviços externos;
+- a atualização imediata não for obrigatória;
+- o processamento puder ser repetido.
+
+---
+
+## 113.2 Casos de consistência eventual
+
+Exemplos:
+
+- recalcular estatísticas após término de partida;
+- gerar features;
+- atualizar projeções;
+- executar previsões;
+- recalcular recomendações;
+- atualizar dashboards;
+- invalidar cache;
+- enviar notificações;
+- sincronizar dados de providers;
+- recalcular placar agregado de Tie;
+- atualizar ranking;
+- atualizar performance de modelo.
+
+---
+
+## 113.3 Exemplo de fluxo eventual
+
+```text
+Match finalizado
+    ↓
+MatchFinished publicado
+    ↓
+Statistics processa
+    ↓
+StatisticsUpdated publicado
+    ↓
+Prediction processa
+    ↓
+PredictionPublished publicado
+    ↓
+Recommendation processa
+```
+
+Uma falha em Recommendation não deverá desfazer a finalização do Match.
+
+---
+
+## 113.4 Estado de processamento
+
+Processos de consistência eventual deverão registrar:
+
+- status;
+- tentativas;
+- horário da última tentativa;
+- erro;
+- próximo retry;
+- payload ou referência;
+- versão do consumidor;
+- resultado;
+- chave de idempotência.
+
+---
+
+# 114. Validações Internas e Externas
+
+## 114.1 Validação interna
+
+Validação interna depende apenas do estado do agregado.
+
+Exemplo:
+
+```text
+Match.add_participant(team_id)
+```
+
+O Match poderá verificar se já existe participante com o mesmo papel.
+
+---
+
+## 114.2 Validação externa
+
+Validação externa depende de informações pertencentes a outro agregado ou contexto.
+
+Exemplo:
+
+- verificar se Team existe;
+- verificar se Person possui perfil de jogador;
+- verificar se Stadium está ativo;
+- verificar se Competition permite determinada formação;
+- verificar se Bankroll utiliza a moeda da Stake.
+
+Validações externas deverão ocorrer antes da confirmação da operação, através de contratos explícitos.
+
+---
+
+## 114.3 Validação externa não transfere responsabilidade
+
+O fato de Match consultar Team não permite que Match altere Team.
+
+A validação externa apenas confirma uma pré-condição.
+
+---
+
+## 114.4 Falha entre validação e persistência
+
+Quando existir intervalo entre validação externa e persistência, o sistema deverá avaliar:
+
+- risco de alteração concorrente;
+- necessidade de versionamento;
+- uso de snapshot;
+- consistência eventual;
+- repetição da validação;
+- compensação.
+
+---
+
+# 115. Domain Services
+
+## 115.1 Definição
+
+Domain Service representa uma operação de negócio que não pertence naturalmente a uma única entidade ou Value Object.
+
+Um Domain Service deverá:
+
+- representar uma ação real do domínio;
+- utilizar linguagem de negócio;
+- evitar dependência de infraestrutura;
+- receber objetos de domínio;
+- devolver resultados de domínio;
+- não funcionar como agrupador genérico de funções.
+
+---
+
+## 115.2 Quando utilizar
+
+Domain Services deverão ser utilizados quando:
+
+- a regra envolver múltiplos agregados;
+- a operação não possuir proprietário natural;
+- o cálculo representar conceito relevante;
+- a decisão depender de política;
+- a lógica precisar ser reutilizada;
+- a operação for mais importante que os dados manipulados.
+
+---
+
+## 115.3 Quando não utilizar
+
+Não deverá ser criado Domain Service para:
+
+- getters;
+- setters;
+- formatação;
+- consultas simples;
+- acesso ao banco;
+- serialização;
+- chamadas HTTP;
+- validação pertencente a Value Object;
+- regra pertencente claramente a um Aggregate Root.
+
+---
+
+# 116. Catálogo Inicial de Domain Services
+
+## 116.1 IdentityResolutionService
+
+Responsável por relacionar representações externas a entidades canônicas.
+
+Operações conceituais:
+
+```text
+generate_candidates(...)
+calculate_match_score(...)
+resolve_automatically(...)
+request_manual_review(...)
+apply_resolution(...)
+```
+
+O serviço deverá considerar:
+
+- nome normalizado;
+- aliases;
+- país;
+- competição;
+- período;
+- relações conhecidas;
+- identificadores externos;
+- confiança;
+- evidências.
+
+---
+
+## 116.2 DataFusionService
+
+Responsável por comparar dados concorrentes provenientes de múltiplos providers.
+
+Operações:
+
+```text
+collect_candidates(...)
+compare_values(...)
+apply_provider_priority(...)
+detect_conflict(...)
+propose_canonical_update(...)
+```
+
+O serviço não deverá gravar diretamente no agregado proprietário sem utilizar seu contrato de escrita.
+
+---
+
+## 116.3 MatchResultService
+
+Responsável por determinar o resultado esportivo a partir de:
+
+- placar regulamentar;
+- prorrogação;
+- pênaltis;
+- decisões administrativas;
+- regras da competição.
+
+Operações:
+
+```text
+calculate_official_score(...)
+determine_winner(...)
+determine_outcome(...)
+```
+
+---
+
+## 116.4 TieResolutionService
+
+Responsável por calcular o resultado de confrontos com múltiplas partidas.
+
+Poderá considerar:
+
+- placar agregado;
+- gols fora;
+- prorrogação;
+- pênaltis;
+- vantagem esportiva;
+- decisão administrativa.
+
+As regras concretas serão fornecidas por Domain Policies.
+
+---
+
+## 116.5 ProbabilityCalibrationService
+
+Responsável por ajustar probabilidades de acordo com um método de calibração.
+
+Operações:
+
+```text
+calibrate(...)
+validate_distribution(...)
+calculate_calibration_error(...)
+```
+
+Resultados deverão registrar:
+
+- método;
+- versão;
+- parâmetros;
+- data;
+- amostra.
+
+---
+
+## 116.6 FairOddCalculationService
+
+Responsável por converter Probability em DecimalOdd justa.
+
+Operação conceitual:
+
+```text
+calculate_fair_odd(probability)
+```
+
+Deverá tratar:
+
+- probabilidade zero;
+- precisão;
+- arredondamento;
+- limites;
+- ausência de margem.
+
+---
+
+## 116.7 ExpectedValueCalculationService
+
+Responsável por calcular valor esperado a partir de:
+
+- probabilidade própria;
+- odd oferecida;
+- stake ou unidade de referência.
+
+A fórmula e sua versão deverão ser explícitas.
+
+---
+
+## 116.8 RecommendationEvaluationService
+
+Responsável por combinar:
+
+- ExpectedValue;
+- ConfidenceScore;
+- SampleQuality;
+- liquidez;
+- disponibilidade;
+- risco;
+- limites do usuário.
+
+O resultado será uma decisão de recomendação, bloqueio ou necessidade de revisão.
+
+---
+
+## 116.9 StakeCalculationService
+
+Responsável por sugerir stake de acordo com:
+
+- Bankroll;
+- perfil de risco;
+- probabilidade;
+- odd;
+- exposição;
+- estratégia configurada;
+- limites máximos.
+
+Poderá utilizar políticas como:
+
+- stake fixa;
+- percentual da banca;
+- Kelly fracionado;
+- limite por mercado;
+- limite por competição.
+
+---
+
+## 116.10 BetSettlementService
+
+Responsável por liquidar apostas com base em:
+
+- resultado oficial;
+- regras do mercado;
+- regras da casa;
+- void;
+- push;
+- meia vitória;
+- meia perda;
+- múltiplas seleções.
+
+A liquidação deverá ser auditável e repetível.
+
+---
+
+# 117. Domain Policies
+
+## 117.1 Definição
+
+Domain Policy representa uma regra substituível, configurável ou variável de acordo com competição, provider, mercado, perfil ou estratégia.
+
+Uma policy deverá responder a uma decisão específica.
+
+Exemplos:
+
+```text
+AwayGoalsPolicy
+MatchWinnerPolicy
+ProviderPriorityPolicy
+IdentityResolutionThresholdPolicy
+StakeLimitPolicy
+RecommendationRiskPolicy
+```
+
+---
+
+## 117.2 Diferença entre Service e Policy
+
+Domain Service executa uma operação.
+
+Domain Policy define como determinada decisão deverá ser tomada.
+
+Exemplo:
+
+```text
+TieResolutionService
+    utiliza
+AwayGoalsPolicy
+```
+
+---
+
+## 117.3 Policies por competição
+
+Competições poderão possuir políticas específicas para:
+
+- pontuação;
+- classificação;
+- desempate;
+- prorrogação;
+- pênaltis;
+- gols fora;
+- número de participantes;
+- formato de fase;
+- limite de jogadores;
+- substituições;
+- suspensão.
+
+---
+
+## 117.4 Policies de integração
+
+A integração poderá utilizar:
+
+- ProviderPriorityPolicy;
+- RetryPolicy;
+- RateLimitPolicy;
+- StalenessPolicy;
+- ConflictResolutionPolicy;
+- ProviderTrustPolicy.
+
+---
+
+## 117.5 Policies de identidade
+
+A resolução de identidade poderá utilizar:
+
+- AutoMatchThresholdPolicy;
+- ManualReviewThresholdPolicy;
+- DuplicateDetectionPolicy;
+- AliasComparisonPolicy;
+- TemporalCompatibilityPolicy.
+
+---
+
+## 117.6 Policies de recomendação
+
+O Recommendation Context poderá utilizar:
+
+- MinimumExpectedValuePolicy;
+- MinimumConfidencePolicy;
+- MinimumSampleQualityPolicy;
+- MaximumOddPolicy;
+- MarketAvailabilityPolicy;
+- RiskClassificationPolicy;
+- RecommendationSuppressionPolicy.
+
+---
+
+## 117.7 Policies de banca
+
+O Risk and Portfolio Context poderá utilizar:
+
+- MaximumStakePolicy;
+- DailyExposurePolicy;
+- CompetitionExposurePolicy;
+- CorrelatedBetPolicy;
+- DrawdownProtectionPolicy;
+- KellyFractionPolicy.
+
+---
+
+# 118. Commands
+
+## 118.1 Definição
+
+Command representa uma intenção explícita de alterar o estado do sistema.
+
+Um Command deverá expressar uma ação de negócio.
+
+Exemplos:
+
+```text
+CreateMatch
+AddMatchParticipant
+RegisterMatchEvent
+ChangeMatchSchedule
+PublishPrediction
+CreateRecommendation
+RegisterBet
+SettleBet
+ResolveExternalIdentity
+```
+
+---
+
+## 118.2 Características
+
+Commands deverão possuir:
+
+- identificador;
+- tipo;
+- dados necessários;
+- autor ou processo;
+- horário;
+- chave de idempotência;
+- correlation_id quando aplicável;
+- causation_id quando aplicável.
+
+---
+
+## 118.3 Command não é evento
+
+Command expressa intenção:
+
+```text
+ChangeMatchSchedule
+```
+
+Evento expressa fato ocorrido:
+
+```text
+MatchScheduleChanged
+```
+
+Um Command pode ser rejeitado.
+
+Um evento somente deverá ser publicado após a operação correspondente ter sido confirmada.
+
+---
+
+## 118.4 Commands internos e externos
+
+Commands externos poderão ser recebidos por:
+
+- API;
+- interface;
+- importação;
+- scheduler;
+- processo de integração.
+
+Commands internos poderão ser gerados por:
+
+- Application Services;
+- consumers;
+- workflows;
+- jobs;
+- processos de reconciliação.
+
+---
+
+# 119. Application Services
+
+## 119.1 Responsabilidade
+
+Application Services deverão coordenar casos de uso.
+
+Eles poderão:
+
+- receber Command;
+- validar autorização;
+- carregar Aggregate Root;
+- consultar outros contextos;
+- executar método de domínio;
+- persistir agregado;
+- publicar eventos;
+- iniciar transação;
+- registrar auditoria;
+- devolver resultado.
+
+---
+
+## 119.2 O que não pertence ao Application Service
+
+Application Services não deverão concentrar regras centrais de negócio.
+
+Exemplo inadequado:
+
+```text
+MatchApplicationService
+    verifica manualmente todas as regras
+    altera campos diretamente
+    salva entidades internas
+```
+
+Exemplo preferencial:
+
+```text
+MatchApplicationService
+    carrega Match
+    consulta referências necessárias
+    chama match.change_schedule(...)
+    salva Match
+    publica eventos
+```
+
+---
+
+## 119.3 Fluxo padrão
+
+```text
+Entrada
+    ↓
+Validação estrutural
+    ↓
+Autorização
+    ↓
+Carregamento do Aggregate Root
+    ↓
+Validações externas
+    ↓
+Execução do domínio
+    ↓
+Persistência
+    ↓
+Publicação de eventos
+    ↓
+Resposta
+```
+
+---
+
+# 120. Domain Events
+
+## 120.1 Definição
+
+Domain Event representa um fato relevante ocorrido dentro do domínio.
+
+Exemplos:
+
+```text
+MatchCreated
+MatchStarted
+MatchFinished
+MatchScheduleChanged
+MatchEventRegistered
+OfficialResultChanged
+ExternalIdentityResolved
+PredictionPublished
+BetRegistered
+BetSettled
+```
+
+---
+
+## 120.2 Características
+
+Domain Events deverão ser:
+
+- imutáveis;
+- nomeados no passado;
+- associados ao Aggregate Root;
+- versionados;
+- rastreáveis;
+- serializáveis;
+- idempotentes para consumidores;
+- publicados apenas após validação do domínio.
+
+---
+
+## 120.3 Estrutura base
+
+```text
+DomainEvent
+    event_id
+    event_type
+    event_version
+    aggregate_type
+    aggregate_id
+    aggregate_version
+    occurred_at
+    correlation_id
+    causation_id
+    actor_id
+    payload
+```
+
+---
+
+## 120.4 Eventos do Geography Context
+
+Exemplos:
+
+```text
+CountryCreated
+RegionAdded
+CityAdded
+GeographicAliasAdded
+GeographicBoundaryChanged
+```
+
+---
+
+## 120.5 Eventos do Competition Context
+
+Exemplos:
+
+```text
+CompetitionCreated
+SeasonCreated
+StageCreated
+RoundCreated
+CompetitionRuleChanged
+TieCreated
+TieResolved
+```
+
+---
+
+## 120.6 Eventos do Team Context
+
+Exemplos:
+
+```text
+TeamCreated
+TeamRenamed
+TeamMembershipStarted
+TeamMembershipEnded
+SquadRegistrationCreated
+SquadRegistrationEnded
+```
+
+---
+
+## 120.7 Eventos do People Context
+
+Exemplos:
+
+```text
+PersonCreated
+PersonAliasAdded
+PlayerProfileCreated
+CoachProfileCreated
+RefereeProfileCreated
+PersonIdentityMerged
+```
+
+---
+
+## 120.8 Eventos do Match Context
+
+Exemplos:
+
+```text
+MatchCreated
+MatchParticipantAdded
+MatchVenueAssigned
+MatchOfficialAssigned
+MatchScheduleChanged
+MatchStarted
+MatchInterrupted
+MatchResumed
+MatchEventRegistered
+LineupConfirmed
+MatchFinished
+MatchAbandoned
+OfficialResultChanged
+MatchRevised
+```
+
+---
+
+## 120.9 Eventos do Identity Resolution Context
+
+Exemplos:
+
+```text
+IdentityCandidateGenerated
+ExternalIdentityMatched
+ExternalIdentityRejected
+IdentityReviewRequested
+IdentityResolutionCorrected
+CanonicalDuplicateDetected
+```
+
+---
+
+## 120.10 Eventos do Data Fusion Context
+
+Exemplos:
+
+```text
+FusionConflictDetected
+FusionDecisionCreated
+CanonicalUpdateProposed
+ProviderValueRejected
+FieldProvenanceUpdated
+```
+
+---
+
+## 120.11 Eventos do Betting Market Context
+
+Exemplos:
+
+```text
+OddsSnapshotCollected
+MarketOpened
+MarketSuspended
+MarketClosed
+OddChanged
+BookmakerUnavailable
+```
+
+---
+
+## 120.12 Eventos do Statistics Context
+
+Exemplos:
+
+```text
+StatisticsCalculationRequested
+StatisticsCalculated
+StatisticalFeatureUpdated
+SampleQualityChanged
+StatisticsCalculationFailed
+```
+
+---
+
+## 120.13 Eventos do Prediction Context
+
+Exemplos:
+
+```text
+PredictionRequested
+PredictionRunStarted
+PredictionPublished
+PredictionFailed
+ModelVersionActivated
+ModelVersionDeprecated
+```
+
+---
+
+## 120.14 Eventos do Recommendation Context
+
+Exemplos:
+
+```text
+RecommendationCreated
+RecommendationSuppressed
+RecommendationExpired
+RecommendationRiskChanged
+OpportunityDetected
+```
+
+---
+
+## 120.15 Eventos do Risk and Portfolio Context
+
+Exemplos:
+
+```text
+BankrollCreated
+BankrollTransactionRegistered
+BetRegistered
+BetConfirmed
+BetSettled
+BetVoided
+ExposureLimitReached
+DrawdownLimitReached
+```
+
+---
+
+# 121. Integration Events
+
+## 121.1 Definição
+
+Integration Event representa um fato publicado para consumo por outros contextos, módulos ou serviços.
+
+Um Domain Event poderá gerar um Integration Event, mas eles não são obrigatoriamente o mesmo objeto.
+
+---
+
+## 121.2 Diferenças
+
+| Domain Event | Integration Event |
+|---|---|
+| Interno ao domínio ou contexto | Contrato entre contextos |
+| Pode conter detalhes internos | Deve possuir contrato estável |
+| Pode evoluir junto ao agregado | Exige versionamento cuidadoso |
+| Pode ser processado na transação | Normalmente é publicado após commit |
+
+---
+
+## 121.3 Estrutura base
+
+```text
+IntegrationEvent
+    event_id
+    event_name
+    event_version
+    occurred_at
+    producer
+    subject_id
+    correlation_id
+    causation_id
+    payload
+```
+
+---
+
+## 121.4 Compatibilidade
+
+Integration Events deverão seguir regras de compatibilidade.
+
+Alterações compatíveis:
+
+- adicionar campo opcional;
+- adicionar novo tipo de evento;
+- ampliar enumeração quando consumidores tolerarem valores desconhecidos.
+
+Alterações incompatíveis:
+
+- remover campo obrigatório;
+- alterar significado;
+- alterar tipo;
+- reutilizar nome para outro fato.
+
+Alterações incompatíveis deverão gerar nova versão.
+
+---
+
+# 122. Publicação Confiável de Eventos
+
+## 122.1 Problema do dual write
+
+Não deverá existir um fluxo em que o sistema:
+
+1. salva no banco;
+2. publica evento;
+3. falha entre as duas operações.
+
+Esse cenário pode produzir estado confirmado sem evento correspondente.
+
+---
+
+## 122.2 Transactional Outbox
+
+A estratégia preferencial será utilizar Transactional Outbox.
+
+Fluxo:
+
+```text
+Início da transação
+    ↓
+Persistência do agregado
+    ↓
+Persistência do evento na Outbox
+    ↓
+Commit
+    ↓
+Publisher lê Outbox
+    ↓
+Publica evento
+    ↓
+Marca como publicado
+```
+
+---
+
+## 122.3 Estrutura conceitual da Outbox
+
+```text
+OutboxMessage
+    id
+    event_type
+    event_version
+    aggregate_id
+    payload
+    occurred_at
+    created_at
+    published_at
+    attempts
+    last_error
+    status
+```
+
+---
+
+## 122.4 Idempotência do publisher
+
+O publisher deverá suportar repetição.
+
+A publicação duplicada poderá ocorrer.
+
+Consumidores deverão utilizar `event_id` para deduplicação.
+
+---
+
+# 123. Inbox e Deduplicação
+
+## 123.1 Transactional Inbox
+
+Consumidores poderão utilizar Inbox para registrar eventos já processados.
+
+Estrutura:
+
+```text
+InboxMessage
+    event_id
+    consumer
+    received_at
+    processed_at
+    status
+    attempts
+    last_error
+```
+
+---
+
+## 123.2 Fluxo de processamento
+
+```text
+Evento recebido
+    ↓
+event_id já processado?
+    ├── Sim → ignorar com sucesso
+    └── Não
+          ↓
+      processar
+          ↓
+      persistir resultado e Inbox
+          ↓
+      commit
+```
+
+---
+
+# 124. Idempotência
+
+## 124.1 Definição
+
+Uma operação idempotente poderá ser executada múltiplas vezes sem produzir efeitos adicionais indevidos.
+
+---
+
+## 124.2 Chaves de idempotência
+
+Poderão ser utilizadas:
+
+- command_id;
+- event_id;
+- provider + endpoint + external_id + updated_at;
+- payload_hash;
+- sync_execution_id;
+- client_request_id;
+- business_key.
+
+---
+
+## 124.3 Idempotência em integrações
+
+O processamento repetido do mesmo payload não deverá:
+
+- duplicar partida;
+- duplicar evento;
+- duplicar odd;
+- duplicar movimentação;
+- duplicar previsão;
+- duplicar recomendação.
+
+---
+
+## 124.4 Idempotência em operações financeiras
+
+Commands financeiros deverão exigir chave de idempotência.
+
+Exemplo:
+
+```text
+RegisterBankrollTransaction
+    command_id
+    bankroll_id
+    amount
+    type
+```
+
+A repetição do mesmo `command_id` deverá devolver o resultado existente.
+
+---
+
+# 125. Reprocessamento
+
+## 125.1 Reprocessamento seguro
+
+Processos derivados deverão poder ser executados novamente.
+
+Exemplos:
+
+- normalização;
+- resolução de identidade;
+- fusão;
+- estatísticas;
+- features;
+- previsões;
+- recomendações;
+- projeções.
+
+---
+
+## 125.2 Versionamento de processamento
+
+Cada execução deverá registrar:
+
+- algoritmo;
+- versão;
+- parâmetros;
+- entrada;
+- saída;
+- horário;
+- status;
+- erro;
+- ambiente;
+- código ou artifact hash.
+
+---
+
+## 125.3 Resultado imutável
+
+Quando o resultado representar uma decisão histórica, a estratégia preferencial será criar nova versão em vez de sobrescrever.
+
+Exemplo:
+
+```text
+Prediction v1
+Prediction v2
+Prediction v3
+```
+
+---
+
+# 126. Compensações
+
+## 126.1 Definição
+
+Compensação representa uma nova operação que reduz ou corrige o efeito de uma operação anterior.
+
+Ela não apaga o histórico.
+
+---
+
+## 126.2 Exemplos
+
+- movimentação financeira compensatória;
+- nova resolução de identidade;
+- revisão de partida;
+- anulação de evento;
+- reliquidação de aposta;
+- nova decisão de fusão;
+- nova previsão;
+- cancelamento de recomendação.
+
+---
+
+## 126.3 Operações irreversíveis
+
+Operações que envolvam fatos históricos ou valores financeiros não deverão ser revertidas por exclusão silenciosa.
+
+---
+
+# 127. Tratamento de Falhas de Domínio
+
+## 127.1 Tipos de falha
+
+As falhas serão classificadas em:
+
+- validação estrutural;
+- violação de invariante;
+- referência inexistente;
+- conflito de concorrência;
+- duplicação;
+- autorização;
+- dependência indisponível;
+- erro de integração;
+- erro de processamento;
+- estado incompatível.
+
+---
+
+## 127.2 Erros de domínio
+
+Erros de domínio deverão possuir códigos estáveis.
+
+Exemplos:
+
+```text
+MATCH_PARTICIPANT_DUPLICATED
+MATCH_INVALID_STATUS_TRANSITION
+PERSON_NOT_ELIGIBLE_FOR_LINEUP
+PROBABILITY_OUT_OF_RANGE
+BANKROLL_INSUFFICIENT_BALANCE
+BET_ALREADY_SETTLED
+EXTERNAL_IDENTITY_CONFLICT
+```
+
+---
+
+## 127.3 Mensagem e código
+
+O código deverá ser estável para sistemas.
+
+A mensagem poderá ser localizada para usuários.
+
+---
+
+## 127.4 Falhas transitórias
+
+Falhas transitórias poderão ser repetidas.
+
+Exemplos:
+
+- timeout;
+- provider indisponível;
+- lock;
+- falha temporária de broker;
+- conexão com banco.
+
+---
+
+## 127.5 Falhas permanentes
+
+Falhas permanentes exigem correção de dados, regra ou comando.
+
+Exemplos:
+
+- identificador inválido;
+- entidade inexistente;
+- regra incompatível;
+- estado proibido;
+- duplicação real.
+
+---
+
+# 128. Retry
+
+## 128.1 Regras
+
+Retries deverão ser aplicados apenas a falhas transitórias.
+
+Não deverão ser utilizados indiscriminadamente para violações de domínio.
+
+---
+
+## 128.2 Backoff
+
+A estratégia deverá preferencialmente utilizar:
+
+- atraso progressivo;
+- limite de tentativas;
+- jitter;
+- registro de erro;
+- dead-letter após limite.
+
+---
+
+## 128.3 Dead-letter
+
+Mensagens que excederem o limite de tentativas deverão ser encaminhadas para análise.
+
+O registro deverá preservar:
+
+- payload;
+- evento;
+- erro;
+- stack trace técnica;
+- consumidor;
+- tentativas;
+- horário.
+
+---
+
+# 129. Fluxos de Escrita
+
+## 129.1 Criação de entidade canônica
+
+```text
+Command
+    ↓
+Validação estrutural
+    ↓
+Busca de duplicidade
+    ↓
+Resolução de identidade
+    ↓
+Criação pelo contexto proprietário
+    ↓
+Persistência
+    ↓
+Outbox
+    ↓
+Evento publicado
+```
+
+---
+
+## 129.2 Atualização por provider
+
+```text
+Payload bruto
+    ↓
+Validação
+    ↓
+Normalização
+    ↓
+ExternalIdentifier
+    ↓
+Identity Resolution
+    ↓
+Data Fusion
+    ↓
+CanonicalUpdateProposal
+    ↓
+Application Service do contexto proprietário
+    ↓
+Aggregate Root
+    ↓
+Persistência e auditoria
+```
+
+---
+
+## 129.3 Correção manual
+
+```text
+Usuário autorizado
+    ↓
+Command de correção
+    ↓
+Validação
+    ↓
+Carregamento do agregado
+    ↓
+Registro de motivo
+    ↓
+Nova revisão
+    ↓
+Persistência
+    ↓
+Evento
+```
+
+---
+
+## 129.4 Processamento analítico
+
+```text
+Evento canônico
+    ↓
+Statistics
+    ↓
+Feature versionada
+    ↓
+Prediction
+    ↓
+Prediction imutável
+    ↓
+Recommendation
+```
+
+---
+
+# 130. Invariantes por Contexto
+
+## 130.1 Geography
+
+- Country deverá possuir identidade única;
+- códigos oficiais não deverão ser duplicados no mesmo padrão;
+- Region deverá pertencer ao Country correto;
+- City deverá ser compatível com Region e Country;
+- alterações territoriais deverão preservar histórico.
+
+---
+
+## 130.2 Competition
+
+- Season deverá pertencer a Competition válida;
+- Stage deverá pertencer à Competition;
+- Round deverá pertencer à Stage;
+- ordenações deverão ser consistentes;
+- regras de competição deverão possuir vigência;
+- partidas históricas não deverão perder suas referências.
+
+---
+
+## 130.3 People
+
+- Person deverá possuir identidade canônica única;
+- especializações deverão compartilhar a identidade;
+- aliases deverão preservar origem;
+- merge de pessoas deverá ser auditável;
+- perfis profissionais não deverão criar pessoas duplicadas.
+
+---
+
+## 130.4 Team
+
+- Team deverá possuir identidade única;
+- TeamMembership deverá possuir vigência coerente;
+- SquadRegistration deverá possuir contexto válido;
+- vínculos históricos não deverão ser sobrescritos;
+- a mesma inscrição não deverá ser duplicada.
+
+---
+
+## 130.5 Match
+
+- participantes deverão ser distintos;
+- papéis deverão ser válidos;
+- status deverá seguir transições permitidas;
+- eventos deverão pertencer à partida;
+- escalações deverão pertencer ao participante correto;
+- pessoas deverão possuir relação válida;
+- horários deverão preservar histórico;
+- resultado oficial deverá refletir decisões vigentes;
+- revisões deverão ser imutáveis.
+
+---
+
+## 130.6 Identity Resolution
+
+- ExternalIdentifier ativo deverá apontar para uma identidade canônica;
+- decisões deverão possuir evidências;
+- correções deverão preservar decisão anterior;
+- confiança deverá utilizar algoritmo versionado;
+- duplicidades deverão ser sinalizadas.
+
+---
+
+## 130.7 Data Fusion
+
+- toda decisão deverá preservar proveniência;
+- conflitos não deverão ser ocultados;
+- prioridade de provider deverá ser versionada;
+- propostas deverão possuir destino;
+- rejeições deverão registrar motivo.
+
+---
+
+## 130.8 Betting Market
+
+- mercado deverá possuir definição canônica;
+- seleção deverá pertencer ao mercado;
+- odd deverá ser positiva e válida;
+- snapshot deverá preservar horário;
+- odds históricas não deverão ser sobrescritas;
+- mercado fechado não deverá receber atualização ativa sem reabertura.
+
+---
+
+## 130.9 Prediction
+
+- Prediction deverá referenciar ModelVersion;
+- resultados deverão ser imutáveis;
+- probabilidades deverão ser válidas;
+- entrada deverá ser rastreável;
+- publicação deverá registrar data;
+- nova versão não deverá alterar execução antiga.
+
+---
+
+## 130.10 Recommendation
+
+- recomendação deverá referenciar Prediction;
+- ExpectedValue deverá ser rastreável;
+- risco deverá utilizar policy versionada;
+- recomendação expirada não deverá permanecer ativa;
+- bloqueios deverão registrar motivo.
+
+---
+
+## 130.11 Risk and Portfolio
+
+- movimentações confirmadas deverão ser imutáveis;
+- saldo deverá ser derivável;
+- stake deverá respeitar moeda;
+- aposta não deverá ser liquidada duas vezes sem reliquidação;
+- exposição deverá considerar apostas abertas;
+- compensações deverão preservar histórico.
+
+---
+
+# 131. Decisões da G4.A.4.2
+
+As seguintes decisões passam a integrar a arquitetura oficial:
+
+1. invariantes deverão ser protegidas pelo componente mais próximo do domínio;
+2. consistência forte permanecerá preferencialmente dentro de um agregado;
+3. operações entre agregados utilizarão consistência eventual por padrão;
+4. Domain Services representarão operações reais do negócio;
+5. Domain Policies representarão regras substituíveis ou configuráveis;
+6. Commands representarão intenção de mudança;
+7. Domain Events representarão fatos ocorridos;
+8. Integration Events possuirão contratos estáveis e versionados;
+9. Transactional Outbox será a estratégia preferencial de publicação;
+10. consumidores deverão ser idempotentes;
+11. processos derivados deverão ser reprocessáveis;
+12. falhas transitórias e permanentes serão tratadas de forma diferente;
+13. correções históricas utilizarão revisão ou compensação;
+14. Application Services coordenarão casos de uso sem concentrar regras de negócio;
+15. erros de domínio possuirão códigos estáveis.
+
+---
+
+# 132. Conclusão da G4.A.4.2
+
+A subetapa G4.A.4.2 — Regras de Consistência, Serviços, Políticas e Eventos de Domínio está concluída.
+
+Foram definidos:
+
+- tipos de consistência;
+- invariantes;
+- validações;
+- Domain Services;
+- Domain Policies;
+- Commands;
+- Application Services;
+- Domain Events;
+- Integration Events;
+- Outbox;
+- Inbox;
+- idempotência;
+- retry;
+- reprocessamento;
+- compensações;
+- tratamento de falhas;
+- fluxos de escrita.
+
+---
+
+# Parte VI — Arquitetura Transacional, Histórico e Evolução
+
+## 133. Objetivo da G4.A.4.3
+
+Esta parte define como o UltraStats AI controlará:
+
+- transações;
+- concorrência;
+- versionamento;
+- histórico;
+- auditoria;
+- identificação;
+- projeções;
+- cache;
+- evolução de contratos;
+- integração;
+- processamento analítico;
+- modelos preditivos;
+- observabilidade;
+- retenção de dados.
+
+Ao final desta parte, a arquitetura estará preparada para orientar a implementação do G5.
+
+---
+
+# 134. Unidade de Trabalho
+
+## 134.1 Definição
+
+Uma Unit of Work representa o conjunto de operações persistidas como uma única unidade transacional.
+
+A Unit of Work deverá:
+
+- iniciar transação;
+- carregar repositories;
+- rastrear agregados modificados;
+- persistir alterações;
+- persistir Outbox;
+- confirmar ou reverter;
+- liberar recursos.
+
+---
+
+## 134.2 Escopo
+
+Uma Unit of Work deverá possuir escopo curto.
+
+Ela não deverá permanecer aberta durante:
+
+- chamadas externas;
+- processamento estatístico longo;
+- treinamento;
+- inferência remota;
+- espera de usuário;
+- upload de arquivos;
+- retries prolongados.
+
+---
+
+## 134.3 Exemplo conceitual
+
+```text
+with unit_of_work:
+    match = match_repository.get(match_id)
+    match.change_schedule(...)
+    match_repository.save(match)
+    outbox_repository.add(match.pull_events())
+    unit_of_work.commit()
+```
+
+---
+
+# 135. Fronteiras Transacionais
+
+## 135.1 Um agregado por transação
+
+A regra preferencial será modificar um Aggregate Root por transação.
+
+Essa regra reduz:
+
+- contenção;
+- deadlocks;
+- dependências;
+- conflitos;
+- complexidade de rollback.
+
+---
+
+## 135.2 Exceções
+
+Uma transação poderá envolver mais de um agregado quando:
+
+- ambos estiverem no mesmo contexto;
+- a operação exigir atomicidade real;
+- a quantidade for pequena;
+- o risco de contenção for aceitável;
+- a justificativa estiver documentada.
+
+---
+
+## 135.3 Proibição de transação distribuída por padrão
+
+Não será adotado two-phase commit como estratégia padrão entre contextos.
+
+A coordenação será preferencialmente feita por:
+
+- eventos;
+- workflows;
+- sagas;
+- compensações;
+- reprocessamento.
+
+---
+
+# 136. Concorrência
+
+## 136.1 Problema
+
+Dois processos poderão tentar alterar o mesmo agregado simultaneamente.
+
+Exemplos:
+
+- dois providers atualizando uma partida;
+- correção manual durante sincronização;
+- duas liquidações;
+- múltiplos consumers;
+- processamento repetido.
+
+---
+
+## 136.2 Optimistic Locking
+
+A estratégia preferencial será Optimistic Locking.
+
+Aggregate Roots deverão possuir campo de versão.
+
+Exemplo:
+
+```text
+Match
+    id
+    version
+```
+
+A atualização deverá utilizar condição:
+
+```text
+WHERE id = :id
+AND version = :expected_version
+```
+
+Após sucesso, a versão será incrementada.
+
+---
+
+## 136.3 Conflito de versão
+
+Quando a versão esperada não corresponder:
+
+- a transação deverá falhar;
+- o estado deverá ser recarregado;
+- a operação poderá ser repetida quando segura;
+- conflitos manuais poderão exigir revisão.
+
+---
+
+## 136.4 Pessimistic Locking
+
+Pessimistic Locking poderá ser utilizado em casos específicos:
+
+- liquidação financeira crítica;
+- alocação de recurso único;
+- operação curta;
+- alta chance de conflito;
+- necessidade de serialização explícita.
+
+Seu uso deverá ser restrito.
+
+---
+
+## 136.5 Lock lógico
+
+Poderão existir locks lógicos para:
+
+- sincronização de provider;
+- reprocessamento de competição;
+- geração de previsão;
+- treinamento;
+- liquidação em lote.
+
+Locks lógicos deverão possuir:
+
+- owner;
+- início;
+- expiração;
+- heartbeat quando necessário;
+- liberação;
+- recuperação de lock abandonado.
+
+---
+
+# 137. Versionamento de Agregados
+
+## 137.1 Aggregate version
+
+Todo Aggregate Root relevante deverá possuir versão numérica crescente.
+
+A versão será utilizada para:
+
+- concorrência otimista;
+- eventos;
+- auditoria;
+- cache;
+- sincronização;
+- projeções.
+
+---
+
+## 137.2 Versão de entidade interna
+
+Entidades internas poderão possuir versão própria quando:
+
+- forem atualizadas independentemente na persistência;
+- possuírem alto volume;
+- exigirem auditoria específica;
+- forem alvo de concorrência.
+
+A versão interna não elimina a responsabilidade do Aggregate Root.
+
+---
+
+## 137.3 Versão de schema
+
+Schemas de API e eventos deverão possuir versão independente da versão do agregado.
+
+Exemplo:
+
+```text
+aggregate_version: 18
+event_version: 2
+schema_version: 1
+```
+
+---
+
+# 138. Histórico
+
+## 138.1 Princípio
+
+Fatos relevantes não deverão ser sobrescritos sem preservação do estado anterior.
+
+---
+
+## 138.2 Estratégias de histórico
+
+Poderão ser utilizadas:
+
+- tabelas de revisão;
+- tabelas temporais;
+- registros append-only;
+- snapshots;
+- eventos;
+- campos de vigência;
+- versões imutáveis;
+- transações compensatórias.
+
+---
+
+## 138.3 Histórico por vigência
+
+Entidades temporais deverão utilizar:
+
+```text
+valid_from
+valid_until
+```
+
+Exemplos:
+
+- TeamMembership;
+- SquadRegistration;
+- alias;
+- regra de competição;
+- credencial profissional;
+- provider priority.
+
+---
+
+## 138.4 Histórico append-only
+
+Registros históricos críticos deverão preferencialmente ser append-only.
+
+Exemplos:
+
+- MatchRevision;
+- BankrollTransaction;
+- Prediction;
+- OddsSnapshot;
+- Settlement;
+- FusionDecision;
+- IdentityResolutionDecision;
+- AuditLog.
+
+---
+
+## 138.5 Estado atual e histórico
+
+O sistema poderá manter simultaneamente:
+
+- estado atual otimizado;
+- histórico completo.
+
+Exemplo:
+
+```text
+Match
+    scheduled_at atual
+
+MatchScheduleChange
+    todas as alterações
+```
+
+---
+
+# 139. Auditoria
+
+## 139.1 Objetivo
+
+A auditoria deverá permitir reconstruir:
+
+- quem alterou;
+- o que alterou;
+- quando alterou;
+- valor anterior;
+- valor novo;
+- origem;
+- motivo;
+- processo;
+- correlação;
+- versão.
+
+---
+
+## 139.2 Audit Log
+
+Estrutura conceitual:
+
+```text
+AuditLog
+    id
+    aggregate_type
+    aggregate_id
+    action
+    actor_type
+    actor_id
+    source
+    before
+    after
+    reason
+    occurred_at
+    correlation_id
+    command_id
+```
+
+---
+
+## 139.3 Actor
+
+O ator poderá ser:
+
+- usuário;
+- administrador;
+- provider;
+- collector;
+- scheduler;
+- consumer;
+- modelo;
+- processo de migração;
+- script de manutenção.
+
+---
+
+## 139.4 Dados sensíveis
+
+Audit Logs não deverão registrar:
+
+- credenciais;
+- tokens;
+- senhas;
+- secrets;
+- payloads sensíveis completos;
+- dados pessoais desnecessários.
+
+---
+
+## 139.5 Imutabilidade
+
+Audit Logs deverão ser imutáveis.
+
+Correções no próprio log deverão gerar novo registro administrativo.
+
+---
+
+# 140. Exclusão Lógica
+
+## 140.1 Uso
+
+Aggregate Roots relevantes poderão utilizar:
+
+```text
+is_active
+deleted_at
+deleted_by
+deletion_reason
+```
+
+---
+
+## 140.2 Não equivalência
+
+Inativação e exclusão lógica não possuem o mesmo significado.
+
+Uma Team inativa ainda existe historicamente.
+
+Um registro marcado como excluído poderá ter sido removido por erro, privacidade ou administração.
+
+---
+
+## 140.3 Consultas
+
+Queries padrão deverão excluir registros logicamente removidos quando apropriado.
+
+Consultas administrativas deverão permitir visualização controlada.
+
+---
+
+# 141. Retenção de Dados
+
+## 141.1 Classificação
+
+Os dados serão classificados em:
+
+- permanentes;
+- históricos;
+- temporários;
+- derivados;
+- reprocessáveis;
+- sensíveis;
+- operacionais.
+
+---
+
+## 141.2 Dados permanentes ou históricos
+
+Exemplos:
+
+- identidades canônicas;
+- partidas oficiais;
+- decisões;
+- movimentações financeiras;
+- apostas;
+- previsões publicadas;
+- resoluções de identidade;
+- decisões de fusão.
+
+---
+
+## 141.3 Dados temporários
+
+Exemplos:
+
+- locks;
+- cache;
+- arquivos intermediários;
+- respostas temporárias;
+- resultados parciais;
+- tokens;
+- sessões.
+
+---
+
+## 141.4 Dados reprocessáveis
+
+Exemplos:
+
+- projeções;
+- features;
+- agregações;
+- dashboards;
+- cache estatístico;
+- rankings derivados.
+
+Esses dados poderão ser removidos e reconstruídos, desde que a origem e a versão permaneçam disponíveis.
+
+---
+
+# 142. Estratégia de Identificadores
+
+## 142.1 UUID
+
+A estratégia padrão de identificadores canônicos será UUID.
+
+A decisão final entre UUID v4 e UUID v7 deverá ocorrer antes da implementação do G5.
+
+---
+
+## 142.2 UUID v4
+
+Características:
+
+- aleatório;
+- amplamente suportado;
+- simples;
+- pode causar fragmentação maior em índices.
+
+---
+
+## 142.3 UUID v7
+
+Características:
+
+- ordenável temporalmente;
+- melhor localidade de índice;
+- adequado para sistemas distribuídos;
+- suporte deverá ser validado na stack escolhida.
+
+---
+
+## 142.4 Decisão preliminar
+
+A preferência arquitetural será UUID v7, desde que:
+
+- PostgreSQL;
+- SQLAlchemy;
+- bibliotecas;
+- testes;
+- serialização;
+
+possuam suporte adequado.
+
+Caso contrário, UUID v4 será utilizado inicialmente.
+
+---
+
+## 142.5 IDs de alto volume
+
+Tabelas de alto volume poderão utilizar chave técnica sequencial adicional.
+
+Exemplos:
+
+- OddsSnapshot;
+- MatchEvent;
+- raw payload;
+- outbox;
+- inbox;
+- audit log.
+
+A identidade canônica ou pública continuará separada.
+
+---
+
+# 143. Projeções e Read Models
+
+## 143.1 Definição
+
+Read Models são estruturas otimizadas para consulta.
+
+Eles poderão reunir dados de múltiplos contextos.
+
+---
+
+## 143.2 Exemplos
+
+- página completa da partida;
+- dashboard de competição;
+- forma recente da equipe;
+- comparação de odds;
+- relatório de recomendação;
+- desempenho de banca;
+- painel de modelos.
+
+---
+
+## 143.3 Propriedade
+
+Read Models não serão fontes oficiais.
+
+Eles poderão ser:
+
+- apagados;
+- reconstruídos;
+- reprocessados;
+- atualizados eventualmente.
+
+---
+
+## 143.4 Desnormalização
+
+Read Models poderão duplicar:
+
+- nomes;
+- placares;
+- status;
+- métricas;
+- labels;
+- valores calculados.
+
+A duplicação será aceitável por ser orientada à leitura.
+
+---
+
+## 143.5 Atualização
+
+Read Models poderão ser atualizados por:
+
+- eventos;
+- jobs;
+- refresh;
+- materialized views;
+- processamento em lote;
+- reconstrução completa.
+
+---
+
+# 144. CQRS
+
+## 144.1 Uso parcial
+
+O UltraStats AI poderá utilizar separação conceitual entre escrita e leitura sem adotar CQRS completo em todos os contextos.
+
+---
+
+## 144.2 Escrita
+
+A escrita utilizará:
+
+- Commands;
+- Application Services;
+- Aggregate Roots;
+- repositories;
+- Unit of Work;
+- eventos.
+
+---
+
+## 144.3 Leitura
+
+A leitura utilizará:
+
+- Query Services;
+- projections;
+- views;
+- queries SQL especializadas;
+- cache;
+- read models.
+
+---
+
+## 144.4 Critério
+
+CQRS mais explícito deverá ser utilizado onde houver:
+
+- leitura muito maior que escrita;
+- consultas complexas;
+- múltiplas agregações;
+- necessidade de baixa latência;
+- alto volume;
+- modelos de leitura muito diferentes do domínio de escrita.
+
+---
+
+# 145. Cache
+
+## 145.1 Objetivo
+
+Cache deverá reduzir custo de consultas sem assumir responsabilidade sobre o estado oficial.
+
+---
+
+## 145.2 Possíveis usos
+
+- dados geográficos;
+- competições;
+- equipes;
+- configurações de provider;
+- dashboards;
+- rankings;
+- features;
+- previsões recentes;
+- odds agregadas.
+
+---
+
+## 145.3 Chaves
+
+Chaves deverão incluir:
+
+- tipo;
+- identificador;
+- versão;
+- parâmetros;
+- período;
+- algoritmo quando aplicável.
+
+Exemplo:
+
+```text
+match:{match_id}:view:v3
+```
+
+---
+
+## 145.4 Invalidação
+
+A invalidação poderá ocorrer por:
+
+- TTL;
+- evento;
+- versão;
+- exclusão explícita;
+- troca de namespace.
+
+---
+
+## 145.5 Cache stampede
+
+Deverão ser considerados:
+
+- locks curtos;
+- stale-while-revalidate;
+- jitter de TTL;
+- preenchimento antecipado;
+- limitação de concorrência.
+
+---
+
+# 146. Sagas e Workflows
+
+## 146.1 Definição
+
+Saga representa um processo que coordena múltiplas operações entre contextos sem transação distribuída.
+
+---
+
+## 146.2 Exemplo: processamento de partida encerrada
+
+```text
+MatchFinished
+    ↓
+StatisticsCalculationRequested
+    ↓
+StatisticsCalculated
+    ↓
+PredictionRequested
+    ↓
+PredictionPublished
+    ↓
+RecommendationCreated
+```
+
+---
+
+## 146.3 Estado da saga
+
+Uma saga persistente deverá registrar:
+
+- saga_id;
+- tipo;
+- estado atual;
+- evento inicial;
+- etapas concluídas;
+- etapa pendente;
+- tentativas;
+- erro;
+- timestamps;
+- correlation_id.
+
+---
+
+## 146.4 Compensação
+
+Nem toda etapa possuirá rollback real.
+
+A compensação poderá consistir em:
+
+- invalidar resultado derivado;
+- gerar nova versão;
+- cancelar recomendação;
+- solicitar reprocessamento;
+- marcar estado inconsistente;
+- registrar correção.
+
+---
+
+# 147. Evolução de Schemas
+
+## 147.1 Migrations
+
+Toda alteração persistente deverá utilizar migrations versionadas.
+
+Migrations não deverão ser editadas após utilização compartilhada.
+
+---
+
+## 147.2 Compatibilidade progressiva
+
+Mudanças deverão preferencialmente seguir:
+
+```text
+1. adicionar nova estrutura;
+2. suportar estrutura antiga e nova;
+3. migrar dados;
+4. atualizar consumidores;
+5. remover estrutura antiga.
+```
+
+---
+
+## 147.3 Expand and contract
+
+A estratégia expand and contract será preferencial para mudanças incompatíveis.
+
+---
+
+## 147.4 Backfill
+
+Backfills deverão registrar:
+
+- script;
+- versão;
+- período;
+- quantidade;
+- erros;
+- duração;
+- checkpoint;
+- possibilidade de retomada.
+
+---
+
+## 147.5 Alterações destrutivas
+
+Remoções de colunas ou tabelas deverão ocorrer apenas após confirmação de que:
+
+- código antigo não utiliza;
+- consumers foram atualizados;
+- dados foram migrados;
+- rollback foi avaliado;
+- backup existe.
+
+---
+
+# 148. Versionamento de Contratos
+
+## 148.1 APIs
+
+APIs deverão possuir estratégia de versionamento.
+
+Possibilidades:
+
+- versão na URL;
+- versão em header;
+- evolução compatível;
+- endpoints separados.
+
+---
+
+## 148.2 Eventos
+
+Eventos deverão possuir:
+
+```text
+event_name
+event_version
+```
+
+---
+
+## 148.3 Payloads de providers
+
+Contratos de providers deverão registrar:
+
+- provider;
+- endpoint;
+- schema version;
+- parser version;
+- collected_at.
+
+---
+
+## 148.4 Modelos preditivos
+
+Predictions deverão registrar:
+
+- model_name;
+- model_version;
+- feature_version;
+- dataset_version;
+- calibration_version;
+- code_version;
+- artifact_hash.
+
+---
+
+# 149. Arquitetura de Integração
+
+## 149.1 Camadas
+
+```text
+Provider Client
+    ↓
+Collector
+    ↓
+Raw Storage
+    ↓
+Validator
+    ↓
+Normalizer
+    ↓
+Identity Resolution
+    ↓
+Data Fusion
+    ↓
+Canonical Command
+```
+
+---
+
+## 149.2 Provider Client
+
+Responsável por:
+
+- autenticação;
+- HTTP;
+- paginação;
+- headers;
+- timeout;
+- rate limit;
+- resposta bruta.
+
+Não deverá conhecer o modelo canônico.
+
+---
+
+## 149.3 Collector
+
+Responsável por:
+
+- coordenar coleta;
+- definir endpoints;
+- registrar execução;
+- persistir payload;
+- controlar retry;
+- emitir evento de payload recebido.
+
+---
+
+## 149.4 Validator
+
+Responsável por:
+
+- validar estrutura;
+- detectar campos obrigatórios;
+- registrar incompatibilidades;
+- separar erro total e parcial;
+- impedir entrada de payload corrompido.
+
+---
+
+## 149.5 Normalizer
+
+Responsável por converter payload externo em representação normalizada intermediária.
+
+A representação normalizada ainda não será canônica.
+
+---
+
+## 149.6 Identity Resolution
+
+Responsável por encontrar ou propor identidade canônica.
+
+---
+
+## 149.7 Data Fusion
+
+Responsável por decidir qual valor deverá ser proposto ao contexto proprietário.
+
+---
+
+## 149.8 Canonical Command
+
+A última etapa deverá gerar Command explícito.
+
+Exemplo:
+
+```text
+UpdateMatchFromFusionProposal
+```
+
+O contexto proprietário continuará responsável por aceitar ou rejeitar a alteração.
+
+---
+
+# 150. Raw Data Architecture
+
+## 150.1 Imutabilidade
+
+Payloads brutos deverão ser imutáveis.
+
+---
+
+## 150.2 Estrutura
+
+```text
+RawPayload
+    id
+    provider_id
+    endpoint
+    request_parameters
+    response_status
+    headers
+    body
+    body_hash
+    collected_at
+    sync_execution_id
+    parser_version
+    processing_status
+```
+
+---
+
+## 150.3 Deduplicação
+
+Payloads idênticos poderão ser deduplicados por hash, desde que:
+
+- a ocorrência seja registrada;
+- o horário seja preservado;
+- o relacionamento com a execução seja mantido.
+
+---
+
+## 150.4 Reprocessamento
+
+O raw storage deverá permitir reprocessar dados com:
+
+- novo parser;
+- nova normalização;
+- nova regra de identidade;
+- nova regra de fusão.
+
+---
+
+# 151. Data Lineage
+
+## 151.1 Objetivo
+
+Data Lineage deverá permitir rastrear um dado canônico até sua origem.
+
+Fluxo esperado:
+
+```text
+Campo canônico
+    ↓
+FusionDecision
+    ↓
+NormalizedRecord
+    ↓
+RawPayload
+    ↓
+ProviderRequest
+```
+
+---
+
+## 151.2 Proveniência por campo
+
+Quando diferentes campos possuírem origens diferentes, a proveniência deverá ser registrada individualmente.
+
+Exemplo:
+
+```text
+Match.scheduled_at
+    provider A
+
+Match.venue_id
+    provider B
+
+Match.status
+    provider C
+```
+
+---
+
+## 151.3 Uso
+
+Lineage será utilizada para:
+
+- auditoria;
+- correção;
+- reprocessamento;
+- confiança;
+- comparação de providers;
+- explicabilidade;
+- diagnóstico.
+
+---
+
+# 152. Arquitetura Estatística
+
+## 152.1 Dados de origem
+
+O Statistics Context deverá consumir apenas:
+
+- dados canônicos;
+- snapshots versionados;
+- eventos confirmados;
+- dados de mercado rastreáveis.
+
+---
+
+## 152.2 Features
+
+Cada feature deverá possuir:
+
+```text
+feature_name
+feature_version
+subject_type
+subject_id
+reference_time
+value
+sample_size
+quality
+generated_at
+source_versions
+```
+
+---
+
+## 152.3 Point-in-time correctness
+
+Features utilizadas em previsão deverão utilizar apenas informações disponíveis no instante de referência.
+
+Dados futuros não poderão vazar para o treinamento ou inferência histórica.
+
+---
+
+## 152.4 Reprodutibilidade
+
+O cálculo deverá registrar:
+
+- código;
+- versão;
+- parâmetros;
+- janela;
+- filtros;
+- fonte;
+- horário de corte.
+
+---
+
+## 152.5 Materialização
+
+Features poderão ser:
+
+- calculadas sob demanda;
+- materializadas;
+- armazenadas em feature store;
+- atualizadas por eventos;
+- recalculadas em lote.
+
+---
+
+# 153. Arquitetura de Modelos Preditivos
+
+## 153.1 Model Registry
+
+O sistema deverá possuir registro de modelos.
+
+Estrutura conceitual:
+
+```text
+ModelRegistryEntry
+    model_id
+    name
+    version
+    artifact_uri
+    artifact_hash
+    feature_version
+    training_dataset_version
+    metrics
+    status
+    created_at
+    activated_at
+```
+
+---
+
+## 153.2 Estados do modelo
+
+Exemplos:
+
+```text
+draft
+training
+validated
+active
+deprecated
+blocked
+archived
+```
+
+---
+
+## 153.3 Inferência
+
+Cada PredictionRun deverá registrar:
+
+- model version;
+- feature version;
+- input snapshot;
+- execution time;
+- output;
+- warnings;
+- environment;
+- code version.
+
+---
+
+## 153.4 Imutabilidade
+
+Uma Prediction publicada não deverá ser alterada.
+
+Correção ou nova inferência gera nova Prediction.
+
+---
+
+## 153.5 Explicabilidade
+
+A explicação deverá registrar:
+
+- fatores relevantes;
+- contribuição;
+- limitações;
+- qualidade da amostra;
+- versão do método.
+
+---
+
+## 153.6 Monitoramento
+
+Modelos deverão ser monitorados quanto a:
+
+- calibração;
+- acurácia;
+- drift;
+- cobertura;
+- erro por mercado;
+- erro por competição;
+- desempenho temporal;
+- falhas de inferência.
+
+---
+
+# 154. Arquitetura de Recomendações
+
+## 154.1 Entrada
+
+Recommendation deverá utilizar:
+
+- Prediction;
+- odd atual;
+- ExpectedValue;
+- SampleQuality;
+- ConfidenceScore;
+- políticas de risco;
+- disponibilidade do mercado.
+
+---
+
+## 154.2 Snapshot
+
+A recomendação deverá preservar:
+
+- odd utilizada;
+- probabilidade utilizada;
+- horário;
+- mercado;
+- bookmaker;
+- modelo;
+- policy version;
+- métricas de qualidade.
+
+---
+
+## 154.3 Expiração
+
+Recomendações deverão possuir regras de expiração.
+
+Motivos:
+
+- odd alterada;
+- mercado suspenso;
+- partida iniciada;
+- nova previsão;
+- informação crítica atualizada;
+- limite de tempo.
+
+---
+
+## 154.4 Reavaliação
+
+Mudanças relevantes poderão gerar nova recomendação.
+
+A recomendação anterior deverá permanecer histórica.
+
+---
+
+# 155. Arquitetura de Banca e Apostas
+
+## 155.1 Ledger
+
+A Bankroll deverá utilizar conceito de ledger.
+
+O saldo deverá ser derivável a partir das transações.
+
+---
+
+## 155.2 Tipos de transação
+
+Exemplos:
+
+```text
+deposit
+withdrawal
+stake_reserved
+stake_released
+bet_return
+adjustment
+bonus
+fee
+```
+
+---
+
+## 155.3 Reserva de stake
+
+A confirmação de uma aposta poderá gerar reserva de stake.
+
+Após liquidação:
+
+- stake poderá ser consumida;
+- retorno poderá ser creditado;
+- reserva poderá ser liberada em void.
+
+---
+
+## 155.4 Reliquidação
+
+Uma Bet já liquidada poderá ser reliquidada quando o resultado oficial mudar.
+
+A reliquidação deverá:
+
+- preservar liquidação anterior;
+- gerar compensações;
+- recalcular saldo;
+- registrar motivo;
+- publicar evento.
+
+---
+
+# 156. Segurança e Autorização
+
+## 156.1 Autorização antes da operação
+
+Application Services deverão verificar autorização antes de carregar ou modificar dados sensíveis quando apropriado.
+
+---
+
+## 156.2 Perfis
+
+Possíveis perfis:
+
+- usuário;
+- analista;
+- operador;
+- administrador;
+- auditor;
+- processo interno;
+- provider integration.
+
+---
+
+## 156.3 Operações restritas
+
+Exemplos:
+
+- merge de identidades;
+- correção de resultado;
+- alteração financeira;
+- reliquidação;
+- ativação de modelo;
+- mudança de provider priority;
+- exclusão lógica;
+- reprocessamento em massa.
+
+---
+
+## 156.4 Segredos
+
+Credenciais deverão permanecer fora do domínio.
+
+Elas deverão ser armazenadas em configuração segura ou secret manager.
+
+---
+
+# 157. Observabilidade
+
+## 157.1 Logs
+
+Logs deverão ser estruturados.
+
+Campos recomendados:
+
+```text
+timestamp
+level
+service
+context
+operation
+correlation_id
+causation_id
+command_id
+event_id
+aggregate_id
+provider_id
+duration
+status
+error_code
+```
+
+---
+
+## 157.2 Métricas
+
+Métricas deverão incluir:
+
+- duração de requests;
+- duração de collectors;
+- payloads coletados;
+- erros de provider;
+- retries;
+- backlog;
+- eventos publicados;
+- eventos falhos;
+- tempo de processamento;
+- previsões geradas;
+- falhas de inferência;
+- cache hit;
+- conflitos de concorrência.
+
+---
+
+## 157.3 Tracing
+
+Fluxos distribuídos deverão propagar:
+
+- correlation_id;
+- trace_id;
+- span_id;
+- causation_id.
+
+---
+
+## 157.4 Alertas
+
+Alertas deverão considerar:
+
+- provider indisponível;
+- aumento de erro;
+- atraso de sincronização;
+- fila acumulada;
+- consumer parado;
+- falha de publicação;
+- inconsistência financeira;
+- drift de modelo;
+- queda de cobertura.
+
+---
+
+# 158. Reconciliação
+
+## 158.1 Objetivo
+
+Reconciliação identifica divergências entre:
+
+- estado atual;
+- histórico;
+- providers;
+- projeções;
+- saldo;
+- eventos;
+- resultados derivados.
+
+---
+
+## 158.2 Jobs de reconciliação
+
+Exemplos:
+
+- comparar partidas com providers;
+- verificar odds ausentes;
+- verificar eventos sem projeção;
+- verificar outbox não publicada;
+- verificar inbox travada;
+- recalcular saldo;
+- verificar apostas não liquidadas;
+- verificar Prediction sem Recommendation.
+
+---
+
+## 158.3 Resultado
+
+Reconciliação deverá:
+
+- registrar divergência;
+- classificar gravidade;
+- corrigir automaticamente quando seguro;
+- solicitar revisão quando ambíguo;
+- preservar evidências.
+
+---
+
+# 159. Backups e Recuperação
+
+## 159.1 Backups
+
+A estratégia deverá incluir:
+
+- backups completos;
+- backups incrementais quando aplicável;
+- retenção;
+- criptografia;
+- teste de restauração;
+- cópia em ambiente separado.
+
+---
+
+## 159.2 Point-in-time recovery
+
+O PostgreSQL deverá ser configurado para permitir recuperação até um ponto no tempo quando o ambiente exigir.
+
+---
+
+## 159.3 Teste
+
+Backup não será considerado válido sem teste periódico de restauração.
+
+---
+
+# 160. Ambiente e Configuração
+
+## 160.1 Separação
+
+Deverão existir configurações separadas para:
+
+- development;
+- test;
+- staging;
+- production.
+
+---
+
+## 160.2 Configuração versionada
+
+Configurações não sensíveis poderão ser versionadas.
+
+Segredos não poderão ser adicionados ao Git.
+
+---
+
+## 160.3 Feature flags
+
+Feature flags poderão controlar:
+
+- providers;
+- mercados;
+- modelos;
+- recomendações;
+- collectors;
+- novos fluxos;
+- mudanças graduais.
+
+---
+
+# 161. Estratégia de Testes Arquiteturais
+
+## 161.1 Testes de Value Objects
+
+Deverão validar:
+
+- limites;
+- igualdade;
+- imutabilidade;
+- serialização;
+- operações.
+
+---
+
+## 161.2 Testes de entidades
+
+Deverão validar:
+
+- transições;
+- regras locais;
+- estados inválidos;
+- histórico.
+
+---
+
+## 161.3 Testes de agregados
+
+Deverão validar:
+
+- invariantes;
+- ownership;
+- eventos gerados;
+- concorrência;
+- comandos repetidos.
+
+---
+
+## 161.4 Testes de Domain Services
+
+Deverão validar:
+
+- regras multiagregado;
+- policies;
+- casos limítrofes;
+- versões;
+- determinismo.
+
+---
+
+## 161.5 Testes de integração
+
+Deverão validar:
+
+- repositories;
+- transactions;
+- constraints;
+- migrations;
+- outbox;
+- inbox;
+- queries.
+
+---
+
+## 161.6 Testes de contrato
+
+Deverão validar:
+
+- APIs;
+- eventos;
+- providers;
+- schemas;
+- compatibilidade entre versões.
+
+---
+
+## 161.7 Testes de reprocessamento
+
+Deverão confirmar que:
+
+- processamento repetido não duplica dados;
+- resultados são reproduzíveis;
+- checkpoints funcionam;
+- erros podem ser retomados.
+
+---
+
+# 162. Decisões da G4.A.4.3
+
+As seguintes decisões passam a integrar a arquitetura oficial:
+
+1. Unit of Work controlará transações.
+2. A regra preferencial será um Aggregate Root por transação.
+3. Optimistic Locking será a estratégia padrão de concorrência.
+4. Pessimistic Locking será utilizado apenas em casos específicos.
+5. agregados possuirão versão.
+6. fatos históricos relevantes serão preservados.
+7. Audit Logs serão imutáveis.
+8. exclusão lógica será utilizada quando adequada.
+9. Read Models não serão fontes oficiais.
+10. CQRS será adotado de forma seletiva.
+11. cache será descartável e versionado.
+12. Sagas coordenarão workflows entre contextos.
+13. migrations utilizarão evolução progressiva.
+14. contratos de APIs e eventos serão versionados.
+15. raw payloads serão imutáveis.
+16. Data Lineage deverá permitir rastreamento por campo.
+17. features deverão respeitar point-in-time correctness.
+18. Predictions publicadas serão imutáveis.
+19. recomendações preservarão snapshot.
+20. Bankroll utilizará ledger.
+21. observabilidade utilizará logs, métricas e tracing.
+22. jobs de reconciliação verificarão divergências.
+23. backups deverão possuir testes de restauração.
+24. testes arquiteturais cobrirão domínio, persistência e contratos.
+
+---
+
+# 163. Pontos de Decisão Antes do G5
+
+Antes de iniciar a implementação persistente, deverão ser definidos:
+
+- UUID v4 ou UUID v7;
+- estrutura inicial de pacotes;
+- biblioteca de UUID;
+- estratégia de Unit of Work;
+- padrão de repositories;
+- estratégia de Domain Events;
+- implementação de Outbox;
+- implementação de Inbox;
+- campos padrão de auditoria;
+- campos padrão de versionamento;
+- política de soft delete;
+- formato de erros de domínio;
+- estratégia de serializers;
+- precisão de tipos Decimal;
+- padrão de timezone;
+- estratégia de migrations;
+- granularidade dos Aggregate Roots;
+- Season como Aggregate Root ou entidade interna;
+- Tie como Aggregate Root ou entidade interna;
+- Bet como Aggregate Root ou entidade interna;
+- estrutura definitiva de Odds;
+- separação entre MatchStatistic oficial e estatística derivada;
+- banco ou estrutura de raw payload;
+- estratégia de feature store;
+- estratégia de model registry.
+
+---
+
+# 164. Checklist de Prontidão para o G5
+
+A implementação do G5 somente deverá iniciar após confirmar:
+
+- [ ] Bounded Contexts aprovados;
+- [ ] Aggregate Roots aprovados;
+- [ ] entidades internas aprovadas;
+- [ ] ownership aprovado;
+- [ ] Value Objects aprovados;
+- [ ] estratégia de IDs definida;
+- [ ] estratégia de concorrência definida;
+- [ ] regras de histórico definidas;
+- [ ] padrão de auditoria definido;
+- [ ] padrão de repositories definido;
+- [ ] padrão de Unit of Work definido;
+- [ ] padrão de Domain Events definido;
+- [ ] Outbox definida;
+- [ ] erros de domínio definidos;
+- [ ] pontos pendentes revisados;
+- [ ] roadmap atualizado.
+
+---
+
+# 165. Resultado da G4.A.4.3
+
+Com a conclusão desta parte, ficam definidos:
+
+- limites transacionais;
+- Unit of Work;
+- concorrência;
+- Optimistic Locking;
+- histórico;
+- auditoria;
+- retenção;
+- IDs;
+- projeções;
+- CQRS;
+- cache;
+- Sagas;
+- migrations;
+- contratos;
+- arquitetura de integração;
+- raw payloads;
+- Data Lineage;
+- arquitetura estatística;
+- arquitetura preditiva;
+- arquitetura de recomendações;
+- arquitetura de banca;
+- segurança;
+- observabilidade;
+- reconciliação;
+- backups;
+- testes arquiteturais.
+
+---
+
+# 166. Conclusão da G4.A.4
+
+A etapa G4.A.4 — Arquitetura dos Agregados e Regras do Domínio está concluída.
+
+Foram concluídas:
+
+```text
+G4.A.4.1 — Agregados, Bounded Contexts e Value Objects
+
+G4.A.4.2 — Regras de Consistência, Serviços, Políticas e Eventos de Domínio
+
+G4.A.4.3 — Arquitetura Transacional, Histórico e Evolução
+```
+
+A arquitetura agora define:
+
+- como o domínio é dividido;
+- quem possui cada informação;
+- quais entidades controlam os ciclos de vida;
+- quais regras devem ser preservadas;
+- como diferentes contextos se comunicam;
+- como eventos serão publicados;
+- como transações serão controladas;
+- como concorrência será tratada;
+- como histórico e auditoria serão preservados;
+- como dados externos chegarão ao domínio canônico;
+- como estatísticas e previsões serão produzidas;
+- como a plataforma poderá evoluir de forma segura.
+
+A próxima grande etapa será a implementação do domínio canônico no código.
+
+Essa implementação deverá transformar as decisões arquiteturais em:
+
+- estrutura de pacotes;
+- modelos de domínio;
+- Value Objects;
+- enums;
+- entidades;
+- Aggregate Roots;
+- Domain Services;
+- Domain Policies;
+- repositories;
+- Unit of Work;
+- modelos SQLAlchemy;
+- migrations;
+- testes.
+
+A etapa seguinte do roadmap será:
+
+```text
+G5 — Domínio Canônico
+```
