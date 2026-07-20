@@ -1,12 +1,11 @@
-"""Nomes canônicos relacionados à geografia.
+"""Nomes canônicos relacionados à geografia."""
 
-Este pacote receberá futuramente:
+from ultrastats_ai.domain.shared.names.geography.city_name import CityName
+from ultrastats_ai.domain.shared.names.geography.country_name import CountryName
+from ultrastats_ai.domain.shared.names.geography.region_name import RegionName
 
-- CountryName;
-- RegionName;
-- CityName;
-- VenueName.
-
-Os tipos administrativos serão migrados durante a etapa
-G5.3.2.2.2.2.A3.
-"""
+__all__ = [
+    "CityName",
+    "CountryName",
+    "RegionName",
+]

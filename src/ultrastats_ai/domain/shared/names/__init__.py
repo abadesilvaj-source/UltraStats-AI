@@ -1,7 +1,23 @@
-"""Biblioteca compartilhada de nomes canônicos do domínio.
+"""Biblioteca compartilhada de nomes canônicos do domínio."""
 
-Este pacote organiza os Value Objects textuais relacionados a nomes.
+from ultrastats_ai.domain.shared.names.base import (
+    DisplayName,
+    Name,
+    ProperName,
+    ShortName,
+)
+from ultrastats_ai.domain.shared.names.geography import (
+    CityName,
+    CountryName,
+    RegionName,
+)
 
-Durante a migração incremental, as exportações públicas continuam disponíveis
-por meio de ``ultrastats_ai.domain.shared``.
-"""
+__all__ = [
+    "CityName",
+    "CountryName",
+    "DisplayName",
+    "Name",
+    "ProperName",
+    "RegionName",
+    "ShortName",
+]
