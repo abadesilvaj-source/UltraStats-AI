@@ -61,10 +61,12 @@ from ultrastats_ai.domain.shared.names import (
     CityName,
     CountryName,
     DisplayName,
+    GeographicName,
     Name,
     ProperName,
     RegionName,
     ShortName,
+    VenueName,
 )
 
 __all__ = [
@@ -92,6 +94,7 @@ __all__ = [
     "EntityNotFoundError",
     "ExternalIdentityId",
     "FeatureSetId",
+    "GeographicName",
     "InvariantViolationError",
     "MatchEventId",
     "MatchId",
@@ -124,5 +127,6 @@ __all__ = [
     "TieId",
     "ValueObject",
     "VenueId",
+    "VenueName",
     "compile_text_pattern",
 ]

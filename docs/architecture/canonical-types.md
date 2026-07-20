@@ -531,18 +531,50 @@ conceitos semânticos diferentes.
 Os nomes da geografia administrativa são especializações semânticas de
 `ProperName`.
 
-A hierarquia é:
+### Hierarquia de nomes geográficos
+
+Os nomes relacionados a conceitos geográficos possuem uma base semântica
+específica:
 
 ```text
 ProperName
+└── GeographicName
     ├── CountryName
     ├── RegionName
-    └── CityName
+    ├── CityName
+    └── VenueName
 ```
 
-Essas classes compartilham as mesmas regras estruturais, mas representam
-conceitos diferentes no domínio.
+`GeographicName` concentra a identidade semântica comum dos nomes geográficos.
 
+Atualmente ele reutiliza integralmente as regras de `ProperName`, mas oferece
+um ponto de extensão para futuras regras relacionadas a:
+
+- localidades;
+- transliteração;
+- aliases geográficos;
+- integrações com padrões territoriais;
+- normalização internacional.
+
+`VenueName` representa o nome canônico de um local esportivo, incluindo:
+
+- estádios;
+- arenas;
+- ginásios;
+- centros esportivos;
+- campos;
+- complexos esportivos.
+
+Exemplo:
+
+```python
+from ultrastats_ai.domain.shared import VenueName
+
+venue = VenueName("Estádio do Maracanã")
+```
+
+`VenueName` é semanticamente diferente de `CityName`, mesmo quando ambos
+possuem o mesmo valor textual.
 ---
 
 ## 25. CountryName
@@ -777,6 +809,9 @@ CONCLUÍDO
 G5.3.2.2.2.2 — Reorganização da Biblioteca de Nomes
 CONCLUÍDO
 
-G5.3.2.2.2.3 — VenueName
+G5.3.2.2.2.3 — GeographicName e VenueName
+CONCLUÍDO
+
+G5.3.2.2.3 — Nomes de Competição
 PRÓXIMA ETAPA
 ```

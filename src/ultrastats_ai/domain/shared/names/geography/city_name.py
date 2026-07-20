@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ultrastats_ai.domain.shared.names.base.proper_name import ProperName
+from ultrastats_ai.domain.shared.names.geography.geographic_name import (
+    GeographicName,
+)
 
 
 @dataclass(frozen=True, slots=True)
-class CityName(ProperName):
+class CityName(GeographicName):
     """Nome oficial de uma cidade."""

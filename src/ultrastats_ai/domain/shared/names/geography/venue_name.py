@@ -1,4 +1,4 @@
-"""Value Object para nomes de regiões administrativas."""
+"""Value Object para nomes de locais esportivos."""
 
 from __future__ import annotations
 
@@ -10,5 +10,5 @@ from ultrastats_ai.domain.shared.names.geography.geographic_name import (
 
 
 @dataclass(frozen=True, slots=True)
-class RegionName(GeographicName):
-    """Nome oficial de uma região administrativa."""
+class VenueName(GeographicName):
+    """Nome canônico de um estádio, arena ou outro local esportivo."""

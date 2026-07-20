@@ -11,6 +11,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- adicionado `GeographicName` como base semântica para nomes geográficos;
+- adicionado `VenueName` para estádios, arenas e outros locais esportivos;
 - estrutura inicial do pacote `domain.shared.names`;
 - subpacote `names.base` para os tipos fundamentais de nomes;
 - subpacote `names.geography` para nomes geográficos;
@@ -103,6 +105,7 @@ acompanhar a evolução oficial do roadmap.
 
 ### Changed
 
+- `CountryName`, `RegionName` e `CityName` passaram a herdar de `GeographicName`;
 - reorganizada a biblioteca de nomes canônicos em subpacotes semânticos;
 - movidos os tipos base para `domain.shared.names.base`;
 - movidos os nomes geográficos para `domain.shared.names.geography`;

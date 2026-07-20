@@ -835,7 +835,37 @@ Entregas concluídas:
 - testes de regressão;
 - documentação arquitetural consolidada.
 
-####### G5.3.2.2.2.3 — Nomes de Locais Esportivos
+####### G5.3.2.2.2.3 — GeographicName e nomes de locais esportivos
+
+```text
+CONCLUÍDO
+```
+
+Objetivo concluído:
+
+Introduzir uma base semântica para nomes geográficos e implementar o nome
+canônico de locais esportivos.
+
+Entregas concluídas:
+
+- `GeographicName`;
+- hierarquia geográfica especializada;
+- migração de `CountryName` para `GeographicName`;
+- migração de `RegionName` para `GeographicName`;
+- migração de `CityName` para `GeographicName`;
+- implementação de `VenueName`;
+- suporte semântico a estádios;
+- suporte semântico a arenas;
+- suporte semântico a outros locais esportivos;
+- exportação por `domain.shared.names.geography`;
+- exportação por `domain.shared.names`;
+- exportação pela API pública `domain.shared`;
+- testes de herança;
+- testes de normalização;
+- testes de identidade entre APIs;
+- testes de distinção semântica.
+
+####### G5.3.2.2.3 — Nomes de Competição
 
 ```text
 PRÓXIMO
@@ -843,14 +873,13 @@ PRÓXIMO
 
 Entregas previstas:
 
-- `VenueName`;
-- suporte semântico a estádios;
-- suporte semântico a arenas;
-- suporte semântico a centros esportivos;
-- exportação pelo pacote `names.geography`;
-- exportação pela API pública;
+- base semântica para nomes de competição;
+- `CompetitionName`;
+- possíveis especializações para torneios, ligas e temporadas;
+- exportação pelos pacotes públicos;
 - testes unitários;
-- documentação.
+- documentação arquitetural.
+
 ###### G5.3.2.2.3 — Nomes de Competição
 
 ```text
@@ -1782,17 +1811,16 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Subfase atual:
-G5.3.2.2.2.3 — Nomes de Locais Esportivos
+G5.3.2.2.3 — Nomes de Competição
 
 Última etapa concluída:
-G5.3.2.2.2.2 — Reorganização da Biblioteca de Nomes
+G5.3.2.2.2.3 — GeographicName e nomes de locais esportivos
 
 Objetivo atual:
-Implementar VenueName como nome canônico de estádios, arenas e demais locais
-esportivos.
+Implementar a estrutura semântica dos nomes de competições de futebol.
 
 Próxima etapa:
-G5.3.2.2.3 — Nomes de Competição
+G5.3.2.2.4 — Nomes de Pessoas
 ```
 ---
 
