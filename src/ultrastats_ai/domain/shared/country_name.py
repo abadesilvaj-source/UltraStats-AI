@@ -1,12 +1,12 @@
-"""Value Object para nomes de países."""
+"""Compatibilidade para o caminho histórico de CountryName.
 
-from __future__ import annotations
+A implementação canônica está localizada em:
 
-from dataclasses import dataclass
+ultrastats_ai.domain.shared.names.geography.country_name
+"""
 
-from ultrastats_ai.domain.shared.proper_name import ProperName
+from ultrastats_ai.domain.shared.names.geography.country_name import CountryName
 
-
-@dataclass(frozen=True, slots=True)
-class CountryName(ProperName):
-    """Nome oficial de um país."""
+__all__ = [
+    "CountryName",
+]

@@ -640,43 +640,37 @@ campo destinado a países ou regiões.
 ---
 ## 29. Organização física da biblioteca de nomes
 
-A biblioteca de nomes será organizada por subpacotes sem alterar sua API
-pública.
+A biblioteca de nomes canônicos está organizada em subpacotes semânticos.
 
-Estrutura planejada:
+Estrutura atual:
 
 ```text
 domain/shared/
 ├── names/
+│   ├── __init__.py
+│   │
 │   ├── base/
-│   ├── geography/
-│   ├── competitions/
-│   ├── people/
-│   ├── organizations/
-│   └── analytics/
+│   │   ├── __init__.py
+│   │   ├── name.py
+│   │   ├── proper_name.py
+│   │   ├── display_name.py
+│   │   └── short_name.py
+│   │
+│   └── geography/
+│       ├── __init__.py
+│       ├── country_name.py
+│       ├── region_name.py
+│       └── city_name.py
 │
 ├── text_value.py
 ├── identifiers.py
-├── entity.py
-├── aggregate_root.py
-├── repository.py
 └── ...
 ```
 
-A separação possui dois objetivos:
+A infraestrutura textual geral permanece diretamente em `shared`.
 
-- impedir que `domain/shared` acumule dezenas de arquivos;
-- organizar os tipos de nomes por categoria semântica.
-
-A infraestrutura textual geral continuará diretamente em `shared`.
-
-Exemplo:
-
-```text
-TextValue
-```
-
-não será movido para o pacote `names`, pois também será reutilizado por:
+`TextValue` não pertence exclusivamente à biblioteca de nomes, pois será
+reutilizado por:
 
 - códigos;
 - slugs;
@@ -686,47 +680,103 @@ não será movido para o pacote `names`, pois também será reutilizado por:
 
 ---
 
-## 30. Estratégia de migração incremental
+## 30. API pública
 
-A reorganização será executada em quatro etapas:
-
-```text
-A1 — criação da estrutura de pacotes;
-A2 — migração dos tipos base;
-A3 — migração dos tipos geográficos;
-A4 — consolidação da API pública.
-```
-
-Durante toda a migração, a API pública permanecerá:
+O caminho público recomendado é:
 
 ```python
 from ultrastats_ai.domain.shared import CountryName
 ```
 
-Nenhum consumidor deverá importar obrigatoriamente os caminhos internos.
+Também são suportados os imports pelos pacotes especializados:
 
-A etapa A1 cria apenas:
+```python
+from ultrastats_ai.domain.shared.names import CountryName
+```
+
+```python
+from ultrastats_ai.domain.shared.names.geography import CountryName
+```
+
+A API pública principal funciona como fachada sobre a estrutura interna.
+
+Consumidores externos não deverão depender desnecessariamente da organização
+interna dos arquivos.
+
+---
+
+## 31. Compatibilidade com caminhos históricos
+
+Os módulos históricos permanecem temporariamente disponíveis:
+
+```python
+from ultrastats_ai.domain.shared.country_name import CountryName
+```
+
+Esses arquivos não possuem implementações duplicadas.
+
+Eles apenas reexportam as classes canônicas localizadas em:
+
+```text
+domain/shared/names/
+```
+
+Consequentemente:
+
+```python
+from ultrastats_ai.domain.shared import CountryName as PublicCountryName
+from ultrastats_ai.domain.shared.country_name import (
+    CountryName as CompatibilityCountryName,
+)
+from ultrastats_ai.domain.shared.names import (
+    CountryName as CanonicalCountryName,
+)
+
+assert PublicCountryName is CompatibilityCountryName
+assert PublicCountryName is CanonicalCountryName
+```
+
+Essa estratégia preserva compatibilidade sem manter classes duplicadas.
+
+---
+
+## 32. Regras para novos tipos de nomes
+
+Novos tipos de nomes deverão ser criados dentro do subpacote semântico
+correspondente.
+
+Exemplos planejados:
 
 ```text
 names/
-├── __init__.py
-├── base/
-│   └── __init__.py
-└── geography/
-    └── __init__.py
+├── competitions/
+├── people/
+├── organizations/
+└── analytics/
 ```
 
-Nenhuma classe é movida durante essa etapa.
----
-## 31. Estado atual
+Depois da implementação, os tipos deverão ser reexportados por:
+
+```text
+names/<subpacote>/__init__.py
+names/__init__.py
+shared/__init__.py
+```
+
+A API pública recomendada continuará sendo:
+
+```python
+from ultrastats_ai.domain.shared import TipoDeNome
+```
+## 33. Estado atual
 
 ```text
 G5.3.2.2.2.1 — Geografia Administrativa
 CONCLUÍDO
 
-G5.3.2.2.2.2.A1 — Estrutura dos Subpacotes
+G5.3.2.2.2.2 — Reorganização da Biblioteca de Nomes
 CONCLUÍDO
 
-G5.3.2.2.2.2.A2 — Migração dos Tipos Base
+G5.3.2.2.2.3 — VenueName
 PRÓXIMA ETAPA
 ```

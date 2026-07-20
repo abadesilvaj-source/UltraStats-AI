@@ -1,12 +1,12 @@
-"""Value Object para nomes de regiões administrativas."""
+"""Compatibilidade para o caminho histórico de RegionName.
 
-from __future__ import annotations
+A implementação canônica está localizada em:
 
-from dataclasses import dataclass
+ultrastats_ai.domain.shared.names.geography.region_name
+"""
 
-from ultrastats_ai.domain.shared.proper_name import ProperName
+from ultrastats_ai.domain.shared.names.geography.region_name import RegionName
 
-
-@dataclass(frozen=True, slots=True)
-class RegionName(ProperName):
-    """Nome oficial de uma região administrativa."""
+__all__ = [
+    "RegionName",
+]

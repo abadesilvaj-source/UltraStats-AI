@@ -103,6 +103,12 @@ acompanhar a evolução oficial do roadmap.
 
 ### Changed
 
+- reorganizada a biblioteca de nomes canônicos em subpacotes semânticos;
+- movidos os tipos base para `domain.shared.names.base`;
+- movidos os nomes geográficos para `domain.shared.names.geography`;
+- consolidada a API pública dos nomes por meio de `domain.shared`;
+- preservados os caminhos históricos por módulos de compatibilidade;
+- eliminadas as definições duplicadas das classes de nomes.
 - reorganização da fase G4 no roadmap;
 - conclusão da G4.A;
 - consolidação da arquitetura de providers na G4.B;

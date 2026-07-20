@@ -1,12 +1,12 @@
-"""Value Object para nomes de cidades."""
+"""Compatibilidade para o caminho histórico de CityName.
 
-from __future__ import annotations
+A implementação canônica está localizada em:
 
-from dataclasses import dataclass
+ultrastats_ai.domain.shared.names.geography.city_name
+"""
 
-from ultrastats_ai.domain.shared.proper_name import ProperName
+from ultrastats_ai.domain.shared.names.geography.city_name import CityName
 
-
-@dataclass(frozen=True, slots=True)
-class CityName(ProperName):
-    """Nome oficial de uma cidade."""
+__all__ = [
+    "CityName",
+]

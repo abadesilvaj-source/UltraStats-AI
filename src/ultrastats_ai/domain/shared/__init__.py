@@ -1,8 +1,6 @@
 """Abstrações fundamentais compartilhadas pelo domínio."""
 
 from ultrastats_ai.domain.shared.aggregate_root import AggregateRoot
-from ultrastats_ai.domain.shared.city_name import CityName
-from ultrastats_ai.domain.shared.country_name import CountryName
 from ultrastats_ai.domain.shared.domain_event import DomainEvent
 from ultrastats_ai.domain.shared.entity import Entity
 from ultrastats_ai.domain.shared.errors import (
@@ -51,18 +49,23 @@ from ultrastats_ai.domain.shared.identifiers import (
     TieId,
     VenueId,
 )
-from ultrastats_ai.domain.shared.display_name import DisplayName
-from ultrastats_ai.domain.shared.name import Name
-from ultrastats_ai.domain.shared.proper_name import ProperName
-from ultrastats_ai.domain.shared.region_name import RegionName
 from ultrastats_ai.domain.shared.repository import Repository
 from ultrastats_ai.domain.shared.result import Result
-from ultrastats_ai.domain.shared.short_name import ShortName
 from ultrastats_ai.domain.shared.text_value import (
     TextValue,
     compile_text_pattern,
 )
 from ultrastats_ai.domain.shared.value_object import ValueObject
+
+from ultrastats_ai.domain.shared.names import (
+    CityName,
+    CountryName,
+    DisplayName,
+    Name,
+    ProperName,
+    RegionName,
+    ShortName,
+)
 
 __all__ = [
     "AggregateRoot",
