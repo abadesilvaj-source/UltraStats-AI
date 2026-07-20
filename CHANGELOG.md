@@ -11,6 +11,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- adicionado o pacote `domain.shared.names.people`;
+- adicionado `PersonName` para representar nomes canônicos de pessoas;
 - adicionado o pacote `domain.shared.names.competitions`;
 - adicionado `CompetitionName` para representar nomes canônicos de competições esportivas;
 - adicionado `GeographicName` como base semântica para nomes geográficos;
@@ -107,6 +109,7 @@ acompanhar a evolução oficial do roadmap.
 
 ### Changed
 
+- papéis como jogador, treinador e árbitro passaram a ser tratados como conceitos separados do nome da pessoa;
 - `CountryName`, `RegionName` e `CityName` passaram a herdar de `GeographicName`;
 - reorganizada a biblioteca de nomes canônicos em subpacotes semânticos;
 - movidos os tipos base para `domain.shared.names.base`;

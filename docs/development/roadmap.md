@@ -902,17 +902,61 @@ Esses conceitos serão modelados futuramente como propriedades da competição.
 ####### G5.3.2.2.4 — Nomes de pessoas
 
 ```text
+CONCLUÍDO
+```
+
+Objetivo concluído:
+
+Implementar o tipo canônico responsável por representar nomes de pessoas.
+
+Entregas concluídas:
+
+- pacote `domain.shared.names.people`;
+- implementação de `PersonName`;
+- herança semântica de `ProperName`;
+- normalização textual;
+- suporte a nomes compostos;
+- suporte a nomes de apenas uma palavra;
+- preservação de caracteres Unicode;
+- preservação de hífens;
+- preservação de apóstrofos;
+- distinção semântica em relação aos demais tipos de nomes;
+- exportação pelo pacote especializado;
+- exportação por `domain.shared.names`;
+- exportação pela API pública `domain.shared`;
+- testes de identidade entre APIs;
+- testes de imutabilidade;
+- documentação arquitetural.
+
+Decisão arquitetural:
+
+Os papéis de jogador, treinador, árbitro, dirigente, agente ou qualquer outra
+função exercida por uma pessoa não serão representados por subclasses de
+`PersonName`.
+
+Esses papéis serão modelados futuramente nas fases de entidades, agregados e
+regras de domínio.
+
+Não serão criados, neste momento:
+
+```text
+PlayerName
+CoachName
+RefereeName
+```
+
+####### G5.3.2.2.5 — Nomes de organizações
+
+```text
 PRÓXIMO
 ```
 
 Entregas previstas:
 
-- base semântica para nomes de pessoas;
-- `PersonName`;
-- `PlayerName`;
-- `CoachName`;
-- `RefereeName`;
-- avaliação de nomes completos e nomes de exibição;
+- pacote semântico para nomes de organizações;
+- `OrganizationName`;
+- distinção entre nome e tipo de organização;
+- decisão sobre clubes, federações, associações e empresas;
 - exportação pelas APIs públicas;
 - testes unitários;
 - documentação arquitetural.
@@ -1848,17 +1892,17 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Subfase atual:
-G5.3.2.2.4 — Nomes de pessoas
+G5.3.2.2.5 — Nomes de organizações
 
 Última etapa concluída:
-G5.3.2.2.3 — CompetitionName
+G5.3.2.2.4 — PersonName
 
 Objetivo atual:
-Implementar a hierarquia semântica dos nomes de pessoas relacionadas ao
+Implementar o nome canônico de organizações relacionadas ao ecossistema do
 futebol.
 
 Próxima etapa:
-G5.3.2.2.5 — Nomes de organizações
+G5.3.2.3 — Códigos canônicos
 ```
 ---
 

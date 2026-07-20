@@ -640,6 +640,92 @@ from ultrastats_ai.domain.shared import CompetitionName
 ```
 ---
 
+### Hierarquia atual da biblioteca de nomes
+
+```text
+ProperName
+├── GeographicName
+│   ├── CountryName
+│   ├── RegionName
+│   ├── CityName
+│   └── VenueName
+├── CompetitionName
+└── PersonName
+```
+
+Essa hierarquia organiza os tipos de nomes pelo conceito que representam,
+sem misturar o nome com papéis, formatos ou categorias das entidades.
+---
+
+### Nomes de pessoas
+
+`PersonName` representa o nome canônico de uma pessoa.
+
+Hierarquia:
+
+```text
+ProperName
+└── PersonName
+```
+
+Exemplos:
+
+```python
+from ultrastats_ai.domain.shared import PersonName
+
+coach = PersonName("Carlo Ancelotti")
+former_player = PersonName("Xabi Alonso")
+single_name = PersonName("Pelé")
+```
+
+`PersonName` representa exclusivamente o nome da pessoa.
+
+Papéis como jogador, treinador, árbitro, dirigente ou agente não fazem parte
+do nome e não serão representados por subclasses como:
+
+```text
+PlayerName
+CoachName
+RefereeName
+```
+
+Uma mesma pessoa pode exercer mais de um papel ao longo da carreira ou até
+simultaneamente. O nome permanece o mesmo independentemente do papel.
+
+Exemplo conceitual futuro:
+
+```python
+person = Person(
+    name=PersonName("Xabi Alonso"),
+    roles={
+        PersonRole.PLAYER,
+        PersonRole.COACH,
+    },
+)
+```
+
+A modelagem de papéis será realizada nas fases de entidades, agregados e regras
+de domínio.
+
+`PersonName` aceita nomes compostos, nomes de apenas uma palavra, caracteres
+Unicode, hífens e apóstrofos, desde que respeitadas as regras gerais herdadas
+de `ProperName`.
+
+Estrutura física:
+
+```text
+domain/shared/names/people/
+├── __init__.py
+└── person_name.py
+```
+
+O caminho público recomendado é:
+
+```python
+from ultrastats_ai.domain.shared import PersonName
+```
+---
+
 ## 25. CountryName
 
 Arquivo:
@@ -878,6 +964,9 @@ CONCLUÍDO
 G5.3.2.2.3 — CompetitionName
 CONCLUÍDO
 
-G5.3.2.2.4 — Nomes de Pessoas
+G5.3.2.2.4 — PersonName
+CONCLUÍDO
+
+G5.3.2.2.5 — OrganizationName
 PRÓXIMA ETAPA
 ```
