@@ -747,6 +747,38 @@ Entregas concluídas:
 ##### G5.3.2.2 — Nomes Canônicos
 
 ```text
+EM ANDAMENTO
+```
+
+Objetivo:
+
+Implementar os tipos de nomes reutilizáveis e suas especializações semânticas
+para os diferentes contextos do domínio.
+
+###### G5.3.2.2.1 — Tipos Base de Nomes
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- `ProperName`;
+- `DisplayName`;
+- `ShortName`;
+- limites de comprimento específicos;
+- preservação de caracteres Unicode;
+- normalização de espaços;
+- validação alfanumérica;
+- imutabilidade;
+- diferenciação semântica por tipo;
+- exportações públicas;
+- testes unitários;
+- documentação arquitetural.
+
+###### G5.3.2.2.2 — Nomes Geográficos
+
+```text
 PRÓXIMO
 ```
 
@@ -756,21 +788,55 @@ Entregas previstas:
 - `RegionName`;
 - `CityName`;
 - `VenueName`;
+- especializações semânticas;
+- exportações públicas;
+- testes unitários;
+- documentação.
+
+###### G5.3.2.2.3 — Nomes de Competição
+
+```text
+PLANEJADO
+```
+
+Entregas previstas:
+
 - `CompetitionName`;
 - `SeasonName`;
 - `StageName`;
 - `RoundName`;
+- testes unitários;
+- documentação.
+
+###### G5.3.2.2.4 — Nomes de Pessoas
+
+```text
+PLANEJADO
+```
+
+Entregas previstas:
+
 - `PersonName`;
 - `PlayerName`;
 - `CoachName`;
 - `RefereeName`;
+- testes unitários;
+- documentação.
+
+###### G5.3.2.2.5 — Nomes Organizacionais e Analíticos
+
+```text
+PLANEJADO
+```
+
+Entregas previstas:
+
 - `TeamName`;
 - `BookmakerName`;
 - `ProviderName`;
 - `ModelName`;
-- `DisplayName`;
-- `ShortName`;
-- testes unitários.
+- testes unitários;
+- documentação.
 
 ##### G5.3.2.3 — Códigos Canônicos
 
@@ -1658,16 +1724,17 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Subfase atual:
-G5.3.2.2 — Nomes Canônicos
+G5.3.2.2.2 — Nomes Geográficos
 
 Última etapa concluída:
-G5.3.2.1 — Base TextValue
+G5.3.2.2.1 — Tipos Base de Nomes
 
 Objetivo atual:
-Implementar os nomes específicos utilizados pelos contextos do domínio.
+Implementar os nomes específicos de países, regiões, cidades e locais
+esportivos.
 
 Próxima etapa:
-G5.3.2.3 — Códigos Canônicos
+G5.3.2.2.3 — Nomes de Competição
 ```
 ---
 

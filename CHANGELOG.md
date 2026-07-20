@@ -11,6 +11,12 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Value Object `ProperName` para nomes oficiais;
+- Value Object `DisplayName` para nomes de apresentação;
+- Value Object `ShortName` para nomes compactos;
+- regras específicas de comprimento para categorias de nomes;
+- diferenciação semântica entre nomes oficiais, de exibição e curtos;
+- testes unitários dos tipos base de nomes.
 - infraestrutura compartilhada `TextValue` para valores textuais;
 - normalização Unicode NFKC para tipos textuais;
 - normalização de espaços em valores textuais;

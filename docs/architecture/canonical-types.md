@@ -382,15 +382,159 @@ def validate_specific_rules(self) -> None:
 Esse mecanismo evita a duplicação da infraestrutura básica de validação.
 ---
 
-## 19. Estado atual
+## 19. Tipos base de nomes
+
+A biblioteca de nomes possui a seguinte hierarquia:
 
 ```text
-G5.3.1 — Identificadores Canônicos
-CONCLUÍDO
+ValueObject
+    ↓
+TextValue
+    ↓
+Name
+    ├── ProperName
+    ├── DisplayName
+    └── ShortName
+```
 
+Esses tipos representam categorias textuais reutilizáveis. Eles ainda não
+representam diretamente entidades específicas do domínio.
+
+---
+
+## 20. ProperName
+
+Arquivo:
+
+```text
+src/ultrastats_ai/domain/shared/proper_name.py
+```
+
+`ProperName` representa o nome oficial ou principal de um conceito.
+
+Exemplos:
+
+```text
+Manchester United Football Club
+Confederação Brasileira de Futebol
+Associação Portuguesa de Desportos
+Premier League
+São Paulo
+```
+
+Regras:
+
+- mínimo de dois caracteres;
+- máximo de cento e cinquenta caracteres;
+- presença de ao menos um caractere alfanumérico;
+- suporte a Unicode;
+- normalização de espaços;
+- imutabilidade.
+
+O tipo será utilizado como base para nomes como:
+
+```text
+CountryName
+CompetitionName
+TeamName
+PersonName
+VenueName
+ProviderName
+```
+
+---
+
+## 21. DisplayName
+
+Arquivo:
+
+```text
+src/ultrastats_ai/domain/shared/display_name.py
+```
+
+`DisplayName` representa a forma preferencial de apresentação de um nome em
+interfaces, relatórios e respostas de API.
+
+Exemplo:
+
+```text
+Nome oficial:
+Manchester United Football Club
+
+Nome de exibição:
+Manchester United
+```
+
+Regras:
+
+- mínimo de um caractere;
+- máximo de cem caracteres;
+- presença de ao menos um caractere alfanumérico;
+- suporte a Unicode;
+- normalização de espaços;
+- imutabilidade.
+
+---
+
+## 22. ShortName
+
+Arquivo:
+
+```text
+src/ultrastats_ai/domain/shared/short_name.py
+```
+
+`ShortName` representa nomes utilizados em espaços reduzidos.
+
+Exemplos:
+
+```text
+PSG
+UCL
+Man United
+São Paulo
+Brasileirão
+```
+
+Regras:
+
+- mínimo de um caractere;
+- máximo de trinta caracteres;
+- presença de ao menos um caractere alfanumérico;
+- suporte a Unicode;
+- normalização de espaços;
+- imutabilidade.
+
+`ShortName` não obriga letras maiúsculas.
+
+Abreviações formais e códigos serão modelados separadamente durante a etapa
+G5.3.2.3.
+
+---
+
+## 23. Igualdade entre tipos de nomes
+
+A igualdade dos Value Objects considera o tipo concreto e o valor normalizado.
+
+Portanto:
+
+```python
+ProperName("São Paulo") != DisplayName("São Paulo")
+```
+
+Mesmo quando os textos armazenados forem iguais, os objetos representam
+conceitos semânticos diferentes.
+---
+
+## 24. Estado atual
+
+```text
 G5.3.2.1 — Base TextValue
 CONCLUÍDO
 
-G5.3.2.2 — Nomes Canônicos
+G5.3.2.2.1 — Tipos Base de Nomes
+CONCLUÍDO
+
+G5.3.2.2.2 — Nomes Geográficos
 PRÓXIMA ETAPA
 ```
