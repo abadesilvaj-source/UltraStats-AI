@@ -237,13 +237,160 @@ Canonical ID
 ```
 
 ---
+## 15. Infraestrutura de tipos textuais
 
-## 15. Estado atual
+Arquivo principal:
+
+```text
+src/ultrastats_ai/domain/shared/text_value.py
+```
+
+A infraestrutura textual compartilhada possui como base:
+
+```text
+ValueObject
+    ↓
+TextValue
+    ↓
+Tipos textuais especializados
+```
+
+A classe `TextValue` é responsável por:
+
+- validar que o valor recebido seja uma string;
+- aplicar normalização Unicode NFKC;
+- remover espaços das extremidades;
+- reduzir espaços internos consecutivos;
+- validar comprimento mínimo;
+- validar comprimento máximo;
+- aplicar expressões regulares opcionais;
+- permitir validações adicionais em subclasses;
+- manter imutabilidade;
+- fornecer representação textual;
+- permitir utilização como chave de dicionário.
+
+Exemplo:
+
+```python
+text = TextValue("  UltraStats    AI  ")
+
+assert text.value == "UltraStats AI"
+```
+
+---
+
+## 16. Normalização Unicode
+
+A normalização padrão utilizada é:
+
+```text
+NFKC
+```
+
+Essa forma converte representações Unicode compatíveis para uma forma
+canônica comum.
+
+Exemplo:
+
+```python
+TextValue("ＡＢＣ").value == "ABC"
+```
+
+A normalização Unicode não deverá ser utilizada para remover acentos nem para
+forçar transliteração.
+
+Valores como:
+
+```text
+São Paulo
+Málaga
+Łódź
+東京
+```
+
+deverão continuar preservando seus caracteres semânticos.
+
+---
+
+## 17. Base para nomes
+
+Arquivo:
+
+```text
+src/ultrastats_ai/domain/shared/name.py
+```
+
+A classe `Name` representa a base compartilhada para nomes canônicos.
+
+Regras atuais:
+
+- comprimento mínimo de dois caracteres;
+- comprimento máximo de cento e cinquenta caracteres;
+- normalização de espaços;
+- suporte a Unicode;
+- presença obrigatória de ao menos um caractere alfanumérico;
+- suporte a hífens;
+- suporte a apóstrofos;
+- suporte a pontos;
+- suporte a números.
+
+Exemplos válidos:
+
+```text
+São Paulo
+Paris Saint-Germain
+O'Connor
+F.C. Porto
+Schalke 04
+東京
+```
+
+Exemplos inválidos:
+
+```text
+--
+..
+@#
+```
+
+---
+
+## 18. Especialização dos tipos textuais
+
+Subclasses poderão alterar regras por meio de atributos de classe:
+
+```python
+class ExampleText(TextValue):
+    MIN_LENGTH = 2
+    MAX_LENGTH = 50
+```
+
+Expressões regulares também poderão ser definidas:
+
+```python
+class ExampleCode(TextValue):
+    PATTERN = compile_text_pattern(r"[A-Z0-9]+")
+```
+
+Validações semânticas adicionais deverão sobrescrever:
+
+```python
+def validate_specific_rules(self) -> None:
+    ...
+```
+
+Esse mecanismo evita a duplicação da infraestrutura básica de validação.
+---
+
+## 19. Estado atual
 
 ```text
 G5.3.1 — Identificadores Canônicos
 CONCLUÍDO
 
-G5.3.2 — Tipos Textuais
+G5.3.2.1 — Base TextValue
+CONCLUÍDO
+
+G5.3.2.2 — Nomes Canônicos
 PRÓXIMA ETAPA
 ```

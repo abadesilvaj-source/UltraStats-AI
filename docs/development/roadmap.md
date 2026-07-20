@@ -713,23 +713,111 @@ Entregas concluídas:
 #### G5.3.2 — Tipos Textuais
 
 ```text
+EM ANDAMENTO
+```
+
+Objetivo:
+
+Construir a biblioteca compartilhada de valores textuais canônicos, evitando
+duplicação de normalização, validação e regras de comprimento.
+
+##### G5.3.2.1 — Base TextValue
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- base imutável `TextValue`;
+- validação do tipo string;
+- normalização Unicode NFKC;
+- remoção de espaços nas extremidades;
+- redução de espaços internos;
+- comprimento mínimo configurável;
+- comprimento máximo configurável;
+- validação opcional por expressão regular;
+- mecanismo de validação especializada;
+- representação textual;
+- suporte a hash;
+- base compartilhada `Name`;
+- testes unitários;
+- documentação arquitetural.
+
+##### G5.3.2.2 — Nomes Canônicos
+
+```text
 PRÓXIMO
 ```
 
 Entregas previstas:
 
-- nomes canônicos;
-- nomes curtos;
-- nomes de exibição;
-- códigos de país;
-- códigos de idioma;
-- códigos de moeda;
-- aliases;
-- slugs;
-- identificadores textuais externos;
-- nomes de timezone;
-- normalização textual;
-- validações e testes.
+- `CountryName`;
+- `RegionName`;
+- `CityName`;
+- `VenueName`;
+- `CompetitionName`;
+- `SeasonName`;
+- `StageName`;
+- `RoundName`;
+- `PersonName`;
+- `PlayerName`;
+- `CoachName`;
+- `RefereeName`;
+- `TeamName`;
+- `BookmakerName`;
+- `ProviderName`;
+- `ModelName`;
+- `DisplayName`;
+- `ShortName`;
+- testes unitários.
+
+##### G5.3.2.3 — Códigos Canônicos
+
+```text
+PLANEJADO
+```
+
+Entregas previstas:
+
+- código de país;
+- código de idioma;
+- código de moeda;
+- código de competição;
+- código de temporada;
+- código de provider;
+- códigos internos;
+- validações por padrão;
+- testes unitários.
+
+##### G5.3.2.4 — Slugs e Aliases
+
+```text
+PLANEJADO
+```
+
+Entregas previstas:
+
+- slug;
+- alias;
+- nome normalizado;
+- chave de busca;
+- regras de comparação;
+- testes unitários.
+
+##### G5.3.2.5 — Identificadores Externos
+
+```text
+PLANEJADO
+```
+
+Entregas previstas:
+
+- identificador externo;
+- namespace do provider;
+- chave composta de identidade externa;
+- validações;
+- testes unitários.
 
 #### G5.3.3 — Tipos Numéricos
 
@@ -1570,17 +1658,16 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Subfase atual:
-G5.3.2 — Tipos Textuais
+G5.3.2.2 — Nomes Canônicos
 
 Última etapa concluída:
-G5.3.1 — Identificadores Canônicos
+G5.3.2.1 — Base TextValue
 
 Objetivo atual:
-Implementar Value Objects textuais, códigos, aliases e tipos externos
-normalizados.
+Implementar os nomes específicos utilizados pelos contextos do domínio.
 
 Próxima etapa:
-G5.3.3 — Tipos Numéricos
+G5.3.2.3 — Códigos Canônicos
 ```
 ---
 

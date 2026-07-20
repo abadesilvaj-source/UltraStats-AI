@@ -49,8 +49,13 @@ from ultrastats_ai.domain.shared.identifiers import (
     TieId,
     VenueId,
 )
+from ultrastats_ai.domain.shared.name import Name
 from ultrastats_ai.domain.shared.repository import Repository
 from ultrastats_ai.domain.shared.result import Result
+from ultrastats_ai.domain.shared.text_value import (
+    TextValue,
+    compile_text_pattern,
+)
 from ultrastats_ai.domain.shared.value_object import ValueObject
 
 __all__ = [
@@ -79,6 +84,7 @@ __all__ = [
     "MatchEventId",
     "MatchId",
     "MatchRevisionId",
+    "Name",
     "OddId",
     "PersonId",
     "PlayerId",
@@ -99,7 +105,9 @@ __all__ = [
     "StatisticalModelId",
     "TeamId",
     "TeamMembershipId",
+    "TextValue",
     "TieId",
     "ValueObject",
     "VenueId",
+    "compile_text_pattern",
 ]

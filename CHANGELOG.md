@@ -11,6 +11,14 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- infraestrutura compartilhada `TextValue` para valores textuais;
+- normalização Unicode NFKC para tipos textuais;
+- normalização de espaços em valores textuais;
+- validações configuráveis de comprimento;
+- validação textual opcional por expressão regular;
+- mecanismo para regras textuais específicas;
+- Value Object base `Name`;
+- testes unitários da infraestrutura textual e de nomes.
 - biblioteca de identificadores canônicos baseada em UUID;
 - identificadores específicos para Geography;
 - identificadores específicos para Competition;
