@@ -11,6 +11,17 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- biblioteca de identificadores canônicos baseada em UUID;
+- identificadores específicos para Geography;
+- identificadores específicos para Competition;
+- identificadores específicos para People e Team;
+- identificadores específicos para Match;
+- identificadores específicos para providers e resolução de identidade;
+- identificadores específicos para Betting;
+- identificadores específicos para Statistics e Prediction;
+- identificadores específicos para Risk e Bankroll;
+- testes unitários dos identificadores canônicos;
+- catálogo arquitetural de tipos canônicos.
 - documentação do modelo canônico do domínio;
 - documentação dos Bounded Contexts;
 - definição dos Aggregate Roots;

@@ -671,46 +671,111 @@ Entregas concluídas:
 - testes unitários das abstrações fundamentais.
 ---
 
-### G5.3 — Value Objects e Tipos Canônicos
+### G5.3 — Biblioteca de Value Objects
 
-Escopo inicial:
+```text
+EM ANDAMENTO
+```
 
-- CanonicalId;
-- ExternalIdentifier;
-- EntityReference;
-- EntityAlias;
-- NormalizedName;
-- LocalizedName;
-- GeoCoordinate;
-- Address;
-- DateRange;
-- DateTimeRange;
-- SeasonPeriod;
-- MatchClock;
-- Score;
-- AggregateScore;
-- PenaltyScore;
-- FormationCode;
-- ShirtNumber;
-- FieldPosition;
-- Probability;
-- Percentage;
-- DecimalOdd;
-- Money;
-- Stake;
-- ExpectedValue;
-- ConfidenceScore;
-- OpportunityScore;
-- SampleQuality;
-- ModelVersion;
-- DataProvenance;
-- EntitySnapshot.
+Objetivo:
 
-Status:
+Construir a biblioteca de tipos canônicos reutilizáveis por todos os contextos
+do domínio.
+
+A G5.3 foi dividida para evitar duplicação, inconsistência de validação e criação
+desordenada de Value Objects durante a implementação das entidades.
+
+#### G5.3.1 — Identificadores Canônicos
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- base `CanonicalId`;
+- base `EntityId`;
+- criação de identificadores por UUID;
+- reconstrução de identificadores a partir de texto;
+- validação de UUID;
+- igualdade baseada em tipo e valor;
+- identificadores de Geography;
+- identificadores de Competition;
+- identificadores de People e Team;
+- identificadores de Match;
+- identificadores de providers;
+- identificadores de Betting;
+- identificadores de Statistics e Prediction;
+- identificadores de Risk e Bankroll;
+- testes unitários;
+- catálogo de tipos canônicos.
+
+#### G5.3.2 — Tipos Textuais
 
 ```text
 PRÓXIMO
 ```
+
+Entregas previstas:
+
+- nomes canônicos;
+- nomes curtos;
+- nomes de exibição;
+- códigos de país;
+- códigos de idioma;
+- códigos de moeda;
+- aliases;
+- slugs;
+- identificadores textuais externos;
+- nomes de timezone;
+- normalização textual;
+- validações e testes.
+
+#### G5.3.3 — Tipos Numéricos
+
+```text
+PLANEJADO
+```
+
+Entregas previstas:
+
+- porcentagem;
+- probabilidade;
+- valores monetários;
+- odds;
+- posições;
+- números de rodada;
+- números de camisa;
+- altura;
+- peso;
+- idade;
+- validações e testes.
+
+#### G5.3.4 — Tipos Temporais e Geográficos
+
+```text
+PLANEJADO
+```
+
+Entregas previstas:
+
+- datas do domínio;
+- intervalos temporais;
+- timestamps UTC;
+- latitude;
+- longitude;
+- coordenadas;
+- validações de timezone;
+- validações e testes.
+
+Critério de conclusão da G5.3:
+
+- biblioteca compartilhada implementada;
+- tipos imutáveis;
+- validações centralizadas;
+- testes unitários concluídos;
+- catálogo de tipos atualizado;
+- ausência de dependência de infraestrutura.
 
 ---
 
@@ -1505,17 +1570,17 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Subfase atual:
-G5.3 — Value Objects e Tipos Canônicos
+G5.3.2 — Tipos Textuais
 
 Última etapa concluída:
-G5.2 — Base Compartilhada do Domínio
+G5.3.1 — Identificadores Canônicos
 
 Objetivo atual:
-Implementar os Value Objects, identificadores e tipos canônicos utilizados pelo
-domínio.
+Implementar Value Objects textuais, códigos, aliases e tipos externos
+normalizados.
 
 Próxima etapa:
-G5.4 — Enums Canônicos
+G5.3.3 — Tipos Numéricos
 ```
 ---
 

@@ -74,6 +74,7 @@ docs/architecture/architecture-decisions.md
 docs/architecture/canonical-domain-model.md
 docs/architecture/domain-aggregates-and-rules.md
 docs/architecture/package-structure.md
+docs/architecture/canonical-types.md
 ```
 
 ### 3.1 Domain Overview
@@ -223,6 +224,27 @@ domain-aggregates-and-rules.md
 
 Enquanto esses documentos definem **o domínio**, o `package-structure.md`
 define **como o código será organizado para implementá-lo**.
+---
+
+### 3.7 Canonical Types
+
+Arquivo:
+
+```text
+docs/architecture/canonical-types.md
+```
+
+Responsabilidade:
+
+- catalogar identificadores canônicos;
+- catalogar Value Objects;
+- catalogar enums;
+- registrar regras de validação;
+- registrar regras de igualdade;
+- documentar tipos compartilhados;
+- impedir mistura de conceitos semanticamente diferentes.
+
+O documento será atualizado durante as etapas G5.3 e G5.4.
 
 ## 4. Relação entre os documentos de arquitetura
 
