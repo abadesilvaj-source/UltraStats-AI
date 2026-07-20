@@ -400,11 +400,31 @@ A estrutura deverá evoluir conforme as etapas do G5 forem implementadas.
 ## 15. Estado da implementação
 
 ```text
-G5.1 — Estrutura dos Pacotes do Domínio
-CONCLUÍDO
+Esses componentes começaram a ser implementados durante:
 
+```text
 G5.2 — Base Compartilhada do Domínio
-PRÓXIMA ETAPA
+```
+
+Componentes implementados:
+
+```text
+Entity
+AggregateRoot
+ValueObject
+DomainEvent
+DomainError
+Result
+Repository
+UnitOfWork
+```
+
+Os Value Objects específicos e os identificadores canônicos serão implementados
+durante:
+
+```text
+G5.3 — Value Objects e Tipos Canônicos
+```
 ```
 
 A G5.1 define apenas a organização inicial.

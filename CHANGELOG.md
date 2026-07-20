@@ -56,6 +56,16 @@ acompanhar a evolução oficial do roadmap.
 - fluxo recomendado de leitura;
 - atualização do README principal;
 - atualização do roadmap para refletir o estado real da G4.
+- base compartilhada do domínio;
+- abstração `Entity`;
+- abstração `AggregateRoot`;
+- abstração `ValueObject`;
+- abstração `DomainEvent`;
+- hierarquia inicial de erros do domínio;
+- tipo `Result`;
+- contrato base de `Repository`;
+- contrato base de `UnitOfWork`;
+- testes unitários da base compartilhada.
 
 ### Changed
 

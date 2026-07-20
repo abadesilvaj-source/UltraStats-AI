@@ -655,9 +655,20 @@ Escopo:
 Status:
 
 ```text
-PRÓXIMO
+CONCLUÍDO
 ```
+Entregas concluídas:
 
+- abstração `Entity`;
+- abstração `AggregateRoot`;
+- abstração `ValueObject`;
+- abstração `DomainEvent`;
+- hierarquia inicial de erros do domínio;
+- tipo `Result`;
+- contrato base de `Repository`;
+- contrato base de `UnitOfWork`;
+- exportações do pacote compartilhado;
+- testes unitários das abstrações fundamentais.
 ---
 
 ### G5.3 — Value Objects e Tipos Canônicos
@@ -698,7 +709,7 @@ Escopo inicial:
 Status:
 
 ```text
-PLANEJADO
+PRÓXIMO
 ```
 
 ---
@@ -1494,16 +1505,17 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Subfase atual:
-G5.2 — Base Compartilhada do Domínio
+G5.3 — Value Objects e Tipos Canônicos
 
 Última etapa concluída:
-G5.1 — Estrutura dos Pacotes do Domínio
+G5.2 — Base Compartilhada do Domínio
 
 Objetivo atual:
-Implementar as abstrações fundamentais compartilhadas pelo domínio.
+Implementar os Value Objects, identificadores e tipos canônicos utilizados pelo
+domínio.
 
 Próxima etapa:
-G5.3 — Value Objects e Tipos Canônicos
+G5.4 — Enums Canônicos
 ```
 ---
 
