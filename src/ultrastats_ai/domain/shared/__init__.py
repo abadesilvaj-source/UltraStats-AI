@@ -59,6 +59,7 @@ from ultrastats_ai.domain.shared.value_object import ValueObject
 
 from ultrastats_ai.domain.shared.names import (
     CityName,
+    CompetitionName,
     CountryName,
     DisplayName,
     GeographicName,
@@ -83,6 +84,7 @@ __all__ = [
     "CityName",
     "CoachId",
     "CompetitionId",
+    "CompetitionName",
     "CountryId",
     "CountryName",
     "DomainError",

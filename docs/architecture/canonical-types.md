@@ -577,6 +577,69 @@ venue = VenueName("Estádio do Maracanã")
 possuem o mesmo valor textual.
 ---
 
+### Nomes de competições
+
+`CompetitionName` representa o nome canônico de uma competição esportiva.
+
+Hierarquia:
+
+```text
+ProperName
+└── CompetitionName
+```
+
+Exemplos:
+
+```python
+from ultrastats_ai.domain.shared import CompetitionName
+
+premier_league = CompetitionName("Premier League")
+copa_do_brasil = CompetitionName("Copa do Brasil")
+champions_league = CompetitionName("UEFA Champions League")
+```
+
+`CompetitionName` representa somente o nome.
+
+Características como formato, nível territorial, gênero, categoria etária ou
+organizador não deverão ser codificadas por subclasses do nome.
+
+Essas características serão representadas futuramente por propriedades
+específicas da entidade ou do agregado de competição.
+
+Exemplos:
+
+```text
+CompetitionFormat
+CompetitionLevel
+CompetitionGender
+CompetitionAgeCategory
+```
+
+Consequentemente, não serão criadas classes como:
+
+```text
+LeagueName
+CupName
+TournamentName
+```
+
+a menos que surjam regras textuais realmente diferentes para esses conceitos.
+
+Estrutura física:
+
+```text
+domain/shared/names/competitions/
+├── __init__.py
+└── competition_name.py
+```
+
+O caminho público recomendado é:
+
+```python
+from ultrastats_ai.domain.shared import CompetitionName
+```
+---
+
 ## 25. CountryName
 
 Arquivo:
@@ -812,6 +875,9 @@ CONCLUÍDO
 G5.3.2.2.2.3 — GeographicName e VenueName
 CONCLUÍDO
 
-G5.3.2.2.3 — Nomes de Competição
+G5.3.2.2.3 — CompetitionName
+CONCLUÍDO
+
+G5.3.2.2.4 — Nomes de Pessoas
 PRÓXIMA ETAPA
 ```

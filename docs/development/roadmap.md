@@ -865,7 +865,41 @@ Entregas concluídas:
 - testes de identidade entre APIs;
 - testes de distinção semântica.
 
-####### G5.3.2.2.3 — Nomes de Competição
+####### G5.3.2.2.3 — Nomes de competição
+
+```text
+CONCLUÍDO
+```
+
+Objetivo concluído:
+
+Implementar o tipo canônico responsável por representar nomes de competições
+esportivas.
+
+Entregas concluídas:
+
+- pacote `domain.shared.names.competitions`;
+- implementação de `CompetitionName`;
+- herança semântica de `ProperName`;
+- normalização textual;
+- preservação de caracteres Unicode;
+- preservação de abreviações;
+- distinção semântica em relação aos demais tipos de nomes;
+- exportação pelo pacote especializado;
+- exportação por `domain.shared.names`;
+- exportação pela API pública `domain.shared`;
+- testes de identidade entre APIs;
+- testes de imutabilidade;
+- documentação arquitetural.
+
+Decisão arquitetural:
+
+Os formatos liga, copa e torneio não serão representados por subclasses de
+`CompetitionName`.
+
+Esses conceitos serão modelados futuramente como propriedades da competição.
+
+####### G5.3.2.2.4 — Nomes de pessoas
 
 ```text
 PRÓXIMO
@@ -873,10 +907,13 @@ PRÓXIMO
 
 Entregas previstas:
 
-- base semântica para nomes de competição;
-- `CompetitionName`;
-- possíveis especializações para torneios, ligas e temporadas;
-- exportação pelos pacotes públicos;
+- base semântica para nomes de pessoas;
+- `PersonName`;
+- `PlayerName`;
+- `CoachName`;
+- `RefereeName`;
+- avaliação de nomes completos e nomes de exibição;
+- exportação pelas APIs públicas;
 - testes unitários;
 - documentação arquitetural.
 
@@ -1811,16 +1848,17 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Subfase atual:
-G5.3.2.2.3 — Nomes de Competição
+G5.3.2.2.4 — Nomes de pessoas
 
 Última etapa concluída:
-G5.3.2.2.2.3 — GeographicName e nomes de locais esportivos
+G5.3.2.2.3 — CompetitionName
 
 Objetivo atual:
-Implementar a estrutura semântica dos nomes de competições de futebol.
+Implementar a hierarquia semântica dos nomes de pessoas relacionadas ao
+futebol.
 
 Próxima etapa:
-G5.3.2.2.4 — Nomes de Pessoas
+G5.3.2.2.5 — Nomes de organizações
 ```
 ---
 

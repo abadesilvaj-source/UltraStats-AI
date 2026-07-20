@@ -6,6 +6,9 @@ from ultrastats_ai.domain.shared.names.base import (
     ProperName,
     ShortName,
 )
+
+from ultrastats_ai.domain.shared.names.competitions import CompetitionName
+
 from ultrastats_ai.domain.shared.names.geography import (
     CityName,
     CountryName,
@@ -16,6 +19,7 @@ from ultrastats_ai.domain.shared.names.geography import (
 
 __all__ = [
     "CityName",
+    "CompetitionName",
     "CountryName",
     "DisplayName",
     "GeographicName",

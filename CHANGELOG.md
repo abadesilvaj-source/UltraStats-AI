@@ -11,6 +11,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- adicionado o pacote `domain.shared.names.competitions`;
+- adicionado `CompetitionName` para representar nomes canônicos de competições esportivas;
 - adicionado `GeographicName` como base semântica para nomes geográficos;
 - adicionado `VenueName` para estádios, arenas e outros locais esportivos;
 - estrutura inicial do pacote `domain.shared.names`;
