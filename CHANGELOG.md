@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Value Object `CountryName` para nomes oficiais de países;
+- Value Object `RegionName` para nomes de regiões administrativas;
+- Value Object `CityName` para nomes de cidades;
+- diferenciação semântica entre nomes geográficos;
+- testes unitários dos nomes da geografia administrativa.
 - Value Object `ProperName` para nomes oficiais;
 - Value Object `DisplayName` para nomes de apresentação;
 - Value Object `ShortName` para nomes compactos;

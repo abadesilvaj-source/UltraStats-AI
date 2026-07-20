@@ -779,17 +779,47 @@ Entregas concluídas:
 ###### G5.3.2.2.2 — Nomes Geográficos
 
 ```text
+EM ANDAMENTO
+```
+
+Objetivo:
+
+Implementar os nomes semânticos utilizados pelos conceitos geográficos e pelos
+locais esportivos.
+
+####### G5.3.2.2.2.1 — Geografia Administrativa
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- `CountryName`;
+- `RegionName`;
+- `CityName`;
+- herança de `ProperName`;
+- normalização Unicode;
+- normalização de espaços;
+- diferenciação semântica entre tipos;
+- exportações públicas;
+- testes unitários;
+- documentação arquitetural.
+
+####### G5.3.2.2.2.2 — Nomes de Locais Esportivos
+
+```text
 PRÓXIMO
 ```
 
 Entregas previstas:
 
-- `CountryName`;
-- `RegionName`;
-- `CityName`;
 - `VenueName`;
-- especializações semânticas;
-- exportações públicas;
+- suporte a nomes de estádios;
+- suporte a nomes de arenas;
+- suporte a centros esportivos;
+- diferenciação semântica;
+- exportação pública;
 - testes unitários;
 - documentação.
 
@@ -1724,14 +1754,13 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Subfase atual:
-G5.3.2.2.2 — Nomes Geográficos
+G5.3.2.2.2.2 — Nomes de Locais Esportivos
 
 Última etapa concluída:
-G5.3.2.2.1 — Tipos Base de Nomes
+G5.3.2.2.2.1 — Geografia Administrativa
 
 Objetivo atual:
-Implementar os nomes específicos de países, regiões, cidades e locais
-esportivos.
+Implementar o nome canônico de estádios, arenas e demais locais esportivos.
 
 Próxima etapa:
 G5.3.2.2.3 — Nomes de Competição

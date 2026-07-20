@@ -1,6 +1,8 @@
 """Abstrações fundamentais compartilhadas pelo domínio."""
 
 from ultrastats_ai.domain.shared.aggregate_root import AggregateRoot
+from ultrastats_ai.domain.shared.city_name import CityName
+from ultrastats_ai.domain.shared.country_name import CountryName
 from ultrastats_ai.domain.shared.domain_event import DomainEvent
 from ultrastats_ai.domain.shared.entity import Entity
 from ultrastats_ai.domain.shared.errors import (
@@ -52,6 +54,7 @@ from ultrastats_ai.domain.shared.identifiers import (
 from ultrastats_ai.domain.shared.display_name import DisplayName
 from ultrastats_ai.domain.shared.name import Name
 from ultrastats_ai.domain.shared.proper_name import ProperName
+from ultrastats_ai.domain.shared.region_name import RegionName
 from ultrastats_ai.domain.shared.repository import Repository
 from ultrastats_ai.domain.shared.result import Result
 from ultrastats_ai.domain.shared.short_name import ShortName
@@ -72,9 +75,11 @@ __all__ = [
     "BookmakerId",
     "CanonicalId",
     "CityId",
+    "CityName",
     "CoachId",
     "CompetitionId",
     "CountryId",
+    "CountryName",
     "DomainError",
     "DomainEvent",
     "DomainValidationError",
@@ -100,6 +105,7 @@ __all__ = [
     "RecommendationId",
     "RefereeId",
     "RegionId",
+    "RegionName",
     "Repository",
     "Result",
     "ResultAccessError",

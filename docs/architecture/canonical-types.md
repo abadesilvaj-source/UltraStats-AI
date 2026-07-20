@@ -526,15 +526,128 @@ Mesmo quando os textos armazenados forem iguais, os objetos representam
 conceitos semânticos diferentes.
 ---
 
-## 24. Estado atual
+## 24. Nomes da geografia administrativa
+
+Os nomes da geografia administrativa são especializações semânticas de
+`ProperName`.
+
+A hierarquia é:
 
 ```text
-G5.3.2.1 — Base TextValue
-CONCLUÍDO
+ProperName
+    ├── CountryName
+    ├── RegionName
+    └── CityName
+```
 
+Essas classes compartilham as mesmas regras estruturais, mas representam
+conceitos diferentes no domínio.
+
+---
+
+## 25. CountryName
+
+Arquivo:
+
+```text
+src/ultrastats_ai/domain/shared/country_name.py
+```
+
+`CountryName` representa o nome oficial de um país.
+
+Exemplos:
+
+```text
+Brazil
+United Kingdom
+Côte d'Ivoire
+日本
+```
+
+O tipo reutiliza as regras de `ProperName`:
+
+- mínimo de dois caracteres;
+- máximo de cento e cinquenta caracteres;
+- presença de caractere alfanumérico;
+- normalização Unicode;
+- normalização de espaços;
+- imutabilidade.
+
+---
+
+## 26. RegionName
+
+Arquivo:
+
+```text
+src/ultrastats_ai/domain/shared/region_name.py
+```
+
+`RegionName` representa o nome oficial de uma divisão administrativa.
+
+Exemplos:
+
+```text
+São Paulo
+California
+Andalucía
+New South Wales
+```
+
+Uma região poderá representar estados, províncias, departamentos, comunidades
+autônomas ou divisões administrativas equivalentes.
+
+---
+
+## 27. CityName
+
+Arquivo:
+
+```text
+src/ultrastats_ai/domain/shared/city_name.py
+```
+
+`CityName` representa o nome oficial de uma cidade ou localidade urbana.
+
+Exemplos:
+
+```text
+Araraquara
+Manchester
+Buenos Aires
+Łódź
+東京
+```
+
+O tipo preserva caracteres Unicode e não aplica transliteração automática.
+
+---
+
+## 28. Diferenciação semântica
+
+Mesmo quando os valores textuais forem iguais, tipos geográficos diferentes
+não serão considerados iguais.
+
+Exemplo:
+
+```python
+CountryName("São Paulo") != RegionName("São Paulo")
+RegionName("São Paulo") != CityName("São Paulo")
+```
+
+Essa diferenciação impede a utilização acidental de um nome de cidade em um
+campo destinado a países ou regiões.
+---
+
+## 29. Estado atual
+
+```text
 G5.3.2.2.1 — Tipos Base de Nomes
 CONCLUÍDO
 
-G5.3.2.2.2 — Nomes Geográficos
+G5.3.2.2.2.1 — Geografia Administrativa
+CONCLUÍDO
+
+G5.3.2.2.2.2 — Nomes de Locais Esportivos
 PRÓXIMA ETAPA
 ```
