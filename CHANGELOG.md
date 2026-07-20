@@ -11,6 +11,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- adicionado o pacote `domain.shared.codes`;
+- adicionado `CodeValue` como base para códigos canônicos internos;
 - adicionado o pacote `domain.shared.names.organizations`;
 - adicionado `OrganizationName` para representar nomes canônicos de organizações;
 - adicionado o pacote `domain.shared.names.people`;
@@ -111,6 +113,7 @@ acompanhar a evolução oficial do roadmap.
 
 ### Changed
 
+- códigos canônicos internos passaram a utilizar normalização em letras maiúsculas e uma política restrita de caracteres;
 - tipos como clube, federação, associação e empresa passaram a ser tratados separadamente do nome da organização;
 - papéis como jogador, treinador e árbitro passaram a ser tratados como conceitos separados do nome da pessoa;
 - `CountryName`, `RegionName` e `CityName` passaram a herdar de `GeographicName`;

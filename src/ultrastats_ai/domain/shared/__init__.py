@@ -57,6 +57,8 @@ from ultrastats_ai.domain.shared.text_value import (
 )
 from ultrastats_ai.domain.shared.value_object import ValueObject
 
+from ultrastats_ai.domain.shared.codes import CodeValue
+
 from ultrastats_ai.domain.shared.names import (
     CityName,
     CompetitionName,
@@ -85,6 +87,7 @@ __all__ = [
     "CityId",
     "CityName",
     "CoachId",
+    "CodeValue",
     "CompetitionId",
     "CompetitionName",
     "CountryId",

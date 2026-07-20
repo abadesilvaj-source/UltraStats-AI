@@ -994,18 +994,76 @@ CompanyName
 ####### G5.3.2.3 — Códigos canônicos
 
 ```text
+EM ANDAMENTO
+```
+
+Objetivo:
+
+Implementar uma biblioteca de códigos internos, normalizados e semanticamente
+tipados para o domínio do UltraStats AI.
+
+Subetapas:
+
+```text
+G5.3.2.3.1 — CodeValue
+CONCLUÍDO
+
+G5.3.2.3.2 — CountryCode
+PRÓXIMO
+
+G5.3.2.3.3 — CompetitionCode
+PLANEJADO
+
+G5.3.2.3.4 — OrganizationCode
+PLANEJADO
+
+G5.3.2.3.5 — Consolidação da API de códigos
+PLANEJADO
+```
+
+####### G5.3.2.3.1 — Base CodeValue
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- pacote `domain.shared.codes`;
+- implementação de `CodeValue`;
+- herança de `TextValue`;
+- normalização para letras maiúsculas;
+- remoção de espaços externos;
+- limite máximo de 64 caracteres;
+- suporte a letras ASCII;
+- suporte a números;
+- suporte a ponto;
+- suporte a hífen;
+- suporte a underscore;
+- rejeição de espaços internos;
+- rejeição de caracteres Unicode;
+- rejeição de caracteres especiais não permitidos;
+- imutabilidade;
+- igualdade por tipo e valor normalizado;
+- exportação pela API pública;
+- testes unitários;
+- documentação arquitetural.
+
+####### G5.3.2.3.2 — CountryCode
+
+```text
 PRÓXIMO
 ```
 
 Entregas previstas:
 
-- definição da base semântica para códigos;
-- normalização de códigos;
-- validação de tamanho;
-- política de caracteres permitidos;
-- códigos de países;
-- códigos de competições;
-- códigos de organizações;
+- implementação de `CountryCode`;
+- definição da política ISO;
+- validação de códigos alfabéticos;
+- avaliação de ISO 3166-1 alpha-2;
+- avaliação de ISO 3166-1 alpha-3;
+- distinção entre código oficial e código interno;
+- exportação pelas APIs públicas;
 - testes unitários;
 - documentação arquitetural.
 
@@ -1940,17 +1998,17 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Subfase atual:
-G5.3.2.3 — Códigos canônicos
+G5.3.2.3.2 — CountryCode
 
 Última etapa concluída:
-G5.3.2.2.5 — OrganizationName
+G5.3.2.3.1 — CodeValue
 
 Objetivo atual:
-Definir a arquitetura dos códigos canônicos utilizados por países,
-competições, organizações e outras entidades do domínio.
+Definir e implementar o código canônico de países, incluindo a política de
+compatibilidade com padrões ISO.
 
 Próxima etapa:
-G5.3.2.4 — Slugs e aliases
+G5.3.2.3.3 — CompetitionCode
 ```
 ---
 

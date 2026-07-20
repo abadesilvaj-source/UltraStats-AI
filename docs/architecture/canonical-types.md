@@ -788,7 +788,96 @@ O caminho público recomendado é:
 from ultrastats_ai.domain.shared import OrganizationName
 ```
 ---
+## Códigos canônicos
 
+`CodeValue` representa a base dos códigos internos e estáveis utilizados pelo
+domínio do UltraStats AI.
+
+Hierarquia inicial:
+
+```text
+TextValue
+└── CodeValue
+```
+
+Exemplos:
+
+```python
+from ultrastats_ai.domain.shared import CodeValue
+
+country = CodeValue("BRA")
+competition = CodeValue("BR_SERIE_A")
+organization = CodeValue("UEFA")
+```
+
+### Normalização
+
+Os códigos são:
+
+- convertidos para letras maiúsculas;
+- limpos de espaços no início e no final;
+- limitados a 64 caracteres;
+- restritos a caracteres ASCII.
+
+Caracteres permitidos:
+
+```text
+A-Z
+0-9
+.
+_
+-
+```
+
+Exemplo:
+
+```python
+CodeValue("  br-serie-a  ")
+```
+
+Resultado:
+
+```text
+BR-SERIE-A
+```
+
+Espaços internos e caracteres especiais não permitidos geram erro.
+
+### Código canônico e identificador externo
+
+`CodeValue` não representa identificadores fornecidos por APIs externas.
+
+Código canônico interno:
+
+```text
+BR_SERIE_A
+```
+
+Identificadores externos:
+
+```text
+API_FOOTBALL = 71
+SPORTMONKS = 384
+OPTA = COMP-1234
+```
+
+Os identificadores externos serão modelados separadamente em
+`G5.3.2.5 — External Identifiers`.
+
+Estrutura física:
+
+```text
+domain/shared/codes/
+├── __init__.py
+└── code_value.py
+```
+
+O caminho público recomendado é:
+
+```python
+from ultrastats_ai.domain.shared import CodeValue
+```
+---
 ## 25. CountryName
 
 Arquivo:
@@ -1033,6 +1122,9 @@ CONCLUÍDO
 G5.3.2.2.5 — OrganizationName
 CONCLUÍDO
 
-G5.3.2.3 — Códigos canônicos
+G5.3.2.3.1 — CodeValue
+CONCLUÍDO
+
+G5.3.2.3.2 — CountryCode
 PRÓXIMA ETAPA
 ```
