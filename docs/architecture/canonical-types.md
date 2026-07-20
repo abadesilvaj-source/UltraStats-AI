@@ -638,16 +638,95 @@ RegionName("São Paulo") != CityName("São Paulo")
 Essa diferenciação impede a utilização acidental de um nome de cidade em um
 campo destinado a países ou regiões.
 ---
+## 29. Organização física da biblioteca de nomes
 
-## 29. Estado atual
+A biblioteca de nomes será organizada por subpacotes sem alterar sua API
+pública.
+
+Estrutura planejada:
 
 ```text
-G5.3.2.2.1 — Tipos Base de Nomes
-CONCLUÍDO
+domain/shared/
+├── names/
+│   ├── base/
+│   ├── geography/
+│   ├── competitions/
+│   ├── people/
+│   ├── organizations/
+│   └── analytics/
+│
+├── text_value.py
+├── identifiers.py
+├── entity.py
+├── aggregate_root.py
+├── repository.py
+└── ...
+```
 
+A separação possui dois objetivos:
+
+- impedir que `domain/shared` acumule dezenas de arquivos;
+- organizar os tipos de nomes por categoria semântica.
+
+A infraestrutura textual geral continuará diretamente em `shared`.
+
+Exemplo:
+
+```text
+TextValue
+```
+
+não será movido para o pacote `names`, pois também será reutilizado por:
+
+- códigos;
+- slugs;
+- aliases;
+- identificadores externos;
+- outros tipos textuais.
+
+---
+
+## 30. Estratégia de migração incremental
+
+A reorganização será executada em quatro etapas:
+
+```text
+A1 — criação da estrutura de pacotes;
+A2 — migração dos tipos base;
+A3 — migração dos tipos geográficos;
+A4 — consolidação da API pública.
+```
+
+Durante toda a migração, a API pública permanecerá:
+
+```python
+from ultrastats_ai.domain.shared import CountryName
+```
+
+Nenhum consumidor deverá importar obrigatoriamente os caminhos internos.
+
+A etapa A1 cria apenas:
+
+```text
+names/
+├── __init__.py
+├── base/
+│   └── __init__.py
+└── geography/
+    └── __init__.py
+```
+
+Nenhuma classe é movida durante essa etapa.
+---
+## 31. Estado atual
+
+```text
 G5.3.2.2.2.1 — Geografia Administrativa
 CONCLUÍDO
 
-G5.3.2.2.2.2 — Nomes de Locais Esportivos
+G5.3.2.2.2.2.A1 — Estrutura dos Subpacotes
+CONCLUÍDO
+
+G5.3.2.2.2.2.A2 — Migração dos Tipos Base
 PRÓXIMA ETAPA
 ```

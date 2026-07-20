@@ -806,7 +806,34 @@ Entregas concluídas:
 - testes unitários;
 - documentação arquitetural.
 
-####### G5.3.2.2.2.2 — Nomes de Locais Esportivos
+####### G5.3.2.2.2.2 — Reorganização da Biblioteca de Nomes
+
+```text
+EM ANDAMENTO
+```
+
+Objetivo:
+
+Organizar os tipos de nomes em subpacotes sem alterar a API pública do domínio.
+
+######## G5.3.2.2.2.2.A1 — Estrutura dos Subpacotes
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- pacote `names`;
+- pacote `names.base`;
+- pacote `names.geography`;
+- arquivos `__init__.py`;
+- manutenção dos caminhos atuais;
+- preservação da API pública;
+- verificação de imports;
+- documentação arquitetural.
+
+######## G5.3.2.2.2.2.A2 — Migração dos Tipos Base
 
 ```text
 PRÓXIMO
@@ -814,14 +841,45 @@ PRÓXIMO
 
 Entregas previstas:
 
-- `VenueName`;
-- suporte a nomes de estádios;
-- suporte a nomes de arenas;
-- suporte a centros esportivos;
-- diferenciação semântica;
-- exportação pública;
-- testes unitários;
+- migração de `Name`;
+- migração de `ProperName`;
+- migração de `DisplayName`;
+- migração de `ShortName`;
+- atualização dos imports internos;
+- compatibilidade temporária com os caminhos anteriores;
+- testes de regressão;
 - documentação.
+
+######## G5.3.2.2.2.2.A3 — Migração dos Tipos Geográficos
+
+```text
+PLANEJADO
+```
+
+Entregas previstas:
+
+- migração de `CountryName`;
+- migração de `RegionName`;
+- migração de `CityName`;
+- atualização dos imports internos;
+- compatibilidade temporária;
+- testes de regressão;
+- documentação.
+
+######## G5.3.2.2.2.2.A4 — Consolidação da API Pública
+
+```text
+PLANEJADO
+```
+
+Entregas previstas:
+
+- consolidação das exportações em `shared`;
+- consolidação das exportações em `names`;
+- remoção de duplicações temporárias;
+- validação de compatibilidade;
+- testes completos;
+- documentação final da estrutura.
 
 ###### G5.3.2.2.3 — Nomes de Competição
 
@@ -1754,16 +1812,17 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Subfase atual:
-G5.3.2.2.2.2 — Nomes de Locais Esportivos
+G5.3.2.2.2.2.A2 — Migração dos Tipos Base
 
 Última etapa concluída:
-G5.3.2.2.2.1 — Geografia Administrativa
+G5.3.2.2.2.2.A1 — Estrutura dos Subpacotes
 
 Objetivo atual:
-Implementar o nome canônico de estádios, arenas e demais locais esportivos.
+Mover Name, ProperName, DisplayName e ShortName para names/base sem alterar a
+API pública.
 
 Próxima etapa:
-G5.3.2.2.3 — Nomes de Competição
+G5.3.2.2.2.2.A3 — Migração dos Tipos Geográficos
 ```
 ---
 

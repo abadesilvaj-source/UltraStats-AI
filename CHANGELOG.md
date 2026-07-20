@@ -11,6 +11,10 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- estrutura inicial do pacote `domain.shared.names`;
+- subpacote `names.base` para os tipos fundamentais de nomes;
+- subpacote `names.geography` para nomes geográficos;
+- planejamento da migração incremental da biblioteca de nomes.
 - Value Object `CountryName` para nomes oficiais de países;
 - Value Object `RegionName` para nomes de regiões administrativas;
 - Value Object `CityName` para nomes de cidades;
