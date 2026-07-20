@@ -17,6 +17,7 @@ from ultrastats_ai.domain.shared.names.geography import (
     VenueName,
 )
 
+from ultrastats_ai.domain.shared.names.organizations import OrganizationName
 from ultrastats_ai.domain.shared.names.people import PersonName
 
 __all__ = [
@@ -26,6 +27,7 @@ __all__ = [
     "DisplayName",
     "GeographicName",
     "Name",
+    "OrganizationName",
     "PersonName",
     "ProperName",
     "RegionName",

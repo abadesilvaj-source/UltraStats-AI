@@ -948,16 +948,64 @@ RefereeName
 ####### G5.3.2.2.5 — Nomes de organizações
 
 ```text
+CONCLUÍDO
+```
+
+Objetivo concluído:
+
+Implementar o tipo canônico responsável por representar nomes de organizações.
+
+Entregas concluídas:
+
+- pacote `domain.shared.names.organizations`;
+- implementação de `OrganizationName`;
+- herança semântica de `ProperName`;
+- normalização textual;
+- suporte a nomes completos;
+- suporte a abreviações;
+- preservação de caracteres Unicode;
+- preservação de pontuação;
+- preservação de sufixos empresariais;
+- distinção semântica em relação aos demais tipos de nomes;
+- exportação pelo pacote especializado;
+- exportação por `domain.shared.names`;
+- exportação pela API pública `domain.shared`;
+- testes de identidade entre APIs;
+- testes de imutabilidade;
+- documentação arquitetural.
+
+Decisão arquitetural:
+
+Tipos como clube, federação, associação e empresa não serão representados por
+subclasses de `OrganizationName`.
+
+Esses conceitos serão modelados futuramente como propriedades ou tipos
+específicos da entidade de organização.
+
+Não serão criados neste momento:
+
+```text
+ClubName
+FederationName
+AssociationName
+CompanyName
+```
+
+####### G5.3.2.3 — Códigos canônicos
+
+```text
 PRÓXIMO
 ```
 
 Entregas previstas:
 
-- pacote semântico para nomes de organizações;
-- `OrganizationName`;
-- distinção entre nome e tipo de organização;
-- decisão sobre clubes, federações, associações e empresas;
-- exportação pelas APIs públicas;
+- definição da base semântica para códigos;
+- normalização de códigos;
+- validação de tamanho;
+- política de caracteres permitidos;
+- códigos de países;
+- códigos de competições;
+- códigos de organizações;
 - testes unitários;
 - documentação arquitetural.
 
@@ -1892,17 +1940,17 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Subfase atual:
-G5.3.2.2.5 — Nomes de organizações
+G5.3.2.3 — Códigos canônicos
 
 Última etapa concluída:
-G5.3.2.2.4 — PersonName
+G5.3.2.2.5 — OrganizationName
 
 Objetivo atual:
-Implementar o nome canônico de organizações relacionadas ao ecossistema do
-futebol.
+Definir a arquitetura dos códigos canônicos utilizados por países,
+competições, organizações e outras entidades do domínio.
 
 Próxima etapa:
-G5.3.2.3 — Códigos canônicos
+G5.3.2.4 — Slugs e aliases
 ```
 ---
 

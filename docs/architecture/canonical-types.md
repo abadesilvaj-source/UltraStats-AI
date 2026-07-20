@@ -650,7 +650,8 @@ ProperName
 │   ├── CityName
 │   └── VenueName
 ├── CompetitionName
-└── PersonName
+├── PersonName
+└── OrganizationName
 ```
 
 Essa hierarquia organiza os tipos de nomes pelo conceito que representam,
@@ -723,6 +724,68 @@ O caminho público recomendado é:
 
 ```python
 from ultrastats_ai.domain.shared import PersonName
+```
+---
+### Nomes de organizações
+
+`OrganizationName` representa o nome canônico de uma organização.
+
+Hierarquia:
+
+```text
+ProperName
+└── OrganizationName
+```
+
+Exemplos:
+
+```python
+from ultrastats_ai.domain.shared import OrganizationName
+
+club = OrganizationName("São Paulo Futebol Clube")
+federation = OrganizationName("Confederação Brasileira de Futebol")
+international_body = OrganizationName("UEFA")
+company = OrganizationName("Red Bull GmbH")
+```
+
+`OrganizationName` representa exclusivamente o nome da organização.
+
+O tipo da organização não faz parte do nome e será representado futuramente
+por um conceito separado.
+
+Exemplo conceitual:
+
+```python
+organization = Organization(
+    name=OrganizationName("Confederação Brasileira de Futebol"),
+    organization_type=OrganizationType.FEDERATION,
+)
+```
+
+Não serão criadas subclasses como:
+
+```text
+ClubName
+FederationName
+AssociationName
+CompanyName
+```
+
+Essas classificações representam a natureza da organização, não uma regra
+textual diferente para o nome.
+
+Estrutura física:
+
+```text
+domain/shared/names/organizations/
+├── __init__.py
+└── organization_name.py
+```
+
+O caminho público recomendado é:
+
+```python
+from ultrastats_ai.domain.shared import OrganizationName
 ```
 ---
 
@@ -968,5 +1031,8 @@ G5.3.2.2.4 — PersonName
 CONCLUÍDO
 
 G5.3.2.2.5 — OrganizationName
+CONCLUÍDO
+
+G5.3.2.3 — Códigos canônicos
 PRÓXIMA ETAPA
 ```
