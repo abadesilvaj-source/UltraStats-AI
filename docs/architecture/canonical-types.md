@@ -4743,6 +4743,8 @@ As próximas famílias de enums serão adicionadas ao mesmo pacote.
 
 ## 17.23 API Pública
 
+Todos os enums canônicos são exportados pelo pacote específico `enums` e pela API pública de `domain.shared`.
+
 Importação pelo pacote específico:
 
 ```python
@@ -4768,7 +4770,7 @@ from ultrastats_ai.domain.shared.enums import (
 )
 ```
 
-Importação pela API compartilhada:
+Consumidores externos deverão preferir a API compartilhada:
 
 ```python
 from ultrastats_ai.domain.shared import (
