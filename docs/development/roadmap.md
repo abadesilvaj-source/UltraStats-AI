@@ -1393,10 +1393,54 @@ Escopo:
 - tipos de movimentação;
 - classificações de risco.
 
+#### G5.4.1 — Infraestrutura e Enums Esportivos
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- [x] criação da classe-base `DomainEnum`;
+- [x] conversão segura com `parse`;
+- [x] normalização de entradas textuais;
+- [x] listagem de valores com `values`;
+- [x] listagem de nomes com `names`;
+- [x] geração de opções com `choices`;
+- [x] verificação com `has_value`;
+- [x] tipos de competição com `CompetitionType`;
+- [x] tipos de fase com `PhaseType`;
+- [x] tipos de rodada com `RoundType`;
+- [x] status de temporada com `SeasonStatus`;
+- [x] status de partida com `MatchStatus`;
+- [x] API pública;
+- [x] testes unitários;
+- [x] documentação arquitetural;
+- [x] execução da suíte completa.
+
+Estrutura resultante:
+
+```text
+DomainEnum
+├── CompetitionType
+├── PhaseType
+├── RoundType
+├── SeasonStatus
+└── MatchStatus
+```
+
+Próxima etapa:
+
+```text
+G5.4.2 — Participantes e Arbitragem
+```
+
+---
+
 Status:
 
 ```text
-PLANEJADO
+EM ANDAMENTO
 ```
 
 ---

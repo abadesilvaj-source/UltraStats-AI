@@ -3579,7 +3579,390 @@ em vez de depender da organização interna dos arquivos.
 
 ---
 
-# 17. API Pública
+# 17. Enums do Domínio
+
+## 17.1 Objetivo
+
+A biblioteca de enums do domínio representa conjuntos fechados de valores semânticos.
+
+Enums devem ser utilizados quando um conceito pode assumir apenas um conjunto conhecido e controlado de estados.
+
+Exemplos:
+
+```text
+tipo de competição
+tipo de fase
+estado de temporada
+estado de partida
+```
+
+A utilização de enums evita strings livres como:
+
+```python
+status = "qualquer texto"
+```
+
+e permite:
+
+```python
+status = MatchStatus.LIVE
+```
+
+---
+
+## 17.2 DomainEnum
+
+`DomainEnum` é a classe-base dos enums canônicos do domínio.
+
+Ela herda de:
+
+```python
+str
+Enum
+```
+
+Isso permite que seus membros possuam comportamento de enum e representação textual estável.
+
+Exemplo:
+
+```python
+str(MatchStatus.LIVE)
+```
+
+Resultado:
+
+```text
+live
+```
+
+---
+
+## 17.3 Conversão com parse
+
+O método:
+
+```python
+parse()
+```
+
+converte uma string para o membro correspondente.
+
+Exemplo:
+
+```python
+MatchStatus.parse("live")
+```
+
+Resultado:
+
+```python
+MatchStatus.LIVE
+```
+
+A normalização aceita diferenças de:
+
+```text
+maiúsculas e minúsculas
+espaços externos
+espaços internos
+hífens
+underscores
+```
+
+Exemplos equivalentes:
+
+```text
+half_time
+HALF_TIME
+Half Time
+half-time
+```
+
+Todos são convertidos para:
+
+```python
+MatchStatus.HALF_TIME
+```
+
+Valores desconhecidos geram `DomainValidationError`.
+
+---
+
+## 17.4 Métodos utilitários
+
+### 17.4.1 values
+
+Retorna os valores canônicos:
+
+```python
+MatchStatus.values()
+```
+
+Resultado conceitual:
+
+```python
+(
+    "scheduled",
+    "postponed",
+    "cancelled",
+    "abandoned",
+    "live",
+    "half_time",
+    "extra_time",
+    "penalty_shootout",
+    "finished",
+    "awarded",
+)
+```
+
+### 17.4.2 names
+
+Retorna os nomes simbólicos:
+
+```python
+MatchStatus.names()
+```
+
+### 17.4.3 choices
+
+Retorna pares formados por:
+
+```text
+valor
+nome simbólico
+```
+
+Exemplo:
+
+```python
+(
+    ("live", "LIVE"),
+    ("finished", "FINISHED"),
+)
+```
+
+### 17.4.4 has_value
+
+Verifica se uma entrada pode ser convertida para o enum.
+
+Exemplo:
+
+```python
+MatchStatus.has_value("half time")
+```
+
+Resultado:
+
+```text
+True
+```
+
+---
+
+## 17.5 CompetitionType
+
+`CompetitionType` representa o formato estrutural de uma competição.
+
+Valores:
+
+```text
+league
+cup
+tournament
+playoff
+friendly
+```
+
+Significados gerais:
+
+```text
+league
+competição baseada em classificação recorrente
+
+cup
+competição predominantemente eliminatória
+
+tournament
+torneio de formato genérico ou misto
+
+playoff
+competição ou série classificatória eliminatória
+
+friendly
+competição ou evento sem caráter oficial
+```
+
+---
+
+## 17.6 PhaseType
+
+`PhaseType` representa uma fase dentro de uma competição.
+
+Valores:
+
+```text
+qualifying
+league_stage
+group_stage
+round_of_32
+round_of_16
+quarter_final
+semi_final
+third_place
+final
+```
+
+Esse enum descreve a posição estrutural de uma fase no torneio.
+
+---
+
+## 17.7 RoundType
+
+`RoundType` representa a natureza de uma rodada.
+
+Valores:
+
+```text
+regular
+preliminary
+qualifying
+group
+knockout
+playoff
+final
+```
+
+`PhaseType` e `RoundType` possuem responsabilidades diferentes.
+
+`PhaseType` descreve uma etapa ampla da competição.
+
+`RoundType` descreve a natureza operacional de uma rodada específica.
+
+---
+
+## 17.8 SeasonStatus
+
+`SeasonStatus` representa o estado de uma temporada.
+
+Valores:
+
+```text
+planned
+active
+suspended
+completed
+cancelled
+```
+
+Uma temporada deve possuir apenas um desses estados por vez.
+
+---
+
+## 17.9 MatchStatus
+
+`MatchStatus` representa o estado operacional de uma partida.
+
+Valores:
+
+```text
+scheduled
+postponed
+cancelled
+abandoned
+live
+half_time
+extra_time
+penalty_shootout
+finished
+awarded
+```
+
+Significados:
+
+```text
+scheduled
+partida programada
+
+postponed
+partida adiada
+
+cancelled
+partida cancelada
+
+abandoned
+partida iniciada e definitivamente interrompida
+
+live
+partida em andamento
+
+half_time
+intervalo regulamentar
+
+extra_time
+prorrogação em andamento
+
+penalty_shootout
+disputa de pênaltis em andamento
+
+finished
+partida concluída normalmente
+
+awarded
+resultado atribuído administrativamente
+```
+
+---
+
+## 17.10 Organização Física
+
+```text
+enums/
+├── __init__.py
+├── competition_type.py
+├── domain_enum.py
+├── match_status.py
+├── phase_type.py
+├── round_type.py
+└── season_status.py
+```
+
+As próximas famílias de enums serão adicionadas ao mesmo pacote.
+
+---
+
+## 17.11 API Pública
+
+Importação pelo pacote específico:
+
+```python
+from ultrastats_ai.domain.shared.enums import (
+    CompetitionType,
+    DomainEnum,
+    MatchStatus,
+    PhaseType,
+    RoundType,
+    SeasonStatus,
+)
+```
+
+Importação pela API compartilhada:
+
+```python
+from ultrastats_ai.domain.shared import (
+    CompetitionType,
+    DomainEnum,
+    MatchStatus,
+    PhaseType,
+    RoundType,
+    SeasonStatus,
+)
+```
+
+Consumidores externos deverão preferir a API compartilhada.
+
+---
+
+# 18. API Pública
 
 A biblioteca de tipos canônicos disponibiliza uma API pública única para acesso
 aos seus componentes.
@@ -3615,7 +3998,7 @@ permite reorganizações futuras sem impacto nas demais camadas da aplicação.
 
 ---
 
-# 18. Organização Física
+# 19. Organização Física
 
 A organização física da biblioteca reflete a separação conceitual entre as
 diferentes categorias de tipos compartilhados.
@@ -3646,7 +4029,7 @@ A única interface estável é a API pública disponibilizada pelo pacote
 
 ---
 
-# 19. Compatibilidade
+# 20. Compatibilidade
 
 A evolução da biblioteca deverá preservar, sempre que possível, a
 compatibilidade com versões anteriores.
@@ -3666,7 +4049,7 @@ arquitetural clara.
 
 ---
 
-# 20. Convenções para Novos Tipos
+# 21. Convenções para Novos Tipos
 
 Todo novo tipo compartilhado deverá seguir as convenções definidas neste
 documento.
@@ -3674,7 +4057,7 @@ documento.
 Antes da criação de uma nova classe, as seguintes perguntas deverão ser
 respondidas.
 
-## 20.1 O conceito já possui representação?
+## 21.1 O conceito já possui representação?
 
 Caso exista um tipo capaz de representar corretamente o conceito desejado,
 nenhuma nova especialização deverá ser criada.
@@ -3683,7 +4066,7 @@ A reutilização deve sempre ser priorizada.
 
 ---
 
-## 20.2 Existe diferença semântica?
+## 21.2 Existe diferença semântica?
 
 Diferenças apenas organizacionais não justificam novos tipos.
 
@@ -3692,7 +4075,7 @@ agrupamento de objetos.
 
 ---
 
-## 20.3 Existe comportamento próprio?
+## 21.3 Existe comportamento próprio?
 
 Caso o novo conceito compartilhe exatamente as mesmas regras do tipo existente,
 a criação de uma nova especialização provavelmente não será necessária.
@@ -3702,7 +4085,7 @@ comportamentos.
 
 ---
 
-## 20.4 O tipo pertence ao domínio?
+## 21.4 O tipo pertence ao domínio?
 
 Tipos específicos de:
 
@@ -3719,7 +4102,7 @@ Esses componentes deverão permanecer nas camadas de infraestrutura.
 
 ---
 
-## 20.5 O tipo possui nome adequado?
+## 21.5 O tipo possui nome adequado?
 
 Os nomes das classes deverão representar conceitos do domínio.
 
@@ -3741,7 +4124,7 @@ O nome do tipo deve representar o conceito, e nunca sua origem técnica.
 
 ---
 
-## 20.6 A especialização é realmente necessária?
+## 21.6 A especialização é realmente necessária?
 
 Quanto menor e mais coesa for a biblioteca, maior será sua facilidade de
 manutenção.
@@ -3751,7 +4134,7 @@ arquitetural ao domínio.
 
 ---
 
-# 21. Estado Atual da Biblioteca
+# 22. Estado Atual da Biblioteca
 
 No momento da elaboração deste documento, a biblioteca encontra-se organizada
 conforme a estrutura apresentada a seguir.
@@ -3789,7 +4172,7 @@ identificadores, nomes, códigos e demais categorias de Value Objects.
 
 ---
 
-# 22. Considerações Finais
+# 23. Considerações Finais
 
 A biblioteca de tipos canônicos constitui um dos pilares da camada de domínio do
 UltraStats AI.

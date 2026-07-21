@@ -71,6 +71,15 @@ from ultrastats_ai.domain.shared.geographic import (
     Longitude,
 )
 
+from ultrastats_ai.domain.shared.enums import (
+    CompetitionType,
+    DomainEnum,
+    MatchStatus,
+    PhaseType,
+    RoundType,
+    SeasonStatus,
+)
+
 from ultrastats_ai.domain.shared.external_ids import (
     ExternalIdentifier,
     ExternalIdentity,
@@ -133,6 +142,7 @@ __all__ = [
     "CoachId",
     "CodeValue",
     "CompetitionCode",
+    "CompetitionType",
     "CountryCode",
     "OrganizationCode",
     "CompetitionId",
@@ -141,6 +151,7 @@ __all__ = [
     "CountryId",
     "CountryName",
     "DecimalValue",
+    "DomainEnum",
     "DomainError",
     "DomainEvent",
     "DomainValidationError",
@@ -162,6 +173,7 @@ __all__ = [
     "MatchEventId",
     "MatchId",
     "MatchRevisionId",
+    "MatchStatus",
     "Money",
     "Name",
     "OddId",
@@ -170,6 +182,7 @@ __all__ = [
     "Percentage",
     "PersonId",
     "PersonName",
+    "PhaseType",
     "PlayerId",
     "PortfolioId",
     "Position",
@@ -188,7 +201,9 @@ __all__ = [
     "ResultAccessError",
     "RoundId",
     "RoundNumber",
+    "RoundType",
     "SeasonId",
+    "SeasonStatus",
     "ShirtNumber",
     "ShortName",
     "SlugValue",

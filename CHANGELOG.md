@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added reusable `DomainEnum` infrastructure for canonical string enums.
+- Added parsing, normalization, value listing, choices and membership utilities for domain enums.
+- Added canonical `CompetitionType`, `PhaseType` and `RoundType` enums.
+- Added canonical `SeasonStatus` and `MatchStatus` enums.
+- Added unit tests for the first domain enum family.
 - Added canonical `DomainDate` values for timezone-independent domain dates.
 - Added UTC-normalized `UtcTimestamp` values with timezone awareness validation.
 - Added `TemporalInterval` values with duration, containment and overlap operations.
@@ -170,6 +175,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Documented the canonical domain enum infrastructure and sports enums.
+- Updated the development roadmap to mark G5.4.1 as completed.
 - Documented the canonical temporal and geographic Value Object libraries.
 - Updated the development roadmap to mark G5.3.4 and the G5.3 library as completed.
 - Documented the canonical numeric Value Object library.
