@@ -57,6 +57,7 @@ from ultrastats_ai.domain.shared.text_value import (
 )
 from ultrastats_ai.domain.shared.value_object import ValueObject
 
+from ultrastats_ai.domain.shared.aliases import AliasValue
 from ultrastats_ai.domain.shared.codes import (
     CodeValue,
     CompetitionCode,
@@ -79,7 +80,10 @@ from ultrastats_ai.domain.shared.names import (
     VenueName,
 )
 
+from ultrastats_ai.domain.shared.slugs import SlugValue
+
 __all__ = [
+    "AliasValue",
     "AggregateRoot",
     "AliasId",
     "BankrollAccountId",
@@ -135,6 +139,7 @@ __all__ = [
     "RoundId",
     "SeasonId",
     "ShortName",
+    "SlugValue",
     "SquadRegistrationId",
     "StageId",
     "StatisticalModelId",

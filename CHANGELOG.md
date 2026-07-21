@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added canonical `SlugValue` for normalized URL-safe textual identifiers.
+- Added canonical `AliasValue` for human-readable alternative entity names.
+- Added dedicated `domain.shared.slugs` and `domain.shared.aliases` packages.
+- Exported `SlugValue` and `AliasValue` through the shared domain public API.
+- Added unit tests for slug normalization, alias normalization, validation, equality and immutability.
 - Added canonical `CountryCode` with structural alpha-3 validation.
 - Added canonical `CompetitionCode` for stable internal competition codes.
 - Added canonical `OrganizationCode` for stable internal organization codes.
@@ -148,6 +153,9 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Documented the canonical slug and alias libraries in `canonical-types.md`.
+- Updated the development roadmap to mark G5.3.2.4 as completed.
+- Documented the semantic difference between URL slugs and human-readable aliases.
 - Rebuilt `docs/architecture/canonical-types.md` as the official architectural catalog of canonical types.
 - Updated `docs/development/roadmap.md` to mark G5.3.2.3 as completed.
 - Documented the canonical code hierarchy and public API.

@@ -1088,18 +1088,88 @@ TextValue
 
 ##### G5.3.2.4 — Slugs e Aliases
 
+**Status:** CONCLUÍDA
+
+**Objetivo:** estabelecer tipos textuais canônicos para slugs apropriados para URLs e aliases capazes de preservar grafias humanas alternativas.
+
+###### G5.3.2.4.1 — SlugValue
+
+**Status:** CONCLUÍDA
+
+Implementações concluídas:
+
+- [x] criação do pacote `domain.shared.slugs`;
+- [x] implementação de `SlugValue`;
+- [x] herança de `TextValue`;
+- [x] normalização para letras minúsculas;
+- [x] remoção de espaços externos;
+- [x] remoção de marcas diacríticas;
+- [x] conversão de espaços internos em hífens;
+- [x] validação de letras, números e hífens;
+- [x] rejeição de hífen inicial;
+- [x] rejeição de hífen final;
+- [x] rejeição de hífens consecutivos;
+- [x] limite máximo de 128 caracteres;
+- [x] utilização de `DomainValidationError`;
+- [x] exportação pela API pública;
+- [x] testes unitários.
+
+###### G5.3.2.4.2 — AliasValue
+
+**Status:** CONCLUÍDA
+
+Implementações concluídas:
+
+- [x] criação do pacote `domain.shared.aliases`;
+- [x] implementação de `AliasValue`;
+- [x] herança de `TextValue`;
+- [x] normalização Unicode para NFC;
+- [x] remoção de espaços externos;
+- [x] redução de múltiplos espaços internos;
+- [x] preservação de maiúsculas e minúsculas;
+- [x] preservação de acentos;
+- [x] preservação de pontuação legítima;
+- [x] limite máximo de 128 caracteres;
+- [x] exportação pela API pública;
+- [x] testes unitários.
+
+###### G5.3.2.4.3 — Consolidação
+
+**Status:** CONCLUÍDA
+
+Implementações concluídas:
+
+- [x] consolidação da API de `domain.shared.slugs`;
+- [x] consolidação da API de `domain.shared.aliases`;
+- [x] consolidação da API pública de `domain.shared`;
+- [x] diferenciação semântica entre slug e alias;
+- [x] atualização de `canonical-types.md`;
+- [x] atualização do roadmap;
+- [x] atualização do changelog;
+- [x] execução dos testes específicos;
+- [x] execução dos testes de `shared`;
+- [x] execução da suíte completa.
+
+**Resultado final:**
+
 ```text
-PLANEJADO
+TextValue
+├── Name
+├── CodeValue
+├── SlugValue
+└── AliasValue
 ```
 
-Entregas previstas:
+**API pública consolidada:**
 
-- slug;
-- alias;
-- nome normalizado;
-- chave de busca;
-- regras de comparação;
-- testes unitários.
+```python
+from ultrastats_ai.domain.shared import (
+    AliasValue,
+    SlugValue,
+)
+```
+
+---
 
 ##### G5.3.2.5 — Identificadores Externos
 
@@ -1981,7 +2051,7 @@ Objetivo atual:
 Definir e implementar o código canônico de países, incluindo a política de
 compatibilidade com padrões ISO.
 
-Próxima etapa: G5.3.2.4 — Slugs e Aliases
+Próxima etapa: G5.3.2.5 — Identificadores Externos
 ```
 ---
 

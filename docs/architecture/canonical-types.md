@@ -263,6 +263,8 @@ ValueObject
     │   └── ShortName
     │
     └── CodeValue
+    ├── SlugValue
+    └── AliasValue
 ```
 
 As especializações de nomes e códigos serão apresentadas nos capítulos
@@ -1582,8 +1584,267 @@ CodeValue
 
 Cada nova especialização deverá reutilizar o comportamento compartilhado de
 `CodeValue`, adicionando apenas as regras específicas do conceito representado.
+---
 
-# 12. API Pública
+# 12. Biblioteca de Slugs
+
+## 12.1 Objetivo
+
+A biblioteca de slugs representa identificadores textuais estáveis e apropriados para URLs, APIs REST, rotas, pesquisa e referências públicas legíveis.
+
+Slugs não representam nomes oficiais, códigos canônicos ou identificadores internos. Eles representam uma forma textual normalizada e restrita.
+
+Exemplo:
+
+```text
+São Paulo Futebol Clube
+↓
+sao-paulo-futebol-clube
+```
+
+## 12.2 Tipo Base
+
+A biblioteca possui o tipo:
+
+```text
+SlugValue
+```
+
+`SlugValue` herda de `TextValue` e acrescenta regras específicas para o formato de slug.
+
+## 12.3 Regras de Normalização
+
+Durante sua criação, `SlugValue`:
+
+1. exige uma string;
+2. remove espaços externos;
+3. converte letras para minúsculas;
+4. normaliza o texto Unicode;
+5. remove marcas diacríticas;
+6. converte sequências de espaços em hífens;
+7. valida o formato canônico resultante.
+
+Exemplo:
+
+```python
+SlugValue(" São Paulo FC ").value
+```
+
+Resultado:
+
+```text
+sao-paulo-fc
+```
+
+## 12.4 Regras de Validação
+
+Um slug válido aceita apenas:
+
+```text
+a-z
+0-9
+-
+```
+
+O hífen:
+
+- não pode aparecer no início;
+- não pode aparecer no final;
+- não pode aparecer duas vezes consecutivas.
+
+Exemplos válidos:
+
+```text
+fifa
+premier-league
+competition-2026
+sao-paulo-fc
+```
+
+Exemplos inválidos:
+
+```text
+-premier-league
+premier-league-
+premier--league
+premier_league
+premier/league
+```
+
+## 12.5 Tamanho Máximo
+
+`SlugValue` possui limite máximo de:
+
+```text
+128 caracteres
+```
+
+A validação de tamanho é executada pela infraestrutura herdada de `TextValue`.
+
+## 12.6 Especializações
+
+Não existem, no estado atual, especializações como:
+
+```text
+CompetitionSlug
+CountrySlug
+OrganizationSlug
+VenueSlug
+```
+
+Essa decisão evita duplicação, pois todas essas categorias compartilham as mesmas regras estruturais.
+
+Especializações futuras somente deverão ser criadas quando houver comportamentos ou invariantes adicionais reais.
+
+## 12.7 API Pública
+
+Importação pelo pacote específico:
+
+```python
+from ultrastats_ai.domain.shared.slugs import SlugValue
+```
+
+Importação pela API pública compartilhada:
+
+```python
+from ultrastats_ai.domain.shared import SlugValue
+```
+---
+
+# 13. Biblioteca de Aliases
+
+## 13.1 Objetivo
+
+A biblioteca de aliases representa grafias alternativas associadas a uma entidade do domínio.
+
+Aliases podem ser utilizados para:
+
+- resolução de entidades;
+- integração entre providers;
+- pesquisa textual;
+- reconhecimento de abreviações;
+- armazenamento de grafias históricas ou alternativas.
+
+Exemplos:
+
+```text
+São Paulo FC
+SPFC
+Tricolor Paulista
+Manchester Utd
+Man United
+PSG
+Paris SG
+```
+
+## 13.2 Tipo Base
+
+A biblioteca possui o tipo:
+
+```text
+AliasValue
+```
+
+`AliasValue` herda de `TextValue` e preserva a grafia humana do texto.
+
+## 13.3 Regras de Normalização
+
+Durante sua criação, `AliasValue`:
+
+1. exige uma string;
+2. normaliza Unicode para NFC;
+3. remove espaços externos;
+4. reduz múltiplos espaços internos para um único espaço;
+5. preserva maiúsculas e minúsculas;
+6. preserva acentos;
+7. preserva pontuação legítima.
+
+Exemplo:
+
+```python
+AliasValue("  São   Paulo FC  ").value
+```
+
+Resultado:
+
+```text
+São Paulo FC
+```
+
+## 13.4 Preservação da Grafia
+
+Os seguintes valores permanecem distintos:
+
+```python
+AliasValue("PSG")
+AliasValue("psg")
+```
+
+Também permanecem distintos:
+
+```python
+AliasValue("São Paulo")
+AliasValue("Sao Paulo")
+```
+
+A busca tolerante a maiúsculas, minúsculas ou acentos deverá ser implementada em uma camada de pesquisa ou resolução, sem destruir a grafia original armazenada no domínio.
+
+## 13.5 Caracteres Permitidos
+
+`AliasValue` não utiliza uma expressão regular rígida.
+
+Essa decisão permite aliases legítimos como:
+
+```text
+1. FC Köln
+Brighton & Hove Albion
+Nott'm Forest
+Paris Saint-Germain
+PSG / Paris SG
+```
+
+As validações estruturais básicas são herdadas de `TextValue`.
+
+## 13.6 Tamanho Máximo
+
+`AliasValue` possui limite máximo de:
+
+```text
+128 caracteres
+```
+
+## 13.7 Especializações
+
+Não existem, no estado atual, especializações como:
+
+```text
+CompetitionAlias
+OrganizationAlias
+PersonAlias
+VenueAlias
+```
+
+Aliases permanecem genéricos porque suas regras estruturais são compartilhadas.
+
+O vínculo entre um alias e uma entidade deverá ser definido pelo agregado ou modelo que utiliza o Value Object.
+
+## 13.8 API Pública
+
+Importação pelo pacote específico:
+
+```python
+from ultrastats_ai.domain.shared.aliases import AliasValue
+```
+
+Importação pela API pública compartilhada:
+
+```python
+from ultrastats_ai.domain.shared import AliasValue
+```
+
+---
+
+# 14. API Pública
 
 A biblioteca de tipos canônicos disponibiliza uma API pública única para acesso
 aos seus componentes.
@@ -1598,6 +1859,7 @@ Exemplo:
 
 ```python
 from ultrastats_ai.domain.shared import (
+    AliasValue,
     CountryName,
     CompetitionName,
     PersonName,
@@ -1606,6 +1868,7 @@ from ultrastats_ai.domain.shared import (
     CountryCode,
     CompetitionCode,
     OrganizationCode,
+    SlugValue,
 )
 ```
 
@@ -1614,7 +1877,7 @@ permite reorganizações futuras sem impacto nas demais camadas da aplicação.
 
 ---
 
-# 13. Organização Física
+# 15. Organização Física
 
 A organização física da biblioteca reflete a separação conceitual entre as
 diferentes categorias de tipos compartilhados.
@@ -1623,25 +1886,16 @@ Uma implementação típica encontra-se organizada da seguinte maneira.
 
 ```text
 domain/shared/
-
-├── __init__.py
-│
-├── identifiers.py
-├── text_value.py
-│
-├── names/
+├── aliases/
 │   ├── __init__.py
-│   ├── base/
-│   ├── geography/
-│   ├── competitions/
-│   ├── people/
-│   └── organizations/
-│
+│   └── alias_value.py
 ├── codes/
+├── names/
+├── slugs/
 │   ├── __init__.py
-│   └── code_value.py
-│
-└── ...
+│   └── slug_value.py
+├── __init__.py
+└── text_value.py
 ```
 
 Essa organização possui finalidade exclusivamente interna.
@@ -1654,7 +1908,7 @@ A única interface estável é a API pública disponibilizada pelo pacote
 
 ---
 
-# 14. Compatibilidade
+# 16. Compatibilidade
 
 A evolução da biblioteca deverá preservar, sempre que possível, a
 compatibilidade com versões anteriores.
@@ -1674,7 +1928,7 @@ arquitetural clara.
 
 ---
 
-# 15. Convenções para Novos Tipos
+# 17. Convenções para Novos Tipos
 
 Todo novo tipo compartilhado deverá seguir as convenções definidas neste
 documento.
@@ -1759,7 +2013,7 @@ arquitetural ao domínio.
 
 ---
 
-# 16. Estado Atual da Biblioteca
+# 18. Estado Atual da Biblioteca
 
 No momento da elaboração deste documento, a biblioteca encontra-se organizada
 conforme a estrutura apresentada a seguir.
@@ -1775,23 +2029,17 @@ ValueObject
     │
     ├── Name
     │   ├── ProperName
-    │   │   ├── GeographicName
-    │   │   │   ├── CountryName
-    │   │   │   ├── RegionName
-    │   │   │   ├── CityName
-    │   │   │   └── VenueName
-    │   │   │
-    │   │   ├── CompetitionName
-    │   │   ├── PersonName
-    │   │   └── OrganizationName
-    │   │
     │   ├── DisplayName
     │   └── ShortName
     │
-    └── CodeValue
-        ├── CountryCode
-        ├── CompetitionCode
-        └── OrganizationCode
+    ├── CodeValue
+    │   ├── CountryCode
+    │   ├── CompetitionCode
+    │   └── OrganizationCode
+    │
+    ├── SlugValue
+    │
+    └── AliasValue
 ```
 
 Essa estrutura representa a arquitetura oficial da biblioteca de tipos
