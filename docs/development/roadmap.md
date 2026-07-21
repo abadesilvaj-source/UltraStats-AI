@@ -520,22 +520,23 @@ Entregas concluídas:
 - documentação da arquitetura transacional;
 - atualização do roadmap após a conclusão da G4.A.4.
 
-Entregas restantes:
+Entregas concluídas:
 
-- atualizar `docs/README.md`;
-- atualizar o README da raiz;
-- incluir os novos documentos nos índices;
-- revisar referências cruzadas;
-- verificar links internos;
-- revisar o changelog;
-- registrar a conclusão completa da G4;
-- preparar a entrada formal no G5.
+- estrutura principal da pasta `docs/`;
+- documentação do modelo canônico;
+- documentação dos agregados;
+- documentação das regras do domínio;
+- documentação da arquitetura transacional;
+- atualização do índice da documentação;
+- atualização do README principal;
+- atualização do roadmap;
+- revisão inicial do changelog;
+- preparação formal para o início da G5.
 
 Status:
 
 ```text
-EM ANDAMENTO
-```
+CONCLUÍDO
 
 ---
 
@@ -991,144 +992,99 @@ AssociationName
 CompanyName
 ```
 
-####### G5.3.2.3 — Códigos canônicos
-
-```text
-EM ANDAMENTO
-```
-
-Objetivo:
-
-Implementar uma biblioteca de códigos internos, normalizados e semanticamente
-tipados para o domínio do UltraStats AI.
-
-Subetapas:
-
-```text
-G5.3.2.3.1 — CodeValue
-CONCLUÍDO
-
-G5.3.2.3.2 — CountryCode
-PRÓXIMO
-
-G5.3.2.3.3 — CompetitionCode
-PLANEJADO
-
-G5.3.2.3.4 — OrganizationCode
-PLANEJADO
-
-G5.3.2.3.5 — Consolidação da API de códigos
-PLANEJADO
-```
-
-####### G5.3.2.3.1 — Base CodeValue
-
-```text
-CONCLUÍDO
-```
-
-Entregas concluídas:
-
-- pacote `domain.shared.codes`;
-- implementação de `CodeValue`;
-- herança de `TextValue`;
-- normalização para letras maiúsculas;
-- remoção de espaços externos;
-- limite máximo de 64 caracteres;
-- suporte a letras ASCII;
-- suporte a números;
-- suporte a ponto;
-- suporte a hífen;
-- suporte a underscore;
-- rejeição de espaços internos;
-- rejeição de caracteres Unicode;
-- rejeição de caracteres especiais não permitidos;
-- imutabilidade;
-- igualdade por tipo e valor normalizado;
-- exportação pela API pública;
-- testes unitários;
-- documentação arquitetural.
-
-####### G5.3.2.3.2 — CountryCode
-
-```text
-PRÓXIMO
-```
-
-Entregas previstas:
-
-- implementação de `CountryCode`;
-- definição da política ISO;
-- validação de códigos alfabéticos;
-- avaliação de ISO 3166-1 alpha-2;
-- avaliação de ISO 3166-1 alpha-3;
-- distinção entre código oficial e código interno;
-- exportação pelas APIs públicas;
-- testes unitários;
-- documentação arquitetural.
-
-###### G5.3.2.2.3 — Nomes de Competição
-
-```text
-PLANEJADO
-```
-
-Entregas previstas:
-
-- `CompetitionName`;
-- `SeasonName`;
-- `StageName`;
-- `RoundName`;
-- testes unitários;
-- documentação.
-
-###### G5.3.2.2.4 — Nomes de Pessoas
-
-```text
-PLANEJADO
-```
-
-Entregas previstas:
-
-- `PersonName`;
-- `PlayerName`;
-- `CoachName`;
-- `RefereeName`;
-- testes unitários;
-- documentação.
-
-###### G5.3.2.2.5 — Nomes Organizacionais e Analíticos
-
-```text
-PLANEJADO
-```
-
-Entregas previstas:
-
-- `TeamName`;
-- `BookmakerName`;
-- `ProviderName`;
-- `ModelName`;
-- testes unitários;
-- documentação.
-
 ##### G5.3.2.3 — Códigos Canônicos
 
+**Status:** CONCLUÍDA
+
+**Objetivo:** estabelecer a biblioteca de códigos canônicos internos do domínio,
+centralizando as regras estruturais compartilhadas e criando especializações
+semanticamente distintas para países, competições e organizações.
+
+###### G5.3.2.3.1 — Base CodeValue
+
+**Status:** CONCLUÍDA
+
+Implementações concluídas:
+
+- [x] criação do pacote `domain.shared.codes`;
+- [x] implementação de `CodeValue`;
+- [x] normalização por remoção de espaços externos;
+- [x] normalização para letras maiúsculas;
+- [x] rejeição de valores vazios;
+- [x] limite máximo de 64 caracteres;
+- [x] restrição a caracteres ASCII;
+- [x] aceitação de letras, números, ponto, hífen e underscore;
+- [x] igualdade e hash baseados no valor normalizado;
+- [x] imutabilidade;
+- [x] exportação pela API pública;
+- [x] testes unitários.
+
+###### G5.3.2.3.2 — CountryCode
+
+**Status:** CONCLUÍDA
+
+Implementações concluídas:
+
+- [x] criação de `CountryCode`;
+- [x] herança de `CodeValue`;
+- [x] normalização herdada da classe-base;
+- [x] exigência de exatamente três caracteres;
+- [x] aceitação exclusiva de letras ASCII;
+- [x] validação estrutural equivalente ao formato alpha-3;
+- [x] ausência deliberada de catálogo ISO embarcado;
+- [x] exportação pela API pública;
+- [x] testes unitários.
+
+###### G5.3.2.3.3 — CompetitionCode
+
+**Status:** CONCLUÍDA
+
+Implementações concluídas:
+
+- [x] criação de `CompetitionCode`;
+- [x] herança integral das regras de `CodeValue`;
+- [x] representação de códigos canônicos internos de competições;
+- [x] independência em relação a providers externos;
+- [x] exportação pela API pública;
+- [x] testes unitários.
+
+###### G5.3.2.3.4 — OrganizationCode
+
+**Status:** CONCLUÍDA
+
+Implementações concluídas:
+
+- [x] criação de `OrganizationCode`;
+- [x] herança integral das regras de `CodeValue`;
+- [x] representação de códigos canônicos internos de organizações;
+- [x] ausência deliberada de especializações como `ClubCode` e `FederationCode`;
+- [x] exportação pela API pública;
+- [x] testes unitários.
+
+###### G5.3.2.3.5 — Consolidação da Biblioteca de Códigos
+
+**Status:** CONCLUÍDA
+
+Implementações concluídas:
+
+- [x] consolidação da API do pacote `domain.shared.codes`;
+- [x] consolidação da API pública de `domain.shared`;
+- [x] diferenciação semântica entre os tipos concretos;
+- [x] atualização de `canonical-types.md`;
+- [x] atualização do roadmap;
+- [x] atualização do changelog;
+- [x] execução dos testes específicos;
+- [x] execução da suíte completa do projeto.
+
+**Resultado final:**
+
 ```text
-PLANEJADO
-```
+TextValue
+└── CodeValue
+    ├── CountryCode
+    ├── CompetitionCode
+    └── OrganizationCode
 
-Entregas previstas:
-
-- código de país;
-- código de idioma;
-- código de moeda;
-- código de competição;
-- código de temporada;
-- código de provider;
-- códigos internos;
-- validações por padrão;
-- testes unitários.
 
 ##### G5.3.2.4 — Slugs e Aliases
 
@@ -1594,23 +1550,41 @@ PLANEJADO
 ### Status geral da G5
 
 ```text
-PRONTO PARA INICIAR
+EM ANDAMENTO
 ```
 
-A arquitetura necessária para implementação do domínio foi concluída durante a
-G4.
+A implementação do domínio canônico encontra-se em execução.
 
-O desenvolvimento da G5 deverá seguir rigorosamente os documentos:
+Etapas concluídas:
+
+```text
+G5.1 — Estrutura dos Pacotes do Domínio
+G5.2 — Base Compartilhada do Domínio
+G5.3.1 — Identificadores Canônicos
+G5.3.2.1 — Base TextValue
+G5.3.2.2 — Nomes Canônicos
+G5.3.2.3.1 — CodeValue
+```
+
+Etapa atual:
+
+```text
+G5.3.2.3 — Códigos Canônicos
+```
+
+Próximo objetivo:
+
+```text
+Concluir os códigos canônicos semanticamente tipados e consolidar sua API
+pública.
+```
+
+A implementação continuará respeitando os documentos:
 
 ```text
 docs/architecture/canonical-domain-model.md
 docs/architecture/domain-aggregates-and-rules.md
-```
-
-Primeira etapa autorizada:
-
-```text
-G5.1 — Estrutura dos Pacotes do Domínio
+docs/architecture/canonical-types.md
 ```
 ---
 
@@ -2007,8 +1981,7 @@ Objetivo atual:
 Definir e implementar o código canônico de países, incluindo a política de
 compatibilidade com padrões ISO.
 
-Próxima etapa:
-G5.3.2.3.3 — CompetitionCode
+Próxima etapa: G5.3.2.4 — Slugs e Aliases
 ```
 ---
 
@@ -2053,10 +2026,10 @@ entregas obrigatórias de documentação, revisão ou validação associadas a e
 ✔ G2 concluído
 ✔ G3 concluído
 ✔ G4 concluído
+◉ G5 em andamento
 
-Próxima grande fase:
-G5 — Domínio Canônico
-```
+Etapa atual:
+G5.3.2.3 — Códigos Canônicos
 
 A G4 representa o congelamento da arquitetura do UltraStats AI.
 

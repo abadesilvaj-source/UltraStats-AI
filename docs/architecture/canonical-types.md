@@ -1,201 +1,451 @@
 # Tipos Canônicos do UltraStats AI
 
-Este documento registra os Value Objects, identificadores, enums e tipos
-compartilhados utilizados pelo domínio canônico.
+O presente documento define a biblioteca oficial de tipos canônicos utilizada pelo
+UltraStats AI.
 
-A implementação deste catálogo ocorre durante:
+Os tipos descritos neste catálogo representam conceitos fundamentais do domínio
+e constituem a base sobre a qual entidades, agregados, serviços de domínio e
+demais componentes da aplicação são construídos.
 
-```text
-G5.3 — Biblioteca de Value Objects
-G5.4 — Enums Canônicos
-```
+Este documento possui caráter arquitetural e normativo.
 
----
-
-## 1. Objetivo
-
-Os tipos canônicos deverão:
-
-- representar conceitos relevantes do domínio;
-- impedir o uso de valores primitivos sem contexto;
-- centralizar validações;
-- reduzir duplicação;
-- tornar assinaturas mais explícitas;
-- impedir a mistura acidental de identificadores;
-- preservar imutabilidade;
-- manter o domínio independente de providers.
+Seu objetivo não é descrever detalhes de implementação, mas estabelecer a
+estrutura conceitual da biblioteca de tipos compartilhados, suas
+responsabilidades, suas relações e as regras que deverão ser preservadas durante
+a evolução do projeto.
 
 ---
 
-## 2. Organização da G5.3
+# 1. Objetivo
 
-```text
-G5.3.1 — Identificadores Canônicos
-G5.3.2 — Tipos Textuais
-G5.3.3 — Tipos Numéricos
-G5.3.4 — Tipos Temporais e Geográficos
-```
+A biblioteca de tipos canônicos tem como finalidade eliminar o uso indiscriminado
+de tipos primitivos (`str`, `int`, `float`, `UUID`, entre outros) na camada de
+domínio.
+
+Cada conceito relevante do negócio deve possuir um tipo que expresse
+explicitamente seu significado.
+
+Essa abordagem reduz ambiguidades, melhora a legibilidade do código, centraliza
+validações e aumenta a segurança das operações realizadas pelo domínio.
+
+Como consequência, assinaturas de métodos tornam-se mais expressivas e erros de
+utilização de valores incompatíveis passam a ser identificados durante o
+desenvolvimento, em vez de somente em tempo de execução.
 
 ---
 
-## 3. Identificadores canônicos
+# 2. Filosofia da Biblioteca
 
-Arquivo de implementação:
+A biblioteca de tipos canônicos segue os princípios do Domain-Driven Design
+(DDD), utilizando predominantemente Value Objects para representar conceitos que
+não possuem identidade própria.
 
-```text
-src/ultrastats_ai/domain/shared/identifiers.py
-```
+Todo tipo canônico deverá representar um conceito específico do domínio e nunca
+apenas um formato de armazenamento.
 
-Todos os identificadores canônicos utilizam UUID.
+O foco da biblioteca não está na tecnologia utilizada, mas no significado do
+valor representado.
 
-A base da hierarquia é:
-
-```text
-ValueObject
-    ↓
-CanonicalId
-    ↓
-EntityId
-    ↓
-Identificador específico
-```
+Por esse motivo, dois objetos que contenham exatamente o mesmo valor textual
+podem representar conceitos completamente diferentes.
 
 Exemplo:
 
 ```python
-team_id = TeamId.new()
-match_id = MatchId.new()
+CountryName("Brasil")
+CompetitionName("Brasil")
 ```
+
+Embora ambos armazenem o mesmo texto, representam conceitos distintos do domínio
+e, portanto, não devem ser considerados equivalentes.
+
+Da mesma forma:
+
+```python
+CountryCode("BRA")
+CompetitionCode("BRA")
+```
+
+Mesmo compartilhando o mesmo valor, representam códigos semanticamente
+diferentes.
+
+O domínio diferencia conceitos, e não apenas valores.
 
 ---
 
-## 4. Regras dos identificadores
+# 3. Princípios Gerais
+
+Toda a biblioteca de tipos canônicos deverá respeitar os seguintes princípios.
+
+## 3.1 Independência do domínio
+
+Os tipos compartilhados não poderão depender de:
+
+- frameworks;
+- banco de dados;
+- ORM;
+- APIs externas;
+- protocolos de comunicação;
+- interfaces gráficas;
+- bibliotecas específicas de infraestrutura.
+
+O domínio deve permanecer completamente independente da camada de infraestrutura.
+
+---
+
+## 3.2 Imutabilidade
+
+Os tipos canônicos deverão ser imutáveis.
+
+Após sua criação, um objeto nunca poderá alterar seu estado interno.
+
+Caso seja necessário representar outro valor, uma nova instância deverá ser
+criada.
+
+Essa característica simplifica comparações, evita efeitos colaterais e facilita
+o compartilhamento seguro entre diferentes partes da aplicação.
+
+---
+
+## 3.3 Igualdade semântica
+
+A igualdade considera simultaneamente:
+
+- o tipo concreto;
+- o valor armazenado.
+
+Consequentemente:
+
+```python
+CountryName("Brasil") != CompetitionName("Brasil")
+```
+
+Da mesma forma:
+
+```python
+CountryCode("BRA") != CompetitionCode("BRA")
+```
+
+Mesmo quando os valores internos forem iguais, os conceitos continuam sendo
+diferentes.
+
+---
+
+## 3.4 Validação centralizada
+
+Cada tipo é responsável por validar seus próprios dados.
+
+O restante da aplicação não deverá repetir regras de validação já implementadas
+pela biblioteca.
+
+Essa centralização evita inconsistências e garante comportamento uniforme em
+todo o sistema.
+
+---
+
+## 3.5 Especialização progressiva
+
+Tipos especializados deverão reutilizar regras das classes-base sempre que
+possível.
+
+Uma nova especialização somente deverá ser criada quando existir diferença
+semântica ou comportamental relevante.
+
+Diferenças meramente organizacionais não justificam novos tipos.
+
+---
+
+## 3.6 API pública estável
+
+Consumidores externos deverão utilizar preferencialmente a API pública do pacote
+compartilhado.
+
+Exemplo:
+
+```python
+from ultrastats_ai.domain.shared import CountryName
+```
+
+A organização física dos arquivos poderá evoluir ao longo do projeto sem exigir
+alterações no código dos consumidores.
+
+---
+
+# 4. Organização da Biblioteca
+
+Atualmente a biblioteca de tipos compartilhados encontra-se organizada em quatro
+grandes grupos.
+
+```text
+Tipos Canônicos
+
+├── Identificadores
+├── Tipos Textuais
+├── Biblioteca de Nomes
+└── Biblioteca de Códigos
+```
+
+Cada grupo possui responsabilidades próprias.
+
+## Identificadores
+
+Representam identidades canônicas utilizadas pelo domínio.
+
+Exemplos:
+
+- CountryId;
+- CompetitionId;
+- TeamId;
+- MatchId.
+
+---
+
+## Tipos Textuais
+
+Fornecem infraestrutura compartilhada para valores baseados em texto.
+
+Exemplos:
+
+- TextValue;
+- Name;
+- ProperName;
+- DisplayName;
+- ShortName.
+
+---
+
+## Biblioteca de Nomes
+
+Contém especializações semânticas utilizadas para representar nomes de conceitos
+do domínio.
+
+Exemplos:
+
+- CountryName;
+- VenueName;
+- CompetitionName;
+- PersonName;
+- OrganizationName.
+
+---
+
+## Biblioteca de Códigos
+
+Representa códigos internos utilizados pelo domínio.
+
+Exemplos:
+
+- CodeValue;
+- CountryCode;
+- CompetitionCode;
+- OrganizationCode.
+
+---
+
+# 5. Hierarquia Geral
+
+A relação entre os principais tipos atualmente implementados pode ser
+representada da seguinte forma.
+
+```text
+ValueObject
+│
+├── CanonicalId
+│   └── EntityId
+│       └── IDs especializados
+│
+└── TextValue
+    │
+    ├── Name
+    │   ├── ProperName
+    │   │
+    │   ├── DisplayName
+    │   └── ShortName
+    │
+    └── CodeValue
+```
+
+As especializações de nomes e códigos serão apresentadas nos capítulos
+seguintes.
+
+---
+
+# 6. Organização Física
+
+A estrutura interna da biblioteca encontra-se organizada da seguinte maneira.
+
+```text
+domain/shared/
+
+├── __init__.py
+│
+├── identifiers.py
+├── text_value.py
+│
+├── codes/
+│   ├── __init__.py
+│   └── code_value.py
+│
+├── names/
+│   ├── __init__.py
+│   │
+│   ├── base/
+│   ├── geography/
+│   ├── competitions/
+│   ├── people/
+│   └── organizations/
+│
+└── ...
+```
+
+Essa organização busca separar conceitos semanticamente relacionados sem expor
+essa estrutura aos consumidores da API pública.
+
+Mudanças internas de organização deverão preservar, sempre que possível, a
+compatibilidade da interface pública do pacote.
+
+---
+# 7. Identificadores Canônicos
+
+Os identificadores canônicos representam a identidade única e permanente dos
+conceitos do domínio.
+
+Diferentemente dos identificadores fornecidos por sistemas externos, um
+identificador canônico pertence exclusivamente ao UltraStats AI e permanece
+estável durante todo o ciclo de vida da entidade que representa.
+
+A utilização de identificadores semanticamente tipados elimina ambiguidades,
+impede a mistura acidental entre entidades distintas e torna explícito o
+significado de cada valor utilizado pelo domínio.
+
+---
+
+## 7.1 Objetivos
+
+A biblioteca de identificadores possui os seguintes objetivos:
+
+- representar identidades canônicas do domínio;
+- impedir a utilização de UUIDs sem contexto semântico;
+- evitar a mistura acidental entre identificadores de entidades diferentes;
+- fornecer igualdade baseada em tipo e identidade;
+- permitir reconstrução segura de entidades persistidas;
+- manter independência em relação a identificadores externos.
+
+---
+
+## 7.2 Hierarquia
+
+Todos os identificadores seguem a hierarquia abaixo.
+
+```text
+ValueObject
+│
+└── CanonicalId
+    │
+    └── EntityId
+        │
+        ├── CountryId
+        ├── RegionId
+        ├── CityId
+        ├── VenueId
+        │
+        ├── CompetitionId
+        ├── SeasonId
+        ├── StageId
+        ├── RoundId
+        │
+        ├── PersonId
+        ├── PlayerId
+        ├── CoachId
+        ├── RefereeId
+        │
+        ├── TeamId
+        ├── TeamMembershipId
+        ├── SquadRegistrationId
+        │
+        ├── MatchId
+        ├── TieId
+        ├── MatchEventId
+        ├── MatchRevisionId
+        │
+        ├── BookmakerId
+        ├── BettingMarketId
+        ├── BettingSelectionId
+        ├── OddId
+        ├── BetId
+        │
+        ├── PredictionId
+        ├── RecommendationId
+        ├── StatisticalModelId
+        ├── FeatureSetId
+        │
+        ├── PortfolioId
+        ├── BankrollAccountId
+        └── BankrollTransactionId
+```
+
+Essa estrutura garante que cada entidade do domínio possua um identificador
+próprio e semanticamente distinto.
+
+---
+
+## 7.3 CanonicalId
+
+`CanonicalId` representa a base comum para todos os identificadores
+pertencentes ao domínio canônico.
+
+Sua responsabilidade é definir o comportamento compartilhado entre todos os
+tipos de identidade utilizados pelo sistema.
 
 Todo identificador canônico deverá:
 
 - ser imutável;
-- possuir um UUID válido;
-- ser criado internamente pelo UltraStats AI;
+- representar exatamente uma identidade;
+- utilizar UUID como representação interna;
 - possuir igualdade baseada em tipo e valor;
 - possuir representação textual;
-- ser utilizável como chave de dicionário;
-- ser independente de identificadores externos.
+- ser utilizável como chave de coleções baseadas em hash.
 
-Dois identificadores com o mesmo UUID, mas de tipos diferentes, não são iguais.
+`CanonicalId` não deve ser utilizado diretamente pela aplicação.
+
+Seu papel é servir como infraestrutura para identificadores especializados.
+
+---
+
+## 7.4 EntityId
+
+`EntityId` representa a base para todos os identificadores de entidades do
+domínio.
+
+Enquanto `CanonicalId` define o comportamento geral, `EntityId` estabelece a
+base comum utilizada pelos Aggregate Roots e pelas entidades persistentes.
+
+Todas as especializações apresentadas neste documento derivam de `EntityId`.
+
+---
+
+## 7.5 Criação de Identificadores
+
+Novas entidades deverão receber um identificador criado pelo próprio domínio.
 
 Exemplo:
-
-```python
-TeamId(value=uuid_value) != MatchId(value=uuid_value)
-```
-
----
-
-## 5. Identificadores de Geography
-
-```text
-CountryId
-RegionId
-CityId
-VenueId
-```
-
----
-
-## 6. Identificadores de Competition
-
-```text
-CompetitionId
-SeasonId
-StageId
-RoundId
-```
-
----
-
-## 7. Identificadores de People e Team
-
-```text
-PersonId
-PlayerId
-CoachId
-RefereeId
-TeamId
-TeamMembershipId
-SquadRegistrationId
-```
-
----
-
-## 8. Identificadores de Match
-
-```text
-MatchId
-TieId
-MatchEventId
-MatchRevisionId
-```
-
----
-
-## 9. Identificadores de providers e identidade
-
-```text
-ProviderId
-ExternalIdentityId
-AliasId
-```
-
-O identificador canônico de um provider não substitui os identificadores
-fornecidos pelo próprio provider.
-
-Os valores externos serão representados posteriormente por tipos específicos.
-
----
-
-## 10. Identificadores de Betting
-
-```text
-BookmakerId
-BettingMarketId
-BettingSelectionId
-OddId
-BetId
-```
-
----
-
-## 11. Identificadores analíticos
-
-```text
-StatisticalModelId
-FeatureSetId
-PredictionModelId
-PredictionId
-RecommendationId
-```
-
----
-
-## 12. Identificadores de risco e banca
-
-```text
-PortfolioId
-BankrollAccountId
-BankrollTransactionId
-```
-
----
-
-## 13. Criação de identificadores
-
-Novos identificadores deverão ser criados por:
 
 ```python
 team_id = TeamId.new()
 ```
 
-A reconstrução a partir de persistência poderá utilizar:
+Esse mecanismo garante que novas identidades sejam sempre válidas e produzidas
+de forma uniforme.
+
+---
+
+## 7.6 Reconstrução
+
+Durante operações de persistência ou carregamento de dados já existentes,
+identificadores poderão ser reconstruídos a partir de sua representação
+textual.
+
+Exemplo:
 
 ```python
 team_id = TeamId.from_string(
@@ -203,928 +453,1370 @@ team_id = TeamId.from_string(
 )
 ```
 
-Também será possível construir diretamente a partir de UUID:
+Também poderá ser utilizada uma instância de UUID previamente validada.
 
-```python
-team_id = TeamId(value=uuid_value)
-```
+A reconstrução não cria uma nova identidade.
+
+Ela apenas restaura uma identidade já existente.
 
 ---
 
-## 14. Identificadores externos
+## 7.7 Igualdade
 
-Identificadores externos não deverão ser armazenados diretamente dentro de
-`TeamId`, `MatchId`, `PlayerId` ou qualquer outro identificador canônico.
+A igualdade entre identificadores considera simultaneamente:
 
-Exemplo proibido:
+- o tipo concreto;
+- o UUID armazenado.
+
+Consequentemente:
 
 ```python
-team_id = TeamId.from_string(provider_team_id)
+TeamId(uuid_value) != MatchId(uuid_value)
 ```
 
-quando `provider_team_id` não for o UUID canônico do UltraStats AI.
+mesmo quando ambos utilizarem exatamente o mesmo UUID.
 
-O relacionamento correto será:
+Da mesma forma:
+
+```python
+CountryId(uuid_value) != CompetitionId(uuid_value)
+```
+
+Essa diferenciação impede erros de utilização entre conceitos distintos do
+domínio.
+
+---
+
+## 7.8 Identidade Canônica
+
+A identidade canônica pertence exclusivamente ao UltraStats AI.
+
+Ela não depende:
+
+- do banco de dados;
+- do provider utilizado;
+- da API de origem;
+- do formato de importação;
+- do identificador externo.
+
+Mudanças em sistemas externos nunca deverão alterar a identidade canônica de
+uma entidade.
+
+---
+
+## 7.9 Identificadores Externos
+
+Os identificadores utilizados por APIs e provedores de dados não fazem parte da
+biblioteca de identificadores canônicos.
+
+Eles representam apenas chaves utilizadas por sistemas externos.
+
+Exemplos:
+
+```text
+API-Football
+SportMonks
+Opta
+StatsBomb
+Football-Data
+```
+
+Esses valores serão representados futuramente por tipos específicos da
+biblioteca de identificadores externos.
+
+Essa separação evita o acoplamento do domínio ao formato de qualquer provider.
+
+---
+
+## 7.10 Relação entre Identidades
+
+A relação entre uma identidade externa e uma identidade canônica pode ser
+representada da seguinte forma.
 
 ```text
 Provider
-    +
-External ID
-    ↓
+        │
+        ▼
+External Identifier
+        │
+        ▼
 External Identity Mapping
-    ↓
-Canonical ID
+        │
+        ▼
+CanonicalId
 ```
+
+O domínio sempre trabalha utilizando o identificador canônico.
+
+Os identificadores externos existem apenas para permitir integração,
+sincronização e resolução de identidade entre diferentes fontes de dados.
 
 ---
-## 15. Infraestrutura de tipos textuais
 
-Arquivo principal:
+## 7.11 Especializações
 
-```text
-src/ultrastats_ai/domain/shared/text_value.py
-```
+As especializações de `EntityId` representam conceitos próprios do domínio.
 
-A infraestrutura textual compartilhada possui como base:
+Elas não adicionam comportamento complexo.
+
+Sua principal responsabilidade é fornecer diferenciação semântica entre os
+diversos tipos de entidades.
+
+Por esse motivo, tipos como:
+
+- `TeamId`;
+- `CompetitionId`;
+- `MatchId`;
+- `PlayerId`;
+- `VenueId`;
+
+possuem exatamente a mesma estrutura interna, mas representam conceitos
+completamente diferentes.
+
+Essa distinção aumenta significativamente a segurança do domínio e evita erros
+causados pela utilização indiscriminada de UUIDs.
+
+---
+
+## 7.12 Evolução da Biblioteca
+
+Novos identificadores deverão ser criados sempre que uma nova entidade
+canônica possuir identidade própria.
+
+Todos deverão:
+
+- herdar de `EntityId`;
+- permanecer imutáveis;
+- representar exatamente um conceito do domínio;
+- manter compatibilidade com a API pública da biblioteca.
+
+A criação de identificadores genéricos reutilizados por entidades diferentes
+não é permitida.
+
+Cada conceito relevante do domínio deve possuir um tipo de identidade próprio.
+
+# 8. Tipos Textuais
+
+Grande parte das informações manipuladas pelo domínio é representada por valores
+textuais.
+
+Embora esses valores sejam armazenados internamente como cadeias de caracteres,
+cada um possui significado próprio e regras específicas de validação.
+
+A biblioteca de tipos textuais estabelece uma hierarquia de Value Objects que
+permite reutilizar comportamentos comuns sem perder a diferenciação semântica
+entre os diversos conceitos do domínio.
+
+Todos os tipos apresentados neste capítulo são imutáveis e seguem os princípios
+definidos anteriormente neste documento.
+
+---
+
+## 8.1 Objetivos
+
+A biblioteca de tipos textuais possui os seguintes objetivos:
+
+- eliminar o uso indiscriminado de `str` na camada de domínio;
+- centralizar regras de validação;
+- padronizar comparações;
+- aumentar a expressividade das assinaturas de métodos;
+- facilitar a criação de novos tipos especializados;
+- manter comportamento consistente entre todos os Value Objects textuais.
+
+---
+
+## 8.2 Hierarquia
+
+Os principais tipos textuais atualmente implementados seguem a estrutura abaixo.
 
 ```text
 ValueObject
-    ↓
-TextValue
-    ↓
-Tipos textuais especializados
+│
+└── TextValue
+    │
+    ├── Name
+    │   ├── ProperName
+    │   ├── DisplayName
+    │   └── ShortName
+    │
+    └── CodeValue
 ```
 
-A classe `TextValue` é responsável por:
+Novas especializações deverão reutilizar essa estrutura sempre que possível.
 
-- validar que o valor recebido seja uma string;
-- aplicar normalização Unicode NFKC;
-- remover espaços das extremidades;
-- reduzir espaços internos consecutivos;
-- validar comprimento mínimo;
-- validar comprimento máximo;
-- aplicar expressões regulares opcionais;
-- permitir validações adicionais em subclasses;
-- manter imutabilidade;
-- fornecer representação textual;
-- permitir utilização como chave de dicionário.
+---
+
+## 8.3 TextValue
+
+`TextValue` representa a base para todos os Value Objects fundamentados em texto.
+
+Sua responsabilidade não é representar um conceito específico do domínio, mas
+fornecer uma infraestrutura comum para objetos que armazenam valores textuais.
+
+Todo tipo derivado de `TextValue` herda um conjunto de comportamentos
+compartilhados, como:
+
+- armazenamento imutável;
+- igualdade baseada em tipo e valor;
+- representação textual;
+- suporte a hashing;
+- integração uniforme com o restante do domínio.
+
+`TextValue` não deve ser utilizado diretamente para representar conceitos do
+negócio.
+
+Sempre que existir significado semântico conhecido, deverá ser criada uma
+especialização apropriada.
+
+---
+
+## 8.4 Igualdade
+
+A igualdade considera simultaneamente:
+
+- o tipo concreto;
+- o valor armazenado.
 
 Exemplo:
 
 ```python
-text = TextValue("  UltraStats    AI  ")
-
-assert text.value == "UltraStats AI"
+CountryName("Brasil") != OrganizationName("Brasil")
 ```
+
+Mesmo compartilhando exatamente o mesmo texto, os objetos representam conceitos
+diferentes.
+
+Da mesma forma:
+
+```python
+DisplayName("São Paulo")
+!=
+ShortName("São Paulo")
+```
+
+O domínio diferencia conceitos, e não apenas valores.
 
 ---
 
-## 16. Normalização Unicode
+## 8.5 TextValue como Infraestrutura
 
-A normalização padrão utilizada é:
+`TextValue` não possui conhecimento sobre o domínio esportivo.
 
-```text
-NFKC
-```
+Ele desconhece conceitos como:
 
-Essa forma converte representações Unicode compatíveis para uma forma
-canônica comum.
+- países;
+- cidades;
+- competições;
+- pessoas;
+- clubes;
+- códigos;
+- provedores.
 
-Exemplo:
+Sua única responsabilidade é fornecer comportamento reutilizável para os tipos
+especializados construídos sobre ele.
 
-```python
-TextValue("ＡＢＣ").value == "ABC"
-```
-
-A normalização Unicode não deverá ser utilizada para remover acentos nem para
-forçar transliteração.
-
-Valores como:
-
-```text
-São Paulo
-Málaga
-Łódź
-東京
-```
-
-deverão continuar preservando seus caracteres semânticos.
+Essa separação permite que novas categorias de Value Objects sejam adicionadas
+sem modificar a infraestrutura existente.
 
 ---
 
-## 17. Base para nomes
+# 9. Biblioteca Base de Nomes
 
-Arquivo:
+A biblioteca de nomes reúne todos os tipos responsáveis por representar nomes
+oficiais utilizados pelo domínio.
 
-```text
-src/ultrastats_ai/domain/shared/name.py
-```
+Um nome representa a forma pela qual um conceito é identificado por pessoas.
 
-A classe `Name` representa a base compartilhada para nomes canônicos.
-
-Regras atuais:
-
-- comprimento mínimo de dois caracteres;
-- comprimento máximo de cento e cinquenta caracteres;
-- normalização de espaços;
-- suporte a Unicode;
-- presença obrigatória de ao menos um caractere alfanumérico;
-- suporte a hífens;
-- suporte a apóstrofos;
-- suporte a pontos;
-- suporte a números.
-
-Exemplos válidos:
-
-```text
-São Paulo
-Paris Saint-Germain
-O'Connor
-F.C. Porto
-Schalke 04
-東京
-```
-
-Exemplos inválidos:
-
-```text
---
-..
-@#
-```
+Ele não representa códigos, identificadores ou descrições livres.
 
 ---
 
-## 18. Especialização dos tipos textuais
+## 9.1 Hierarquia
 
-Subclasses poderão alterar regras por meio de atributos de classe:
-
-```python
-class ExampleText(TextValue):
-    MIN_LENGTH = 2
-    MAX_LENGTH = 50
-```
-
-Expressões regulares também poderão ser definidas:
-
-```python
-class ExampleCode(TextValue):
-    PATTERN = compile_text_pattern(r"[A-Z0-9]+")
-```
-
-Validações semânticas adicionais deverão sobrescrever:
-
-```python
-def validate_specific_rules(self) -> None:
-    ...
-```
-
-Esse mecanismo evita a duplicação da infraestrutura básica de validação.
----
-
-## 19. Tipos base de nomes
-
-A biblioteca de nomes possui a seguinte hierarquia:
+A estrutura da biblioteca de nomes é apresentada abaixo.
 
 ```text
-ValueObject
-    ↓
 TextValue
-    ↓
-Name
+│
+└── Name
+    │
     ├── ProperName
+    │   ├── GeographicName
+    │   │   ├── CountryName
+    │   │   ├── RegionName
+    │   │   ├── CityName
+    │   │   └── VenueName
+    │   │
+    │   ├── CompetitionName
+    │   ├── PersonName
+    │   └── OrganizationName
+    │
     ├── DisplayName
     └── ShortName
 ```
 
-Esses tipos representam categorias textuais reutilizáveis. Eles ainda não
-representam diretamente entidades específicas do domínio.
+Essa hierarquia organiza os diferentes tipos de nomes conforme seu significado
+dentro do domínio.
 
 ---
 
-## 20. ProperName
+## 9.2 Name
 
-Arquivo:
+`Name` representa a abstração comum para todos os nomes utilizados pelo domínio.
 
-```text
-src/ultrastats_ai/domain/shared/proper_name.py
-```
+Sua responsabilidade é concentrar o comportamento compartilhado entre todas as
+especializações de nomes.
 
-`ProperName` representa o nome oficial ou principal de um conceito.
+Ele não representa um conceito específico.
+
+Seu papel é fornecer uma base comum para:
+
+- nomes próprios;
+- nomes de exibição;
+- nomes abreviados;
+- futuras categorias de nomes.
+
+---
+
+## 9.3 ProperName
+
+`ProperName` representa nomes oficiais de entidades.
+
+Exemplos:
+
+- países;
+- cidades;
+- pessoas;
+- clubes;
+- competições;
+- estádios;
+- organizações.
+
+A principal característica de um nome próprio é identificar um conceito do
+mundo real.
+
+Ele preserva integralmente a grafia utilizada oficialmente.
+
+---
+
+## 9.4 DisplayName
+
+`DisplayName` representa a forma preferencial de apresentação de um texto para o
+usuário.
+
+Sua finalidade é exclusivamente visual.
+
+O mesmo conceito pode possuir diferentes formas de apresentação dependendo da
+interface utilizada.
 
 Exemplos:
 
 ```text
-Manchester United Football Club
-Confederação Brasileira de Futebol
-Associação Portuguesa de Desportos
 Premier League
-São Paulo
 ```
-
-Regras:
-
-- mínimo de dois caracteres;
-- máximo de cento e cinquenta caracteres;
-- presença de ao menos um caractere alfanumérico;
-- suporte a Unicode;
-- normalização de espaços;
-- imutabilidade.
-
-O tipo será utilizado como base para nomes como:
 
 ```text
-CountryName
-CompetitionName
-TeamName
-PersonName
-VenueName
-ProviderName
+Premier League (ENG)
 ```
+
+```text
+Premier League 2025/26
+```
+
+Essas diferenças não alteram a identidade do conceito.
 
 ---
 
-## 21. DisplayName
+## 9.5 ShortName
 
-Arquivo:
+`ShortName` representa uma versão reduzida de um nome.
 
-```text
-src/ultrastats_ai/domain/shared/display_name.py
-```
+Seu objetivo é facilitar a apresentação em interfaces com restrição de espaço.
 
-`DisplayName` representa a forma preferencial de apresentação de um nome em
-interfaces, relatórios e respostas de API.
-
-Exemplo:
+Exemplos:
 
 ```text
-Nome oficial:
-Manchester United Football Club
-
-Nome de exibição:
 Manchester United
 ```
 
-Regras:
-
-- mínimo de um caractere;
-- máximo de cem caracteres;
-- presença de ao menos um caractere alfanumérico;
-- suporte a Unicode;
-- normalização de espaços;
-- imutabilidade.
-
----
-
-## 22. ShortName
-
-Arquivo:
+↓
 
 ```text
-src/ultrastats_ai/domain/shared/short_name.py
+Man. United
 ```
 
-`ShortName` representa nomes utilizados em espaços reduzidos.
-
-Exemplos:
+ou
 
 ```text
-PSG
-UCL
-Man United
+São Paulo Futebol Clube
+```
+
+↓
+
+```text
 São Paulo
-Brasileirão
 ```
 
-Regras:
+A forma abreviada nunca substitui o nome oficial.
 
-- mínimo de um caractere;
-- máximo de trinta caracteres;
-- presença de ao menos um caractere alfanumérico;
-- suporte a Unicode;
-- normalização de espaços;
-- imutabilidade.
-
-`ShortName` não obriga letras maiúsculas.
-
-Abreviações formais e códigos serão modelados separadamente durante a etapa
-G5.3.2.3.
+Ela representa apenas uma alternativa de apresentação.
 
 ---
 
-## 23. Igualdade entre tipos de nomes
+## 9.6 Relação entre os Tipos de Nome
 
-A igualdade dos Value Objects considera o tipo concreto e o valor normalizado.
-
-Portanto:
-
-```python
-ProperName("São Paulo") != DisplayName("São Paulo")
-```
-
-Mesmo quando os textos armazenados forem iguais, os objetos representam
-conceitos semânticos diferentes.
----
-
-## 24. Nomes da geografia administrativa
-
-Os nomes da geografia administrativa são especializações semânticas de
-`ProperName`.
-
-### Hierarquia de nomes geográficos
-
-Os nomes relacionados a conceitos geográficos possuem uma base semântica
-específica:
+Embora todos armazenem texto, cada tipo possui responsabilidade diferente.
 
 ```text
 ProperName
+│
+├── representa identidade nominal
+│
+DisplayName
+│
+├── representa apresentação visual
+│
+ShortName
+│
+└── representa apresentação abreviada
+```
+
+Esses conceitos não devem ser confundidos.
+
+Um mesmo valor textual poderá existir simultaneamente em diferentes categorias.
+
+---
+
+## 9.7 Especialização Progressiva
+
+Novos tipos de nome deverão ser criados apenas quando houver diferença
+semântica claramente definida.
+
+Não deverão ser criadas especializações apenas para organizar arquivos ou
+categorizar entidades.
+
+Por exemplo, faz sentido existir:
+
+- CompetitionName;
+- OrganizationName;
+- PersonName.
+
+Entretanto, não há justificativa para criar classes como:
+
+- LeagueName;
+- CupName;
+- RefereeName;
+- CoachName;
+- ClubName.
+
+Essas diferenças pertencem ao domínio das entidades representadas e não ao tipo
+do nome.
+
+A biblioteca deve permanecer pequena, consistente e semanticamente orientada.
+
+---
+
+## 9.8 Evolução da Biblioteca
+
+A criação de novos tipos deverá obedecer à seguinte ordem de decisão.
+
+1. O conceito já pode ser representado por um tipo existente?
+
+Se sim, nenhuma nova classe deverá ser criada.
+
+2. Existe diferença semântica relevante?
+
+Se não existir, o tipo atual deverá ser reutilizado.
+
+3. Existe comportamento próprio?
+
+Caso a diferença seja apenas organizacional, também não deverá ser criada uma
+nova especialização.
+
+Somente quando houver diferença de significado ou comportamento será justificável
+introduzir um novo tipo na biblioteca.
+
+Essa política evita a proliferação de classes redundantes e mantém a biblioteca
+coesa ao longo da evolução do projeto.
+
+# 10. Biblioteca de Nomes
+
+A biblioteca de nomes reúne os tipos responsáveis por representar a denominação
+oficial dos principais conceitos do domínio.
+
+Todos os tipos apresentados neste capítulo derivam, direta ou indiretamente, de
+`ProperName`.
+
+Seu objetivo é fornecer diferenciação semântica entre conceitos que, embora
+compartilhem a mesma representação textual, possuem significados distintos.
+
+---
+
+## 10.1 Hierarquia
+
+A organização atual da biblioteca é apresentada abaixo.
+
+```text
+ProperName
+│
+├── GeographicName
+│   ├── CountryName
+│   ├── RegionName
+│   ├── CityName
+│   └── VenueName
+│
+├── CompetitionName
+├── PersonName
+└── OrganizationName
+```
+
+Cada especialização representa uma categoria específica de nomes oficiais do
+domínio.
+
+---
+
+# 10.2 GeographicName
+
+`GeographicName` representa a abstração comum para nomes geográficos.
+
+Sua principal responsabilidade é concentrar o comportamento compartilhado entre
+os diferentes conceitos geográficos utilizados pelo domínio.
+
+Ele não representa um conceito específico.
+
+Seu papel é servir como base para:
+
+- países;
+- estados;
+- províncias;
+- regiões;
+- cidades;
+- estádios;
+- arenas;
+- centros esportivos.
+
+A existência dessa abstração reduz duplicação e facilita a evolução da
+biblioteca.
+
+---
+
+## Hierarquia
+
+```text
+ProperName
+│
 └── GeographicName
+    │
     ├── CountryName
     ├── RegionName
     ├── CityName
     └── VenueName
 ```
 
-`GeographicName` concentra a identidade semântica comum dos nomes geográficos.
-
-Atualmente ele reutiliza integralmente as regras de `ProperName`, mas oferece
-um ponto de extensão para futuras regras relacionadas a:
-
-- localidades;
-- transliteração;
-- aliases geográficos;
-- integrações com padrões territoriais;
-- normalização internacional.
-
-`VenueName` representa o nome canônico de um local esportivo, incluindo:
-
-- estádios;
-- arenas;
-- ginásios;
-- centros esportivos;
-- campos;
-- complexos esportivos.
-
-Exemplo:
-
-```python
-from ultrastats_ai.domain.shared import VenueName
-
-venue = VenueName("Estádio do Maracanã")
-```
-
-`VenueName` é semanticamente diferente de `CityName`, mesmo quando ambos
-possuem o mesmo valor textual.
 ---
 
-### Nomes de competições
-
-`CompetitionName` representa o nome canônico de uma competição esportiva.
-
-Hierarquia:
-
-```text
-ProperName
-└── CompetitionName
-```
-
-Exemplos:
-
-```python
-from ultrastats_ai.domain.shared import CompetitionName
-
-premier_league = CompetitionName("Premier League")
-copa_do_brasil = CompetitionName("Copa do Brasil")
-champions_league = CompetitionName("UEFA Champions League")
-```
-
-`CompetitionName` representa somente o nome.
-
-Características como formato, nível territorial, gênero, categoria etária ou
-organizador não deverão ser codificadas por subclasses do nome.
-
-Essas características serão representadas futuramente por propriedades
-específicas da entidade ou do agregado de competição.
-
-Exemplos:
-
-```text
-CompetitionFormat
-CompetitionLevel
-CompetitionGender
-CompetitionAgeCategory
-```
-
-Consequentemente, não serão criadas classes como:
-
-```text
-LeagueName
-CupName
-TournamentName
-```
-
-a menos que surjam regras textuais realmente diferentes para esses conceitos.
-
-Estrutura física:
-
-```text
-domain/shared/names/competitions/
-├── __init__.py
-└── competition_name.py
-```
-
-O caminho público recomendado é:
-
-```python
-from ultrastats_ai.domain.shared import CompetitionName
-```
----
-
-### Hierarquia atual da biblioteca de nomes
-
-```text
-ProperName
-├── GeographicName
-│   ├── CountryName
-│   ├── RegionName
-│   ├── CityName
-│   └── VenueName
-├── CompetitionName
-├── PersonName
-└── OrganizationName
-```
-
-Essa hierarquia organiza os tipos de nomes pelo conceito que representam,
-sem misturar o nome com papéis, formatos ou categorias das entidades.
----
-
-### Nomes de pessoas
-
-`PersonName` representa o nome canônico de uma pessoa.
-
-Hierarquia:
-
-```text
-ProperName
-└── PersonName
-```
-
-Exemplos:
-
-```python
-from ultrastats_ai.domain.shared import PersonName
-
-coach = PersonName("Carlo Ancelotti")
-former_player = PersonName("Xabi Alonso")
-single_name = PersonName("Pelé")
-```
-
-`PersonName` representa exclusivamente o nome da pessoa.
-
-Papéis como jogador, treinador, árbitro, dirigente ou agente não fazem parte
-do nome e não serão representados por subclasses como:
-
-```text
-PlayerName
-CoachName
-RefereeName
-```
-
-Uma mesma pessoa pode exercer mais de um papel ao longo da carreira ou até
-simultaneamente. O nome permanece o mesmo independentemente do papel.
-
-Exemplo conceitual futuro:
-
-```python
-person = Person(
-    name=PersonName("Xabi Alonso"),
-    roles={
-        PersonRole.PLAYER,
-        PersonRole.COACH,
-    },
-)
-```
-
-A modelagem de papéis será realizada nas fases de entidades, agregados e regras
-de domínio.
-
-`PersonName` aceita nomes compostos, nomes de apenas uma palavra, caracteres
-Unicode, hífens e apóstrofos, desde que respeitadas as regras gerais herdadas
-de `ProperName`.
-
-Estrutura física:
-
-```text
-domain/shared/names/people/
-├── __init__.py
-└── person_name.py
-```
-
-O caminho público recomendado é:
-
-```python
-from ultrastats_ai.domain.shared import PersonName
-```
----
-### Nomes de organizações
-
-`OrganizationName` representa o nome canônico de uma organização.
-
-Hierarquia:
-
-```text
-ProperName
-└── OrganizationName
-```
-
-Exemplos:
-
-```python
-from ultrastats_ai.domain.shared import OrganizationName
-
-club = OrganizationName("São Paulo Futebol Clube")
-federation = OrganizationName("Confederação Brasileira de Futebol")
-international_body = OrganizationName("UEFA")
-company = OrganizationName("Red Bull GmbH")
-```
-
-`OrganizationName` representa exclusivamente o nome da organização.
-
-O tipo da organização não faz parte do nome e será representado futuramente
-por um conceito separado.
-
-Exemplo conceitual:
-
-```python
-organization = Organization(
-    name=OrganizationName("Confederação Brasileira de Futebol"),
-    organization_type=OrganizationType.FEDERATION,
-)
-```
-
-Não serão criadas subclasses como:
-
-```text
-ClubName
-FederationName
-AssociationName
-CompanyName
-```
-
-Essas classificações representam a natureza da organização, não uma regra
-textual diferente para o nome.
-
-Estrutura física:
-
-```text
-domain/shared/names/organizations/
-├── __init__.py
-└── organization_name.py
-```
-
-O caminho público recomendado é:
-
-```python
-from ultrastats_ai.domain.shared import OrganizationName
-```
----
-## Códigos canônicos
-
-`CodeValue` representa a base dos códigos internos e estáveis utilizados pelo
-domínio do UltraStats AI.
-
-Hierarquia inicial:
-
-```text
-TextValue
-└── CodeValue
-```
-
-Exemplos:
-
-```python
-from ultrastats_ai.domain.shared import CodeValue
-
-country = CodeValue("BRA")
-competition = CodeValue("BR_SERIE_A")
-organization = CodeValue("UEFA")
-```
-
-### Normalização
-
-Os códigos são:
-
-- convertidos para letras maiúsculas;
-- limpos de espaços no início e no final;
-- limitados a 64 caracteres;
-- restritos a caracteres ASCII.
-
-Caracteres permitidos:
-
-```text
-A-Z
-0-9
-.
-_
--
-```
-
-Exemplo:
-
-```python
-CodeValue("  br-serie-a  ")
-```
-
-Resultado:
-
-```text
-BR-SERIE-A
-```
-
-Espaços internos e caracteres especiais não permitidos geram erro.
-
-### Código canônico e identificador externo
-
-`CodeValue` não representa identificadores fornecidos por APIs externas.
-
-Código canônico interno:
-
-```text
-BR_SERIE_A
-```
-
-Identificadores externos:
-
-```text
-API_FOOTBALL = 71
-SPORTMONKS = 384
-OPTA = COMP-1234
-```
-
-Os identificadores externos serão modelados separadamente em
-`G5.3.2.5 — External Identifiers`.
-
-Estrutura física:
-
-```text
-domain/shared/codes/
-├── __init__.py
-└── code_value.py
-```
-
-O caminho público recomendado é:
-
-```python
-from ultrastats_ai.domain.shared import CodeValue
-```
----
-## 25. CountryName
-
-Arquivo:
-
-```text
-src/ultrastats_ai/domain/shared/country_name.py
-```
+# 10.3 CountryName
 
 `CountryName` representa o nome oficial de um país.
 
 Exemplos:
 
-```text
-Brazil
-United Kingdom
-Côte d'Ivoire
-日本
+```python
+CountryName("Brasil")
+CountryName("Argentina")
+CountryName("Germany")
+CountryName("United Kingdom")
 ```
 
-O tipo reutiliza as regras de `ProperName`:
+Esse tipo não representa:
 
-- mínimo de dois caracteres;
-- máximo de cento e cinquenta caracteres;
-- presença de caractere alfanumérico;
-- normalização Unicode;
-- normalização de espaços;
-- imutabilidade.
+- nacionalidade;
+- código ISO;
+- bandeira;
+- continente;
+- confederação esportiva.
+
+Esses conceitos pertencem a outros componentes do domínio.
 
 ---
 
-## 26. RegionName
+# 10.4 RegionName
 
-Arquivo:
+`RegionName` representa subdivisões administrativas de um país.
 
-```text
-src/ultrastats_ai/domain/shared/region_name.py
-```
+Dependendo da legislação local, uma região poderá corresponder a:
 
-`RegionName` representa o nome oficial de uma divisão administrativa.
+- estado;
+- província;
+- departamento;
+- distrito;
+- comunidade autônoma;
+- prefeitura.
 
 Exemplos:
 
-```text
-São Paulo
-California
-Andalucía
-New South Wales
+```python
+RegionName("São Paulo")
+RegionName("California")
+RegionName("Bayern")
 ```
 
-Uma região poderá representar estados, províncias, departamentos, comunidades
-autônomas ou divisões administrativas equivalentes.
+A biblioteca não diferencia esses formatos administrativos.
+
+Todos são tratados como regiões administrativas.
 
 ---
 
-## 27. CityName
+# 10.5 CityName
 
-Arquivo:
-
-```text
-src/ultrastats_ai/domain/shared/city_name.py
-```
-
-`CityName` representa o nome oficial de uma cidade ou localidade urbana.
+`CityName` representa o nome oficial de uma cidade.
 
 Exemplos:
 
-```text
-Araraquara
-Manchester
-Buenos Aires
-Łódź
-東京
+```python
+CityName("Araraquara")
+CityName("Madrid")
+CityName("Liverpool")
 ```
 
-O tipo preserva caracteres Unicode e não aplica transliteração automática.
+O tipo representa exclusivamente o nome da cidade.
+
+Informações como:
+
+- população;
+- coordenadas;
+- país;
+- estado;
+
+pertencem às entidades geográficas correspondentes.
 
 ---
 
-## 28. Diferenciação semântica
+# 10.6 VenueName
 
-Mesmo quando os valores textuais forem iguais, tipos geográficos diferentes
-não serão considerados iguais.
+`VenueName` representa o nome oficial de um local esportivo.
+
+Exemplos:
+
+```python
+VenueName("Allianz Parque")
+VenueName("Old Trafford")
+VenueName("Santiago Bernabéu")
+```
+
+Um local esportivo pode representar:
+
+- estádio;
+- arena;
+- ginásio;
+- centro esportivo;
+- complexo esportivo.
+
+A categoria física do local não altera o tipo do nome.
+
+---
+
+# 10.7 CompetitionName
+
+`CompetitionName` representa o nome oficial de uma competição esportiva.
+
+Exemplos:
+
+```python
+CompetitionName("Premier League")
+CompetitionName("UEFA Champions League")
+CompetitionName("Campeonato Brasileiro Série A")
+```
+
+Esse tipo representa apenas o nome.
+
+Ele não incorpora informações sobre:
+
+- temporada;
+- categoria;
+- modalidade;
+- divisão;
+- formato da competição.
+
+Essas características pertencem às entidades do domínio.
+
+Por esse motivo não existem especializações como:
+
+- LeagueName;
+- CupName;
+- TournamentName.
+
+A biblioteca diferencia conceitos semânticos, e não formatos de competição.
+
+---
+
+# 10.8 PersonName
+
+`PersonName` representa o nome oficial de uma pessoa.
+
+Exemplos:
+
+```python
+PersonName("Lionel Messi")
+PersonName("Carlo Ancelotti")
+PersonName("Raphael Claus")
+```
+
+O tipo não distingue:
+
+- jogadores;
+- treinadores;
+- árbitros;
+- dirigentes;
+- médicos;
+- analistas.
+
+Todos representam pessoas.
+
+Os diferentes papéis pertencem às entidades e não ao tipo do nome.
+
+Consequentemente, não existem classes como:
+
+- PlayerName;
+- CoachName;
+- RefereeName.
+
+---
+
+# 10.9 OrganizationName
+
+`OrganizationName` representa o nome oficial de uma organização.
+
+Exemplos:
+
+```python
+OrganizationName("FIFA")
+OrganizationName("UEFA")
+OrganizationName("Confederação Brasileira de Futebol")
+```
+
+Uma organização pode representar:
+
+- federação;
+- confederação;
+- associação;
+- empresa;
+- entidade privada;
+- entidade pública.
+
+Essas categorias não justificam novos tipos.
+
+O domínio diferencia organizações por meio das entidades correspondentes.
+
+---
+
+# 10.10 Igualdade
+
+Todos os tipos de nomes seguem exatamente a mesma política de igualdade.
+
+Dois nomes serão considerados iguais apenas quando:
+
+- pertencerem ao mesmo tipo concreto;
+- possuírem exatamente o mesmo valor.
 
 Exemplo:
 
 ```python
-CountryName("São Paulo") != RegionName("São Paulo")
-RegionName("São Paulo") != CityName("São Paulo")
+CountryName("Brasil")
+==
+CountryName("Brasil")
 ```
 
-Essa diferenciação impede a utilização acidental de um nome de cidade em um
-campo destinado a países ou regiões.
----
-## 29. Organização física da biblioteca de nomes
+Por outro lado:
 
-A biblioteca de nomes canônicos está organizada em subpacotes semânticos.
-
-Estrutura atual:
-
-```text
-domain/shared/
-├── names/
-│   ├── __init__.py
-│   │
-│   ├── base/
-│   │   ├── __init__.py
-│   │   ├── name.py
-│   │   ├── proper_name.py
-│   │   ├── display_name.py
-│   │   └── short_name.py
-│   │
-│   └── geography/
-│       ├── __init__.py
-│       ├── country_name.py
-│       ├── region_name.py
-│       └── city_name.py
-│
-├── text_value.py
-├── identifiers.py
-└── ...
+```python
+CountryName("Brasil")
+!=
+CompetitionName("Brasil")
 ```
 
-A infraestrutura textual geral permanece diretamente em `shared`.
-
-`TextValue` não pertence exclusivamente à biblioteca de nomes, pois será
-reutilizado por:
-
-- códigos;
-- slugs;
-- aliases;
-- identificadores externos;
-- outros tipos textuais.
+Mesmo armazenando o mesmo texto, representam conceitos diferentes.
 
 ---
 
-## 30. API pública
+# 10.11 API Pública
 
-O caminho público recomendado é:
+Todos os tipos de nomes deverão ser importados pela API pública do pacote.
+
+Exemplo:
 
 ```python
 from ultrastats_ai.domain.shared import CountryName
+from ultrastats_ai.domain.shared import CompetitionName
+from ultrastats_ai.domain.shared import PersonName
+from ultrastats_ai.domain.shared import OrganizationName
+from ultrastats_ai.domain.shared import VenueName
 ```
 
-Também são suportados os imports pelos pacotes especializados:
-
-```python
-from ultrastats_ai.domain.shared.names import CountryName
-```
-
-```python
-from ultrastats_ai.domain.shared.names.geography import CountryName
-```
-
-A API pública principal funciona como fachada sobre a estrutura interna.
-
-Consumidores externos não deverão depender desnecessariamente da organização
-interna dos arquivos.
+Consumidores da biblioteca não deverão depender da organização física dos
+arquivos internos.
 
 ---
 
-## 31. Compatibilidade com caminhos históricos
+# 10.12 Evolução da Biblioteca
 
-Os módulos históricos permanecem temporariamente disponíveis:
+A criação de novas especializações deverá seguir alguns princípios.
 
-```python
-from ultrastats_ai.domain.shared.country_name import CountryName
-```
+Uma nova classe somente deverá ser criada quando representar um conceito
+semanticamente diferente dos já existentes.
 
-Esses arquivos não possuem implementações duplicadas.
+Diferenças de:
 
-Eles apenas reexportam as classes canônicas localizadas em:
+- categoria;
+- formato;
+- função;
+- papel;
+- classificação;
 
-```text
-domain/shared/names/
-```
+não justificam novas especializações.
 
-Consequentemente:
+Por exemplo, não deverão existir classes como:
 
-```python
-from ultrastats_ai.domain.shared import CountryName as PublicCountryName
-from ultrastats_ai.domain.shared.country_name import (
-    CountryName as CompatibilityCountryName,
-)
-from ultrastats_ai.domain.shared.names import (
-    CountryName as CanonicalCountryName,
-)
+- ClubName;
+- LeagueName;
+- CupName;
+- StadiumName;
+- ArenaName;
+- CoachName;
+- RefereeName;
+- PlayerName.
 
-assert PublicCountryName is CompatibilityCountryName
-assert PublicCountryName is CanonicalCountryName
-```
+Todos esses conceitos já são representados adequadamente pelos tipos existentes.
 
-Essa estratégia preserva compatibilidade sem manter classes duplicadas.
+Essa política mantém a biblioteca pequena, consistente e alinhada aos princípios
+do Domain-Driven Design.
+
+# 11. Biblioteca de Códigos
+
+A biblioteca de códigos reúne os tipos responsáveis por representar códigos
+canônicos utilizados pelo domínio.
+
+Enquanto os nomes existem para identificação humana, os códigos existem para
+identificação técnica, integração entre sistemas e representação padronizada de
+conceitos do domínio.
+
+Embora ambos sejam armazenados como texto, nomes e códigos possuem finalidades
+completamente diferentes e nunca devem ser utilizados de forma intercambiável.
 
 ---
 
-## 32. Regras para novos tipos de nomes
+## 11.1 Objetivos
 
-Novos tipos de nomes deverão ser criados dentro do subpacote semântico
-correspondente.
+A biblioteca de códigos possui os seguintes objetivos:
 
-Exemplos planejados:
+- representar códigos oficiais utilizados pelo domínio;
+- eliminar o uso indiscriminado de `str` para representar códigos;
+- centralizar validações estruturais;
+- padronizar formatos utilizados internamente;
+- fornecer diferenciação semântica entre categorias de códigos;
+- facilitar futuras integrações com sistemas externos.
+
+---
+
+## 11.2 Hierarquia
+
+A estrutura atual da biblioteca é apresentada abaixo.
 
 ```text
-names/
-├── competitions/
-├── people/
-├── organizations/
-└── analytics/
+TextValue
+│
+└── CodeValue
+    │
+    ├── CountryCode
+    ├── CompetitionCode
+    └── OrganizationCode
 ```
 
-Depois da implementação, os tipos deverão ser reexportados por:
+Novas especializações deverão reutilizar essa estrutura sempre que possível.
 
-```text
-names/<subpacote>/__init__.py
-names/__init__.py
-shared/__init__.py
-```
+---
 
-A API pública recomendada continuará sendo:
+## 11.3 CodeValue
+
+`CodeValue` representa a infraestrutura comum para todos os códigos utilizados
+pelo domínio.
+
+Assim como `TextValue` fornece a base para todos os valores textuais,
+`CodeValue` estabelece o comportamento compartilhado entre os diferentes tipos
+de códigos.
+
+Sua responsabilidade é definir regras estruturais comuns, preservando a
+consistência entre todas as especializações.
+
+`CodeValue` não representa um conceito específico.
+
+Ele existe exclusivamente como classe-base para tipos especializados.
+
+---
+
+## 11.4 Características Gerais
+
+Todo `CodeValue` deverá possuir as seguintes características.
+
+### Imutabilidade
+
+Após criado, um código nunca poderá ser modificado.
+
+---
+
+### Igualdade
+
+A igualdade considera:
+
+- o tipo concreto;
+- o valor armazenado.
+
+Exemplo:
 
 ```python
-from ultrastats_ai.domain.shared import TipoDeNome
+CountryCode("BRA")
+==
+CountryCode("BRA")
 ```
-## 33. Estado atual
+
+Por outro lado:
+
+```python
+CountryCode("BRA")
+!=
+CompetitionCode("BRA")
+```
+
+Mesmo compartilhando o mesmo texto, representam conceitos distintos.
+
+---
+
+### Representação textual
+
+Todo código possui uma representação textual única.
+
+Essa representação deve permanecer estável durante todo o ciclo de vida do
+objeto.
+
+---
+
+### Hash
+
+Todos os códigos devem ser compatíveis com coleções baseadas em hashing,
+permitindo utilização segura como:
+
+- chaves de dicionários;
+- elementos de conjuntos;
+- índices internos.
+
+---
+
+## 11.5 Regras Gerais
+
+Embora cada especialização possa definir validações adicionais, todo código
+canônico deverá obedecer aos seguintes princípios.
+
+### Normalização
+
+Os valores deverão ser normalizados durante sua criação.
+
+Essa normalização poderá incluir:
+
+- remoção de espaços externos;
+- padronização de caixa;
+- validações estruturais.
+
+A política específica de normalização pertence a cada especialização.
+
+---
+
+### Estrutura
+
+Um código representa um identificador técnico.
+
+Consequentemente, não deve conter:
+
+- descrições;
+- observações;
+- comentários;
+- informações de apresentação.
+
+Seu único objetivo é identificar um conceito.
+
+---
+
+### Estabilidade
+
+Depois de definido, um código canônico deverá permanecer estável.
+
+Mudanças de nomenclatura, tradução ou apresentação visual nunca deverão alterar
+o código associado ao conceito.
+
+---
+
+## 11.6 Especializações
+
+Cada categoria de código representa um conceito diferente.
+
+Mesmo quando compartilham exatamente o mesmo formato textual, continuam sendo
+tipos distintos.
+
+Exemplo:
+
+```python
+CountryCode("BRA")
+CompetitionCode("BRA")
+OrganizationCode("BRA")
+```
+
+Embora os três objetos armazenem o mesmo texto, cada um representa um conceito
+próprio do domínio.
+
+Essa diferenciação evita erros de utilização e aumenta a segurança das regras
+de negócio.
+
+---
+
+## 11.7 Relação entre Nomes e Códigos
+
+Nomes e códigos representam perspectivas diferentes do mesmo conceito.
+
+Exemplo:
 
 ```text
-G5.3.2.2.2.1 — Geografia Administrativa
-CONCLUÍDO
-
-G5.3.2.2.2.2 — Reorganização da Biblioteca de Nomes
-CONCLUÍDO
-
-G5.3.2.2.2.3 — GeographicName e VenueName
-CONCLUÍDO
-
-G5.3.2.2.3 — CompetitionName
-CONCLUÍDO
-
-G5.3.2.2.4 — PersonName
-CONCLUÍDO
-
-G5.3.2.2.5 — OrganizationName
-CONCLUÍDO
-
-G5.3.2.3.1 — CodeValue
-CONCLUÍDO
-
-G5.3.2.3.2 — CountryCode
-PRÓXIMA ETAPA
+País
+│
+├── CountryName("Brasil")
+│
+└── CountryCode("BRA")
 ```
+
+O nome é destinado à comunicação humana.
+
+O código é destinado à representação técnica.
+
+Esses dois tipos não devem ser confundidos nem utilizados de forma
+intercambiável.
+
+---
+
+## 11.8 API Pública
+
+Todos os códigos deverão ser importados pela API pública do pacote.
+
+Exemplo:
+
+```python
+from ultrastats_ai.domain.shared import CodeValue
+from ultrastats_ai.domain.shared import CountryCode
+from ultrastats_ai.domain.shared import CompetitionCode
+from ultrastats_ai.domain.shared import OrganizationCode
+```
+
+A organização física da biblioteca permanece um detalhe interno da
+implementação.
+
+---
+
+## 11.9 Evolução da Biblioteca
+
+Novas especializações deverão ser criadas apenas quando representarem uma
+categoria semanticamente distinta de código.
+
+Diferenças de:
+
+- fornecedor;
+- formato de importação;
+- protocolo;
+- banco de dados;
+- API externa;
+
+não justificam novas especializações.
+
+Essas diferenças pertencem à camada de infraestrutura.
+
+O domínio representa apenas códigos canônicos.
+
+---
+
+## 11.10 Identificadores Externos
+
+A biblioteca de códigos não representa identificadores provenientes de sistemas
+externos.
+
+Valores utilizados por provedores como:
+
+- API-Football;
+- SportMonks;
+- Opta;
+- StatsBomb;
+- Football-Data;
+
+serão representados por tipos específicos de identificadores externos.
+
+Essa separação impede o acoplamento entre o domínio canônico e os formatos
+adotados por terceiros.
+
+---
+
+## 11.11 Evolução Arquitetural
+
+A biblioteca foi projetada para permitir o crescimento gradual sem necessidade
+de alterações na infraestrutura existente.
+
+Novos tipos poderão ser adicionados futuramente, desde que representem conceitos
+semanticamente distintos.
+
+Exemplo:
+
+```text
+CodeValue
+│
+├── CountryCode
+├── CompetitionCode
+├── OrganizationCode
+├── SeasonCode
+├── VenueCode
+└── ProviderCode
+```
+
+Cada nova especialização deverá reutilizar o comportamento compartilhado de
+`CodeValue`, adicionando apenas as regras específicas do conceito representado.
+
+# 12. API Pública
+
+A biblioteca de tipos canônicos disponibiliza uma API pública única para acesso
+aos seus componentes.
+
+Consumidores do domínio não deverão depender da organização física dos arquivos
+internos, nem realizar importações diretamente de módulos específicos.
+
+A API pública constitui o ponto oficial de acesso aos tipos compartilhados e
+deverá permanecer estável ao longo da evolução do projeto.
+
+Exemplo:
+
+```python
+from ultrastats_ai.domain.shared import (
+    CountryName,
+    CompetitionName,
+    PersonName,
+    OrganizationName,
+    VenueName,
+    CountryCode,
+    CompetitionCode,
+    OrganizationCode,
+)
+```
+
+Essa abordagem desacopla os consumidores da estrutura interna da biblioteca e
+permite reorganizações futuras sem impacto nas demais camadas da aplicação.
+
+---
+
+# 13. Organização Física
+
+A organização física da biblioteca reflete a separação conceitual entre as
+diferentes categorias de tipos compartilhados.
+
+Uma implementação típica encontra-se organizada da seguinte maneira.
+
+```text
+domain/shared/
+
+├── __init__.py
+│
+├── identifiers.py
+├── text_value.py
+│
+├── names/
+│   ├── __init__.py
+│   ├── base/
+│   ├── geography/
+│   ├── competitions/
+│   ├── people/
+│   └── organizations/
+│
+├── codes/
+│   ├── __init__.py
+│   └── code_value.py
+│
+└── ...
+```
+
+Essa organização possui finalidade exclusivamente interna.
+
+Consumidores da biblioteca não devem assumir que essa estrutura permanecerá
+imutável.
+
+A única interface estável é a API pública disponibilizada pelo pacote
+`ultrastats_ai.domain.shared`.
+
+---
+
+# 14. Compatibilidade
+
+A evolução da biblioteca deverá preservar, sempre que possível, a
+compatibilidade com versões anteriores.
+
+Quando reorganizações internas forem necessárias, deverão ser priorizadas
+estratégias que reduzam o impacto sobre o restante da aplicação.
+
+Entre essas estratégias incluem-se:
+
+- manutenção temporária de módulos de compatibilidade;
+- reexportação pela API pública;
+- migração gradual de importações;
+- remoção planejada de componentes obsoletos.
+
+Mudanças incompatíveis deverão ocorrer apenas quando houver justificativa
+arquitetural clara.
+
+---
+
+# 15. Convenções para Novos Tipos
+
+Todo novo tipo compartilhado deverá seguir as convenções definidas neste
+documento.
+
+Antes da criação de uma nova classe, as seguintes perguntas deverão ser
+respondidas.
+
+## 15.1 O conceito já possui representação?
+
+Caso exista um tipo capaz de representar corretamente o conceito desejado,
+nenhuma nova especialização deverá ser criada.
+
+A reutilização deve sempre ser priorizada.
+
+---
+
+## 15.2 Existe diferença semântica?
+
+Diferenças apenas organizacionais não justificam novos tipos.
+
+A nova classe deverá representar um conceito diferente, e não apenas um novo
+agrupamento de objetos.
+
+---
+
+## 15.3 Existe comportamento próprio?
+
+Caso o novo conceito compartilhe exatamente as mesmas regras do tipo existente,
+a criação de uma nova especialização provavelmente não será necessária.
+
+Novos tipos devem surgir para representar novos significados ou novos
+comportamentos.
+
+---
+
+## 15.4 O tipo pertence ao domínio?
+
+Tipos específicos de:
+
+- banco de dados;
+- APIs externas;
+- protocolos;
+- formatos de serialização;
+- interfaces gráficas;
+- bibliotecas de terceiros;
+
+não pertencem à biblioteca canônica.
+
+Esses componentes deverão permanecer nas camadas de infraestrutura.
+
+---
+
+## 15.5 O tipo possui nome adequado?
+
+Os nomes das classes deverão representar conceitos do domínio.
+
+Exemplos recomendados:
+
+- CountryName;
+- CompetitionCode;
+- VenueName;
+- MatchId.
+
+Exemplos não recomendados:
+
+- ApiFootballCountryName;
+- SqlCompetitionCode;
+- JsonVenueName;
+- TemporaryPlayerName.
+
+O nome do tipo deve representar o conceito, e nunca sua origem técnica.
+
+---
+
+## 15.6 A especialização é realmente necessária?
+
+Quanto menor e mais coesa for a biblioteca, maior será sua facilidade de
+manutenção.
+
+Novas especializações devem ser criadas apenas quando agregarem significado
+arquitetural ao domínio.
+
+---
+
+# 16. Estado Atual da Biblioteca
+
+No momento da elaboração deste documento, a biblioteca encontra-se organizada
+conforme a estrutura apresentada a seguir.
+
+```text
+ValueObject
+│
+├── CanonicalId
+│   └── EntityId
+│       └── IDs especializados
+│
+└── TextValue
+    │
+    ├── Name
+    │   ├── ProperName
+    │   │   ├── GeographicName
+    │   │   │   ├── CountryName
+    │   │   │   ├── RegionName
+    │   │   │   ├── CityName
+    │   │   │   └── VenueName
+    │   │   │
+    │   │   ├── CompetitionName
+    │   │   ├── PersonName
+    │   │   └── OrganizationName
+    │   │
+    │   ├── DisplayName
+    │   └── ShortName
+    │
+    └── CodeValue
+        ├── CountryCode
+        ├── CompetitionCode
+        └── OrganizationCode
+```
+
+Essa estrutura representa a arquitetura oficial da biblioteca de tipos
+canônicos do UltraStats AI.
+
+Novas especializações deverão preservar essa organização, reutilizando as
+abstrações existentes sempre que possível e mantendo a separação entre
+identificadores, nomes, códigos e demais categorias de Value Objects.
+
+---
+
+# Considerações Finais
+
+A biblioteca de tipos canônicos constitui um dos pilares da camada de domínio do
+UltraStats AI.
+
+Sua principal finalidade é representar conceitos de negócio de forma explícita,
+segura e semanticamente consistente, reduzindo a utilização de tipos primitivos
+e centralizando regras comuns em abstrações reutilizáveis.
+
+Ao separar claramente identificadores, nomes, códigos e futuras categorias de
+Value Objects, a arquitetura torna-se mais expressiva, facilita a evolução do
+domínio e reduz o acoplamento entre suas diferentes partes.
+
+Este documento deverá servir como referência oficial para a criação, evolução e
+manutenção dos tipos compartilhados do projeto, garantindo que futuras
+expansões permaneçam alinhadas aos princípios estabelecidos pelo
+Domain-Driven Design e pela arquitetura adotada pelo UltraStats AI.

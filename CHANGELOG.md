@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added canonical `CountryCode` with structural alpha-3 validation.
+- Added canonical `CompetitionCode` for stable internal competition codes.
+- Added canonical `OrganizationCode` for stable internal organization codes.
+- Consolidated the canonical codes public API through `ultrastats_ai.domain.shared`.
+- Added unit tests for the specialized canonical code types.
 - adicionado o pacote `domain.shared.codes`;
 - adicionado `CodeValue` como base para códigos canônicos internos;
 - adicionado o pacote `domain.shared.names.organizations`;
@@ -143,6 +148,9 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Rebuilt `docs/architecture/canonical-types.md` as the official architectural catalog of canonical types.
+- Updated `docs/development/roadmap.md` to mark G5.3.2.3 as completed.
+- Documented the canonical code hierarchy and public API.
 - criado ou atualizado `docs/architecture/canonical-domain-model.md`;
 - criado ou atualizado `docs/architecture/domain-aggregates-and-rules.md`;
 - atualizado `docs/development/roadmap.md`;
