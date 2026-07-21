@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added canonical `ProviderNamespace` for stable external provider namespaces.
+- Added opaque `ExternalIdentifier` values for provider-owned identifiers.
+- Added composite `ExternalIdentity` values combining provider namespace and external identifier.
+- Added the `domain.shared.external_ids` package and public API exports.
+- Added unit tests for provider namespaces, external identifiers and composite external identities.
 - Added canonical `SlugValue` for normalized URL-safe textual identifiers.
 - Added canonical `AliasValue` for human-readable alternative entity names.
 - Added dedicated `domain.shared.slugs` and `domain.shared.aliases` packages.
@@ -153,6 +158,9 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Documented the external identifier library in `canonical-types.md`.
+- Updated the development roadmap to mark G5.3.2.5 as completed.
+- Documented the distinction between internal canonical IDs and provider-owned external identities.
 - Documented the canonical slug and alias libraries in `canonical-types.md`.
 - Updated the development roadmap to mark G5.3.2.4 as completed.
 - Documented the semantic difference between URL slugs and human-readable aliases.

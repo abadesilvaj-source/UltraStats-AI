@@ -1173,17 +1173,96 @@ from ultrastats_ai.domain.shared import (
 
 ##### G5.3.2.5 — Identificadores Externos
 
+**Status:** CONCLUÍDA
+
+**Objetivo:** representar identidades pertencentes a providers externos sem confundi-las com os identificadores canônicos internos do UltraStats AI.
+
+###### G5.3.2.5.1 — ProviderNamespace
+
+**Status:** CONCLUÍDA
+
+Implementações concluídas:
+
+- [x] criação de `ProviderNamespace`;
+- [x] herança de `TextValue`;
+- [x] normalização para letras minúsculas;
+- [x] conversão de espaços internos para underscore;
+- [x] validação de segmentos;
+- [x] rejeição de separadores consecutivos;
+- [x] limite máximo de 64 caracteres;
+- [x] exportação pela API pública;
+- [x] testes unitários.
+
+###### G5.3.2.5.2 — ExternalIdentifier
+
+**Status:** CONCLUÍDA
+
+Implementações concluídas:
+
+- [x] criação de `ExternalIdentifier`;
+- [x] herança de `TextValue`;
+- [x] tratamento do identificador como chave opaca;
+- [x] normalização Unicode para NFC;
+- [x] remoção de espaços externos;
+- [x] preservação de maiúsculas e minúsculas;
+- [x] rejeição de espaços internos;
+- [x] rejeição de caracteres de controle;
+- [x] limite máximo de 128 caracteres;
+- [x] exportação pela API pública;
+- [x] testes unitários.
+
+###### G5.3.2.5.3 — ExternalIdentity
+
+**Status:** CONCLUÍDA
+
+Implementações concluídas:
+
+- [x] criação de `ExternalIdentity`;
+- [x] composição entre `ProviderNamespace` e `ExternalIdentifier`;
+- [x] validação dos tipos componentes;
+- [x] igualdade baseada na identidade composta;
+- [x] hash estável;
+- [x] propriedade `key`;
+- [x] uso como chave de dicionário;
+- [x] exportação pela API pública;
+- [x] testes unitários.
+
+###### G5.3.2.5.4 — Consolidação
+
+**Status:** CONCLUÍDA
+
+Implementações concluídas:
+
+- [x] criação do pacote `domain.shared.external_ids`;
+- [x] consolidação da API interna;
+- [x] consolidação da API pública de `domain.shared`;
+- [x] documentação da identidade externa composta;
+- [x] atualização de `canonical-types.md`;
+- [x] atualização do roadmap;
+- [x] atualização do changelog;
+- [x] execução dos testes específicos;
+- [x] execução dos testes de `shared`;
+- [x] execução da suíte completa.
+
+**Resultado final:**
+
 ```text
-PLANEJADO
+ExternalIdentity
+├── ProviderNamespace
+└── ExternalIdentifier
 ```
 
-Entregas previstas:
+**API pública consolidada:**
 
-- identificador externo;
-- namespace do provider;
-- chave composta de identidade externa;
-- validações;
-- testes unitários.
+```python
+from ultrastats_ai.domain.shared import (
+    ExternalIdentifier,
+    ExternalIdentity,
+    ProviderNamespace,
+)
+```
+
+---
 
 #### G5.3.3 — Tipos Numéricos
 
@@ -2051,7 +2130,7 @@ Objetivo atual:
 Definir e implementar o código canônico de países, incluindo a política de
 compatibilidade com padrões ISO.
 
-Próxima etapa: G5.3.2.5 — Identificadores Externos
+Próxima etapa: G5.3.3 — Tipos Numéricos
 ```
 ---
 

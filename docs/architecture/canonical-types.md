@@ -255,16 +255,22 @@ ValueObject
 │       └── IDs especializados
 │
 └── TextValue
-    │
-    ├── Name
-    │   ├── ProperName
-    │   │
-    │   ├── DisplayName
-    │   └── ShortName
-    │
-    └── CodeValue
-    ├── SlugValue
-    └── AliasValue
+│    │
+│    ├── Name
+│    │   ├── ProperName
+│    │   │
+│    │   ├── DisplayName
+│    │   └── ShortName
+│    │
+│    └── CodeValue
+│    ├── SlugValue
+│    └── AliasValue
+│    ├── ProviderNamespace
+│    └── ExternalIdentifier
+│
+└── ExternalIdentity
+    ├── ProviderNamespace
+    └── ExternalIdentifier
 ```
 
 As especializações de nomes e códigos serão apresentadas nos capítulos
@@ -297,7 +303,11 @@ domain/shared/
 │   ├── people/
 │   └── organizations/
 │
-└── ...
+└── external_ids/
+    ├── __init__.py
+    ├── external_identifier.py
+    ├── external_identity.py
+    └── provider_namespace.py
 ```
 
 Essa organização busca separar conceitos semanticamente relacionados sem expor
@@ -1844,7 +1854,227 @@ from ultrastats_ai.domain.shared import AliasValue
 
 ---
 
-# 14. API Pública
+# 14. Biblioteca de Identificadores Externos
+
+## 14.1 Objetivo
+
+A biblioteca de identificadores externos representa identidades pertencentes a sistemas, APIs e providers externos.
+
+Esses identificadores não substituem os identificadores canônicos internos do UltraStats AI.
+
+Um identificador externo informa como uma entidade é reconhecida por um provider específico.
+
+Exemplo:
+
+```text
+Provider: sportradar
+Identificador: sr:team:1234
+```
+
+## 14.2 Componentes
+
+A biblioteca possui três tipos principais:
+
+```text
+ProviderNamespace
+ExternalIdentifier
+ExternalIdentity
+```
+
+Cada tipo possui uma responsabilidade específica.
+
+## 14.3 ProviderNamespace
+
+`ProviderNamespace` representa o namespace estável de um provider externo.
+
+Exemplos:
+
+```text
+opta
+sportradar
+football_data
+transfermarkt
+```
+
+Durante sua criação, o valor:
+
+1. deve ser uma string;
+2. tem espaços externos removidos;
+3. é convertido para letras minúsculas;
+4. tem sequências de espaços convertidas para underscore;
+5. é validado contra o formato permitido.
+
+São aceitos:
+
+```text
+a-z
+0-9
+.
+-
+_
+```
+
+Separadores não podem aparecer no início, no final ou consecutivamente.
+
+Exemplo:
+
+```python
+ProviderNamespace(" Football Data ").value
+```
+
+Resultado:
+
+```text
+football_data
+```
+
+O tamanho máximo é de 64 caracteres.
+
+## 14.4 ExternalIdentifier
+
+`ExternalIdentifier` representa a chave opaca fornecida por um provider.
+
+Exemplos:
+
+```text
+sr:team:1234
+t12345
+10293
+pK7Q0mTn
+```
+
+A chave é tratada como opaca. Seu conteúdo não deve ser interpretado pelo domínio compartilhado.
+
+Durante sua criação:
+
+1. o valor deve ser uma string;
+2. Unicode é normalizado para NFC;
+3. espaços externos são removidos;
+4. maiúsculas e minúsculas são preservadas;
+5. espaços internos são rejeitados;
+6. caracteres de controle são rejeitados.
+
+Exemplo:
+
+```python
+ExternalIdentifier("  sr:team:1234  ").value
+```
+
+Resultado:
+
+```text
+sr:team:1234
+```
+
+O tamanho máximo é de 128 caracteres.
+
+## 14.5 ExternalIdentity
+
+`ExternalIdentity` representa a identidade externa completa.
+
+Ela é formada pela composição de:
+
+```text
+ProviderNamespace
++
+ExternalIdentifier
+```
+
+Exemplo:
+
+```python
+ExternalIdentity(
+    provider=ProviderNamespace("sportradar"),
+    identifier=ExternalIdentifier("sr:team:1234"),
+)
+```
+
+A igualdade considera os dois componentes.
+
+Portanto:
+
+```text
+(opta, 100)
+```
+
+é diferente de:
+
+```text
+(sportradar, 100)
+```
+
+A propriedade:
+
+```python
+identity.key
+```
+
+retorna a chave composta em formato de tupla:
+
+```python
+("sportradar", "sr:team:1234")
+```
+
+## 14.6 Relação com Identificadores Internos
+
+Identificadores externos não substituem tipos como:
+
+```text
+TeamId
+CompetitionId
+PersonId
+VenueId
+```
+
+Os identificadores internos pertencem ao UltraStats AI.
+
+Os identificadores externos pertencem aos providers.
+
+Uma entidade interna poderá possuir várias identidades externas.
+
+Exemplo conceitual:
+
+```text
+TeamId interno
+├── (opta, t1234)
+├── (sportradar, sr:team:5678)
+└── (football_data, 77)
+```
+
+## 14.7 Organização Física
+
+```text
+external_ids/
+├── __init__.py
+├── external_identifier.py
+├── external_identity.py
+└── provider_namespace.py
+```
+
+## 14.8 API Pública
+
+Importação pelo pacote específico:
+
+```python
+from ultrastats_ai.domain.shared.external_ids import (
+    ExternalIdentifier,
+    ExternalIdentity,
+    ProviderNamespace,
+)
+```
+
+Importação pela API pública compartilhada:
+
+```python
+from ultrastats_ai.domain.shared import (
+    ExternalIdentifier,
+    ExternalIdentity,
+    ProviderNamespace,
+)
+```
+---
+
+# 15. API Pública
 
 A biblioteca de tipos canônicos disponibiliza uma API pública única para acesso
 aos seus componentes.
@@ -1869,6 +2099,9 @@ from ultrastats_ai.domain.shared import (
     CompetitionCode,
     OrganizationCode,
     SlugValue,
+    ExternalIdentifier,
+    ExternalIdentity,
+    ProviderNamespace,
 )
 ```
 
@@ -1877,7 +2110,7 @@ permite reorganizações futuras sem impacto nas demais camadas da aplicação.
 
 ---
 
-# 15. Organização Física
+# 16. Organização Física
 
 A organização física da biblioteca reflete a separação conceitual entre as
 diferentes categorias de tipos compartilhados.
@@ -1908,7 +2141,7 @@ A única interface estável é a API pública disponibilizada pelo pacote
 
 ---
 
-# 16. Compatibilidade
+# 17. Compatibilidade
 
 A evolução da biblioteca deverá preservar, sempre que possível, a
 compatibilidade com versões anteriores.
@@ -1928,7 +2161,7 @@ arquitetural clara.
 
 ---
 
-# 17. Convenções para Novos Tipos
+# 18. Convenções para Novos Tipos
 
 Todo novo tipo compartilhado deverá seguir as convenções definidas neste
 documento.
@@ -1936,7 +2169,7 @@ documento.
 Antes da criação de uma nova classe, as seguintes perguntas deverão ser
 respondidas.
 
-## 15.1 O conceito já possui representação?
+## 18.1 O conceito já possui representação?
 
 Caso exista um tipo capaz de representar corretamente o conceito desejado,
 nenhuma nova especialização deverá ser criada.
@@ -1945,7 +2178,7 @@ A reutilização deve sempre ser priorizada.
 
 ---
 
-## 15.2 Existe diferença semântica?
+## 18.2 Existe diferença semântica?
 
 Diferenças apenas organizacionais não justificam novos tipos.
 
@@ -1954,7 +2187,7 @@ agrupamento de objetos.
 
 ---
 
-## 15.3 Existe comportamento próprio?
+## 18.3 Existe comportamento próprio?
 
 Caso o novo conceito compartilhe exatamente as mesmas regras do tipo existente,
 a criação de uma nova especialização provavelmente não será necessária.
@@ -1964,7 +2197,7 @@ comportamentos.
 
 ---
 
-## 15.4 O tipo pertence ao domínio?
+## 18.4 O tipo pertence ao domínio?
 
 Tipos específicos de:
 
@@ -1981,7 +2214,7 @@ Esses componentes deverão permanecer nas camadas de infraestrutura.
 
 ---
 
-## 15.5 O tipo possui nome adequado?
+## 18.5 O tipo possui nome adequado?
 
 Os nomes das classes deverão representar conceitos do domínio.
 
@@ -2003,7 +2236,7 @@ O nome do tipo deve representar o conceito, e nunca sua origem técnica.
 
 ---
 
-## 15.6 A especialização é realmente necessária?
+## 18.6 A especialização é realmente necessária?
 
 Quanto menor e mais coesa for a biblioteca, maior será sua facilidade de
 manutenção.
@@ -2013,7 +2246,7 @@ arquitetural ao domínio.
 
 ---
 
-# 18. Estado Atual da Biblioteca
+# 19. Estado Atual da Biblioteca
 
 No momento da elaboração deste documento, a biblioteca encontra-se organizada
 conforme a estrutura apresentada a seguir.

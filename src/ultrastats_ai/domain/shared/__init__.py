@@ -65,6 +65,11 @@ from ultrastats_ai.domain.shared.codes import (
     OrganizationCode,
 )
 
+from ultrastats_ai.domain.shared.external_ids import (
+    ExternalIdentifier,
+    ExternalIdentity,
+    ProviderNamespace,
+)
 from ultrastats_ai.domain.shared.names import (
     CityName,
     CompetitionName,
@@ -108,6 +113,8 @@ __all__ = [
     "DomainEvent",
     "DomainValidationError",
     "DisplayName",
+    "ExternalIdentifier",
+    "ExternalIdentity",
     "Entity",
     "EntityId",
     "EntityNotFoundError",
@@ -128,6 +135,7 @@ __all__ = [
     "PredictionId",
     "PredictionModelId",
     "ProperName",
+    "ProviderNamespace",
     "ProviderId",
     "RecommendationId",
     "RefereeId",
