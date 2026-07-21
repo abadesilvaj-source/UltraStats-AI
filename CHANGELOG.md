@@ -11,6 +11,12 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added canonical `DomainDate` values for timezone-independent domain dates.
+- Added UTC-normalized `UtcTimestamp` values with timezone awareness validation.
+- Added `TemporalInterval` values with duration, containment and overlap operations.
+- Added IANA `TimeZone` validation using the standard library `zoneinfo`.
+- Added canonical `Latitude`, `Longitude` and composite `Coordinates` values.
+- Added comprehensive unit tests for temporal and geographic Value Objects.
 - Added canonical numeric Value Objects for percentages, probabilities, money, odds, positions, rounds, shirt numbers, height, weight and age.
 - Added reusable `DecimalValue` and `IntegerValue` base classes.
 - Added decimal normalization based on Python `Decimal`.
@@ -164,6 +170,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Documented the canonical temporal and geographic Value Object libraries.
+- Updated the development roadmap to mark G5.3.4 and the G5.3 library as completed.
 - Documented the canonical numeric Value Object library.
 - Updated the roadmap to mark G5.3.3 as completed.
 - Documented the external identifier library in `canonical-types.md`.

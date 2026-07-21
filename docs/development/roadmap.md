@@ -1312,31 +1312,62 @@ Money
 
 ---
 
-#### G5.3.4 — Tipos Temporais e Geográficos
+##### G5.3.4 — Tipos Temporais e Geográficos
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
 
-Entregas previstas:
+Entregas concluídas:
 
-- datas do domínio;
-- intervalos temporais;
-- timestamps UTC;
-- latitude;
-- longitude;
-- coordenadas;
-- validações de timezone;
-- validações e testes.
+- [x] datas do domínio com `DomainDate`;
+- [x] timestamps UTC com `UtcTimestamp`;
+- [x] intervalos temporais com `TemporalInterval`;
+- [x] validação de timezones IANA com `TimeZone`;
+- [x] latitude com `Latitude`;
+- [x] longitude com `Longitude`;
+- [x] coordenadas com `Coordinates`;
+- [x] normalização de timestamps para UTC;
+- [x] rejeição de datetimes sem timezone;
+- [x] intervalos no formato `[start, end)`;
+- [x] cálculo de duração;
+- [x] verificação de contenção;
+- [x] verificação de sobreposição;
+- [x] validação de limites geográficos;
+- [x] imutabilidade;
+- [x] APIs públicas;
+- [x] testes unitários;
+- [x] documentação arquitetural;
+- [x] execução da suíte completa.
+
+Estrutura temporal resultante:
+
+```text
+DomainDate
+UtcTimestamp
+TimeZone
+
+TemporalInterval
+├── start: UtcTimestamp
+└── end: UtcTimestamp
+```
+
+Estrutura geográfica resultante:
+
+```text
+Coordinates
+├── Latitude
+└── Longitude
+```
 
 Critério de conclusão da G5.3:
 
-- biblioteca compartilhada implementada;
-- tipos imutáveis;
-- validações centralizadas;
-- testes unitários concluídos;
-- catálogo de tipos atualizado;
-- ausência de dependência de infraestrutura.
+- [x] biblioteca compartilhada implementada;
+- [x] tipos imutáveis;
+- [x] validações centralizadas;
+- [x] testes unitários concluídos;
+- [x] catálogo de tipos atualizado;
+- [x] ausência de dependência de infraestrutura.
 
 ---
 

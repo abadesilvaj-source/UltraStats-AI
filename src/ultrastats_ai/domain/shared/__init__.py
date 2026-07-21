@@ -65,6 +65,12 @@ from ultrastats_ai.domain.shared.codes import (
     OrganizationCode,
 )
 
+from ultrastats_ai.domain.shared.geographic import (
+    Coordinates,
+    Latitude,
+    Longitude,
+)
+
 from ultrastats_ai.domain.shared.external_ids import (
     ExternalIdentifier,
     ExternalIdentity,
@@ -84,6 +90,13 @@ from ultrastats_ai.domain.shared.numeric import (
     RoundNumber,
     ShirtNumber,
     Weight,
+)
+
+from ultrastats_ai.domain.shared.temporal import (
+    DomainDate,
+    TemporalInterval,
+    TimeZone,
+    UtcTimestamp,
 )
 
 from ultrastats_ai.domain.shared.names import (
@@ -124,6 +137,7 @@ __all__ = [
     "OrganizationCode",
     "CompetitionId",
     "CompetitionName",
+    "Coordinates",
     "CountryId",
     "CountryName",
     "DecimalValue",
@@ -131,6 +145,7 @@ __all__ = [
     "DomainEvent",
     "DomainValidationError",
     "DisplayName",
+    "DomainDate",
     "ExternalIdentifier",
     "ExternalIdentity",
     "Entity",
@@ -141,6 +156,8 @@ __all__ = [
     "GeographicName",
     "Height",
     "IntegerValue",
+    "Latitude",
+    "Longitude",
     "InvariantViolationError",
     "MatchEventId",
     "MatchId",
@@ -179,9 +196,12 @@ __all__ = [
     "StageId",
     "StatisticalModelId",
     "TeamId",
+    "TemporalInterval",
+    "TimeZone",
     "TeamMembershipId",
     "TextValue",
     "TieId",
+    "UtcTimestamp",
     "ValueObject",
     "VenueId",
     "VenueName",

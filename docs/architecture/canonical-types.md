@@ -269,8 +269,22 @@ ValueObject
 │    └── ExternalIdentifier
 │
 └── ExternalIdentity
-    ├── ProviderNamespace
-    └── ExternalIdentifier
+│    ├── ProviderNamespace
+│    └── ExternalIdentifier
+├── Temporal
+│   ├── DomainDate
+│   ├── UtcTimestamp
+│   ├── TimeZone
+│   └── TemporalInterval
+│       ├── start: UtcTimestamp
+│       └── end: UtcTimestamp
+│
+└── Geographic
+    ├── Latitude
+    ├── Longitude
+    └── Coordinates
+        ├── latitude: Latitude
+        └── longitude: Longitude
 ```
 
 As especializações de nomes e códigos serão apresentadas nos capítulos
@@ -3037,9 +3051,535 @@ from ultrastats_ai.domain.shared.numeric.percentage import Percentage
 ```
 
 ---
+# 16. Biblioteca de Tipos Temporais e Geográficos
+
+## 16.1 Objetivo
+
+A biblioteca de tipos temporais e geográficos fornece Value Objects imutáveis para representar datas, instantes, intervalos, timezones e posições geográficas.
+
+Seu objetivo é impedir ambiguidades comuns causadas pelo uso direto de strings, objetos `datetime` sem timezone e números primitivos sem unidade ou significado.
+
+A biblioteca disponibiliza:
+
+```text
+DomainDate
+UtcTimestamp
+TemporalInterval
+TimeZone
+Latitude
+Longitude
+Coordinates
+```
+
 ---
 
-# 16. API Pública
+## 16.2 Princípios Temporais
+
+Os tipos temporais seguem os seguintes princípios:
+
+1. datas sem horário são representadas separadamente de timestamps;
+2. timestamps devem possuir timezone;
+3. timestamps são normalizados para UTC;
+4. timezones utilizam identificadores IANA;
+5. intervalos devem possuir início anterior ao fim;
+6. objetos temporais são imutáveis;
+7. strings utilizam formatos ISO quando aplicável.
+
+---
+
+## 16.3 DomainDate
+
+`DomainDate` representa uma data do calendário sem horário e sem timezone.
+
+Exemplos válidos:
+
+```python
+DomainDate("2026-07-21")
+DomainDate(date(2026, 7, 21))
+```
+
+O formato textual aceito é:
+
+```text
+YYYY-MM-DD
+```
+
+Exemplos inválidos:
+
+```python
+DomainDate("21/07/2026")
+DomainDate("2026-02-30")
+DomainDate(datetime(2026, 7, 21, 12, 0))
+```
+
+Um objeto `datetime` é rejeitado porque contém informação de horário e deve ser representado por um tipo temporal apropriado.
+
+### 16.3.1 Formato ISO
+
+A propriedade:
+
+```python
+isoformat
+```
+
+retorna:
+
+```text
+YYYY-MM-DD
+```
+
+### 16.3.2 Operações
+
+O método:
+
+```python
+add_days()
+```
+
+retorna uma nova data sem modificar o objeto original.
+
+O método:
+
+```python
+days_until()
+```
+
+retorna a diferença em dias entre duas datas.
+
+---
+
+## 16.4 TimeZone
+
+`TimeZone` representa um timezone válido da base IANA.
+
+Exemplos válidos:
+
+```text
+UTC
+America/Sao_Paulo
+Europe/London
+```
+
+Exemplos inválidos:
+
+```text
+Invalid/Zone
+Brazil/SaoPaulo
+America/Not_A_City
+```
+
+A validação utiliza:
+
+```python
+zoneinfo.ZoneInfo
+```
+
+A propriedade:
+
+```python
+zone_info
+```
+
+retorna o objeto `ZoneInfo` correspondente.
+
+---
+
+## 16.5 UtcTimestamp
+
+`UtcTimestamp` representa um instante absoluto normalizado para UTC.
+
+Ele aceita:
+
+```text
+datetime com timezone
+string ISO com timezone
+string ISO terminada em Z
+```
+
+Exemplos válidos:
+
+```python
+UtcTimestamp("2026-07-21T15:30:00Z")
+UtcTimestamp("2026-07-21T12:30:00-03:00")
+UtcTimestamp(
+    datetime(
+        2026,
+        7,
+        21,
+        15,
+        30,
+        tzinfo=timezone.utc,
+    )
+)
+```
+
+Todo valor é convertido para UTC.
+
+Exemplo:
+
+```python
+UtcTimestamp("2026-07-21T12:30:00-03:00")
+```
+
+Resultado:
+
+```text
+2026-07-21T15:30:00Z
+```
+
+Objetos `datetime` sem timezone são rejeitados.
+
+A propriedade:
+
+```python
+isoformat
+```
+
+retorna uma representação ISO terminada em:
+
+```text
+Z
+```
+
+O método de classe:
+
+```python
+UtcTimestamp.now()
+```
+
+retorna o instante UTC atual.
+
+---
+
+## 16.6 TemporalInterval
+
+`TemporalInterval` representa um intervalo composto por:
+
+```text
+start
+end
+```
+
+Ambos devem ser:
+
+```text
+UtcTimestamp
+```
+
+A regra obrigatória é:
+
+```text
+start < end
+```
+
+O intervalo segue a convenção:
+
+```text
+[start, end)
+```
+
+Isso significa:
+
+- início incluído;
+- fim excluído.
+
+Exemplo:
+
+```python
+TemporalInterval(
+    start=UtcTimestamp("2026-07-21T10:00:00Z"),
+    end=UtcTimestamp("2026-07-21T11:00:00Z"),
+)
+```
+
+### 16.6.1 Duração
+
+A propriedade:
+
+```python
+duration
+```
+
+retorna um objeto:
+
+```python
+timedelta
+```
+
+A propriedade:
+
+```python
+duration_seconds
+```
+
+retorna a duração total em segundos.
+
+### 16.6.2 Contenção
+
+O método:
+
+```python
+contains()
+```
+
+verifica se um timestamp pertence ao intervalo.
+
+### 16.6.3 Sobreposição
+
+O método:
+
+```python
+overlaps()
+```
+
+verifica se dois intervalos possuem interseção.
+
+Intervalos adjacentes não são considerados sobrepostos.
+
+Exemplo:
+
+```text
+10:00 até 11:00
+11:00 até 12:00
+```
+
+---
+
+## 16.7 Princípios Geográficos
+
+Os tipos geográficos seguem os seguintes princípios:
+
+1. latitude e longitude possuem tipos distintos;
+2. coordenadas são uma composição dos dois tipos;
+3. valores utilizam `Decimal`;
+4. limites geográficos são validados na criação;
+5. coordenadas são imutáveis;
+6. latitude sempre aparece antes da longitude.
+
+---
+
+## 16.8 Latitude
+
+`Latitude` representa uma latitude geográfica em graus decimais.
+
+O valor deve estar entre:
+
+```text
+-90 e 90
+```
+
+Os limites são inclusivos.
+
+Exemplos válidos:
+
+```python
+Latitude("-90")
+Latitude("-23.550520")
+Latitude("0")
+Latitude("90")
+```
+
+Exemplos inválidos:
+
+```python
+Latitude("-90.000001")
+Latitude("90.000001")
+```
+
+---
+
+## 16.9 Longitude
+
+`Longitude` representa uma longitude geográfica em graus decimais.
+
+O valor deve estar entre:
+
+```text
+-180 e 180
+```
+
+Os limites são inclusivos.
+
+Exemplos válidos:
+
+```python
+Longitude("-180")
+Longitude("-46.633308")
+Longitude("0")
+Longitude("180")
+```
+
+Exemplos inválidos:
+
+```python
+Longitude("-180.000001")
+Longitude("180.000001")
+```
+
+---
+
+## 16.10 Coordinates
+
+`Coordinates` representa uma coordenada geográfica formada por:
+
+```text
+Latitude
++
+Longitude
+```
+
+Exemplo:
+
+```python
+Coordinates(
+    latitude=Latitude("-23.550520"),
+    longitude=Longitude("-46.633308"),
+)
+```
+
+Strings e números primitivos não são aceitos diretamente nos campos.
+
+Os valores devem ser construídos previamente como:
+
+```text
+Latitude
+Longitude
+```
+
+### 16.10.1 Par decimal
+
+A propriedade:
+
+```python
+decimal_pair
+```
+
+retorna:
+
+```python
+(
+    Decimal("-23.550520"),
+    Decimal("-46.633308"),
+)
+```
+
+### 16.10.2 Par textual
+
+A propriedade:
+
+```python
+text_pair
+```
+
+retorna:
+
+```text
+-23.550520,-46.633308
+```
+
+A ordem oficial é:
+
+```text
+latitude,longitude
+```
+
+---
+
+## 16.11 Imutabilidade
+
+Todos os tipos temporais e geográficos são imutáveis.
+
+Depois da criação, seus valores não podem ser alterados.
+
+Exemplo inválido:
+
+```python
+coordinates.latitude = Latitude("0")
+```
+
+Operações que modificam uma data retornam um novo objeto.
+
+Exemplo:
+
+```python
+new_date = original_date.add_days(10)
+```
+
+---
+
+## 16.12 Organização Física
+
+Tipos temporais:
+
+```text
+temporal/
+├── __init__.py
+├── domain_date.py
+├── temporal_interval.py
+├── time_zone.py
+└── utc_timestamp.py
+```
+
+Tipos geográficos:
+
+```text
+geographic/
+├── __init__.py
+├── coordinates.py
+├── latitude.py
+└── longitude.py
+```
+
+---
+
+## 16.13 API Pública
+
+Importação dos tipos temporais:
+
+```python
+from ultrastats_ai.domain.shared.temporal import (
+    DomainDate,
+    TemporalInterval,
+    TimeZone,
+    UtcTimestamp,
+)
+```
+
+Importação dos tipos geográficos:
+
+```python
+from ultrastats_ai.domain.shared.geographic import (
+    Coordinates,
+    Latitude,
+    Longitude,
+)
+```
+
+Importação pela API pública compartilhada:
+
+```python
+from ultrastats_ai.domain.shared import (
+    Coordinates,
+    DomainDate,
+    Latitude,
+    Longitude,
+    TemporalInterval,
+    TimeZone,
+    UtcTimestamp,
+)
+```
+
+Consumidores externos deverão preferir:
+
+```python
+from ultrastats_ai.domain.shared import UtcTimestamp
+```
+
+em vez de depender da organização interna dos arquivos.
+
+---
+
+# 17. API Pública
 
 A biblioteca de tipos canônicos disponibiliza uma API pública única para acesso
 aos seus componentes.
@@ -3075,7 +3615,7 @@ permite reorganizações futuras sem impacto nas demais camadas da aplicação.
 
 ---
 
-# 17. Organização Física
+# 18. Organização Física
 
 A organização física da biblioteca reflete a separação conceitual entre as
 diferentes categorias de tipos compartilhados.
@@ -3106,7 +3646,7 @@ A única interface estável é a API pública disponibilizada pelo pacote
 
 ---
 
-# 18. Compatibilidade
+# 19. Compatibilidade
 
 A evolução da biblioteca deverá preservar, sempre que possível, a
 compatibilidade com versões anteriores.
@@ -3126,7 +3666,7 @@ arquitetural clara.
 
 ---
 
-# 19. Convenções para Novos Tipos
+# 20. Convenções para Novos Tipos
 
 Todo novo tipo compartilhado deverá seguir as convenções definidas neste
 documento.
@@ -3134,7 +3674,7 @@ documento.
 Antes da criação de uma nova classe, as seguintes perguntas deverão ser
 respondidas.
 
-## 19.1 O conceito já possui representação?
+## 20.1 O conceito já possui representação?
 
 Caso exista um tipo capaz de representar corretamente o conceito desejado,
 nenhuma nova especialização deverá ser criada.
@@ -3143,7 +3683,7 @@ A reutilização deve sempre ser priorizada.
 
 ---
 
-## 19.2 Existe diferença semântica?
+## 20.2 Existe diferença semântica?
 
 Diferenças apenas organizacionais não justificam novos tipos.
 
@@ -3152,7 +3692,7 @@ agrupamento de objetos.
 
 ---
 
-## 19.3 Existe comportamento próprio?
+## 20.3 Existe comportamento próprio?
 
 Caso o novo conceito compartilhe exatamente as mesmas regras do tipo existente,
 a criação de uma nova especialização provavelmente não será necessária.
@@ -3162,7 +3702,7 @@ comportamentos.
 
 ---
 
-## 19.4 O tipo pertence ao domínio?
+## 20.4 O tipo pertence ao domínio?
 
 Tipos específicos de:
 
@@ -3179,7 +3719,7 @@ Esses componentes deverão permanecer nas camadas de infraestrutura.
 
 ---
 
-## 19.5 O tipo possui nome adequado?
+## 20.5 O tipo possui nome adequado?
 
 Os nomes das classes deverão representar conceitos do domínio.
 
@@ -3201,7 +3741,7 @@ O nome do tipo deve representar o conceito, e nunca sua origem técnica.
 
 ---
 
-## 19.6 A especialização é realmente necessária?
+## 20.6 A especialização é realmente necessária?
 
 Quanto menor e mais coesa for a biblioteca, maior será sua facilidade de
 manutenção.
@@ -3211,7 +3751,7 @@ arquitetural ao domínio.
 
 ---
 
-# 20. Estado Atual da Biblioteca
+# 21. Estado Atual da Biblioteca
 
 No momento da elaboração deste documento, a biblioteca encontra-se organizada
 conforme a estrutura apresentada a seguir.
@@ -3249,7 +3789,7 @@ identificadores, nomes, códigos e demais categorias de Value Objects.
 
 ---
 
-# 21. Considerações Finais
+# 22. Considerações Finais
 
 A biblioteca de tipos canônicos constitui um dos pilares da camada de domínio do
 UltraStats AI.
