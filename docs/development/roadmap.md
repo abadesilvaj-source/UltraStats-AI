@@ -1506,19 +1506,49 @@ DomainEnum
 ├── DecisionType
 └── ReviewType
 ```
-
-Próxima etapa:
+#### G5.4.4 — Mercado, Previsões, Recomendações e Apostas
 
 ```text
-G5.4.4 — Mercado, Previsões, Recomendações e Apostas
+CONCLUÍDO
 ```
+
+Entregas concluídas:
+
+- [x] `MarketType`;
+- [x] `PredictionStatus`;
+- [x] `RecommendationStatus`;
+- [x] `BetStatus`;
+- [x] `RiskClassification`;
+- [x] integração com `DomainEnum`;
+- [x] API pública;
+- [x] testes unitários;
+- [x] documentação arquitetural;
+- [x] suíte completa executada.
+
+Resultado:
+
+```text
+DomainEnum
+├── MarketType
+├── PredictionStatus
+├── RecommendationStatus
+├── BetStatus
+└── RiskClassification
+```
+
+Resultado da G5.4:
+
+```text
+CONCLUÍDA
+```
+
 
 ---
 
 Status:
 
 ```text
-EM ANDAMENTO
+CONCLUÍDO
 ```
 
 ---

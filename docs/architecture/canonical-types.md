@@ -4218,22 +4218,521 @@ O resultado da revisão deve ser representado separadamente, por exemplo, com `D
 
 ---
 
-## 17.17 Organização Física
+## 17.17 MarketType
+
+`MarketType` representa uma família canônica de mercados de apostas.
+
+Valores:
+
+```text
+match_winner
+double_chance
+draw_no_bet
+both_teams_to_score
+over_under_goals
+correct_score
+half_time
+half_time_full_time
+asian_handicap
+european_handicap
+corners
+cards
+shots
+player_props
+team_props
+other
+```
+
+Significados gerais:
+
+```text
+match_winner
+mercado de vencedor da partida
+
+double_chance
+mercado em que duas possibilidades de resultado são cobertas
+
+draw_no_bet
+mercado em que o empate normalmente devolve a aposta
+
+both_teams_to_score
+mercado sobre ambas as equipes marcarem gols
+
+over_under_goals
+mercado de quantidade de gols acima ou abaixo de uma linha
+
+correct_score
+mercado de placar exato
+
+half_time
+mercados relacionados somente ao primeiro tempo
+
+half_time_full_time
+mercado que combina resultado do intervalo e resultado final
+
+asian_handicap
+mercado de handicap asiático
+
+european_handicap
+mercado de handicap europeu
+
+corners
+mercados relacionados a escanteios
+
+cards
+mercados relacionados a cartões
+
+shots
+mercados relacionados a finalizações
+
+player_props
+mercados estatísticos relacionados a jogadores
+
+team_props
+mercados estatísticos relacionados a equipes
+
+other
+mercado ainda não contemplado pelas categorias canônicas
+```
+
+Exemplo:
+
+```python
+market_type = MarketType.parse("Both Teams To Score")
+```
+
+Resultado:
+
+```python
+MarketType.BOTH_TEAMS_TO_SCORE
+```
+
+`MarketType` representa somente a família principal do mercado.
+
+Detalhes como:
+
+```text
+linha
+seleção
+participante
+período
+handicap
+valor mínimo
+valor máximo
+```
+
+devem pertencer a objetos específicos do domínio de mercados.
+
+Exemplo conceitual:
+
+```text
+MarketType
+    over_under_goals
+
+linha
+    2.5
+
+seleção
+    over
+```
+
+O valor `OTHER` deve ser utilizado apenas quando o mercado não puder ser classificado em nenhuma das famílias existentes.
+---
+## 17.18 PredictionStatus
+
+`PredictionStatus` representa o estado operacional de uma previsão produzida pelo sistema.
+
+Valores:
+
+```text
+pending
+processing
+completed
+cancelled
+expired
+failed
+```
+
+Significados:
+
+```text
+pending
+previsão registrada e aguardando processamento
+
+processing
+previsão atualmente em processamento
+
+completed
+previsão processada com sucesso
+
+cancelled
+processamento cancelado antes da conclusão
+
+expired
+previsão que perdeu sua validade temporal
+
+failed
+processamento encerrado com erro
+```
+
+Exemplo:
+
+```python
+status = PredictionStatus.parse("PROCESSING")
+```
+
+Resultado:
+
+```python
+PredictionStatus.PROCESSING
+```
+
+O enum representa apenas o estado atual da previsão.
+
+Dados como:
+
+```text
+probabilidade calculada
+modelo utilizado
+versão do modelo
+horário de criação
+horário de processamento
+motivo da falha
+data de expiração
+```
+
+devem pertencer ao objeto de previsão.
+
+Um fluxo conceitual possível é:
+
+```text
+pending
+    ↓
+processing
+    ↓
+completed
+```
+
+Um processamento também pode terminar como:
+
+```text
+cancelled
+expired
+failed
+```
+
+A existência dos valores no enum não obriga que todas as transições sejam permitidas.
+
+As regras de transição deverão ser implementadas posteriormente no agregado ou serviço responsável pela previsão.
+
+---
+## 17.19 RecommendationStatus
+
+`RecommendationStatus` representa o ciclo de vida de uma recomendação produzida pelo sistema.
+
+Valores:
+
+```text
+draft
+published
+active
+expired
+cancelled
+archived
+```
+
+Significados:
+
+```text
+draft
+recomendação criada, mas ainda não disponibilizada
+
+published
+recomendação oficialmente publicada
+
+active
+recomendação disponível e válida para utilização
+
+expired
+recomendação que ultrapassou seu período de validade
+
+cancelled
+recomendação invalidada ou cancelada
+
+archived
+recomendação mantida somente para histórico
+```
+
+Exemplo:
+
+```python
+status = RecommendationStatus.parse("Published")
+```
+
+Resultado:
+
+```python
+RecommendationStatus.PUBLISHED
+```
+
+Uma recomendação pode possuir um ciclo conceitual semelhante a:
+
+```text
+draft
+    ↓
+published
+    ↓
+active
+    ↓
+expired
+    ↓
+archived
+```
+
+Também poderá ocorrer:
+
+```text
+draft
+    ↓
+cancelled
+```
+
+ou:
+
+```text
+active
+    ↓
+cancelled
+```
+
+O enum não implementa automaticamente essas transições.
+
+As regras que determinam quais mudanças são permitidas devem ficar no agregado responsável pelas recomendações.
+
+`PredictionStatus` e `RecommendationStatus` possuem responsabilidades diferentes.
+
+```text
+PredictionStatus
+estado do processamento de uma previsão
+
+RecommendationStatus
+estado de publicação e disponibilidade de uma recomendação
+```
+
+Uma previsão concluída não significa necessariamente que uma recomendação tenha sido publicada.
+
+---
+## 17.20 BetStatus
+
+`BetStatus` representa o estado operacional ou o resultado de uma aposta.
+
+Valores:
+
+```text
+open
+won
+lost
+void
+half_won
+half_lost
+cash_out
+cancelled
+pending
+```
+
+Significados:
+
+```text
+open
+aposta registrada e ainda não liquidada
+
+won
+aposta liquidada como vencedora
+
+lost
+aposta liquidada como perdedora
+
+void
+aposta anulada, normalmente com devolução integral
+
+half_won
+aposta liquidada parcialmente como vencedora
+
+half_lost
+aposta liquidada parcialmente como perdedora
+
+cash_out
+aposta encerrada antecipadamente por cash out
+
+cancelled
+aposta cancelada antes de sua liquidação normal
+
+pending
+aposta aguardando confirmação, registro ou processamento
+```
+
+Exemplo:
+
+```python
+status = BetStatus.parse("Half Won")
+```
+
+Resultado:
+
+```python
+BetStatus.HALF_WON
+```
+
+Os estados:
+
+```text
+half_won
+half_lost
+```
+
+são relevantes principalmente para mercados com liquidação fracionada, como determinados handicaps asiáticos.
+
+`VOID` e `CANCELLED` não devem ser tratados obrigatoriamente como sinônimos.
+
+Uma interpretação recomendada é:
+
+```text
+void
+aposta aceita, mas posteriormente anulada na liquidação
+
+cancelled
+aposta cancelada antes de seguir seu fluxo normal
+```
+
+A regra final dependerá da integração utilizada e deverá ser normalizada pela camada anticorrupção do provider.
+
+O enum não armazena informações financeiras.
+
+Dados como:
+
+```text
+stake
+odd
+retorno
+lucro
+prejuízo
+valor do cash out
+horário da liquidação
+```
+
+devem pertencer ao objeto de aposta ou liquidação.
+
+---
+## 17.21 RiskClassification
+
+`RiskClassification` representa uma classificação canônica de risco.
+
+Valores:
+
+```text
+very_low
+low
+medium
+high
+very_high
+```
+
+Significados gerais:
+
+```text
+very_low
+nível de risco muito baixo
+
+low
+nível de risco baixo
+
+medium
+nível de risco intermediário
+
+high
+nível de risco alto
+
+very_high
+nível de risco muito alto
+```
+
+Exemplo:
+
+```python
+risk = RiskClassification.parse("Very High")
+```
+
+Resultado:
+
+```python
+RiskClassification.VERY_HIGH
+```
+
+A classificação poderá ser utilizada em:
+
+```text
+previsões
+recomendações
+mercados
+bilhetes
+alertas
+painéis analíticos
+filtros
+relatórios
+```
+
+`RiskClassification` não representa diretamente uma probabilidade.
+
+Exemplo:
+
+```text
+probabilidade estimada
+72%
+
+classificação de risco
+medium
+```
+
+A classificação poderá depender de vários fatores, como:
+
+```text
+probabilidade prevista
+odd disponível
+divergência entre modelos
+qualidade dos dados
+incerteza estatística
+liquidez do mercado
+tempo restante até a partida
+volatilidade histórica
+```
+
+As regras que convertem esses fatores em uma classificação de risco não pertencem ao enum.
+
+Essas regras deverão ficar no motor analítico ou em uma política de domínio específica.
+
+---
+
+## 17.22 Organização Física
 
 ```text
 enums/
 ├── __init__.py
+├── bet_status.py
 ├── competition_type.py
 ├── decision_type.py
 ├── domain_enum.py
 ├── event_type.py
 ├── interruption_type.py
+├── market_type.py
 ├── match_status.py
 ├── movement_type.py
 ├── official_role.py
 ├── participant_role.py
 ├── phase_type.py
+├── prediction_status.py
+├── recommendation_status.py
 ├── review_type.py
+├── risk_classification.py
 ├── round_type.py
 └── season_status.py
 ```
@@ -4242,23 +4741,28 @@ As próximas famílias de enums serão adicionadas ao mesmo pacote.
 
 ---
 
-## 17.18 API Pública
+## 17.23 API Pública
 
 Importação pelo pacote específico:
 
 ```python
 from ultrastats_ai.domain.shared.enums import (
+    BetStatus,
     CompetitionType,
     DecisionType,
     DomainEnum,
     EventType,
     InterruptionType,
+    MarketType,
     MatchStatus,
     MovementType,
     OfficialRole,
     ParticipantRole,
     PhaseType,
+    PredictionStatus,
+    RecommendationStatus,
     ReviewType,
+    RiskClassification,
     RoundType,
     SeasonStatus,
 )
@@ -4268,17 +4772,22 @@ Importação pela API compartilhada:
 
 ```python
 from ultrastats_ai.domain.shared import (
+    BetStatus,
     CompetitionType,
     DecisionType,
     DomainEnum,
     EventType,
     InterruptionType,
+    MarketType,
     MatchStatus,
     MovementType,
     OfficialRole,
     ParticipantRole,
     PhaseType,
+    PredictionStatus,
+    RecommendationStatus,
     ReviewType,
+    RiskClassification,
     RoundType,
     SeasonStatus,
 )

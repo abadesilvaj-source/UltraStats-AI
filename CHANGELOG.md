@@ -11,6 +11,10 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added canonical `MarketType` enum for betting markets.
+- Added canonical `PredictionStatus`, `RecommendationStatus` and `BetStatus` enums.
+- Added canonical `RiskClassification` enum for recommendation risk levels.
+- Completed the first version of the canonical domain enum library.
 - Added canonical `EventType` values for goals, cards, substitutions and match lifecycle events.
 - Added canonical `InterruptionType` values for operational, medical, security and weather interruptions.
 - Added canonical `DecisionType` values for sporting and administrative decisions.
@@ -184,6 +188,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Documented analytical domain enums for betting, predictions and recommendations.
+- Updated the roadmap to mark G5.4 as completed.
 - Documented match event, interruption, decision and review enums.
 - Updated the development roadmap to mark G5.4.3 as completed.
 - Documented participant roles, official roles and movement types.
