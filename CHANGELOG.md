@@ -11,6 +11,12 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added canonical numeric Value Objects for percentages, probabilities, money, odds, positions, rounds, shirt numbers, height, weight and age.
+- Added reusable `DecimalValue` and `IntegerValue` base classes.
+- Added decimal normalization based on Python `Decimal`.
+- Added implied probability calculation for decimal odds.
+- Added same-currency addition and subtraction operations for monetary values.
+- Added comprehensive unit tests for the numeric Value Object library.
 - Added canonical `ProviderNamespace` for stable external provider namespaces.
 - Added opaque `ExternalIdentifier` values for provider-owned identifiers.
 - Added composite `ExternalIdentity` values combining provider namespace and external identifier.
@@ -158,6 +164,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Documented the canonical numeric Value Object library.
+- Updated the roadmap to mark G5.3.3 as completed.
 - Documented the external identifier library in `canonical-types.md`.
 - Updated the development roadmap to mark G5.3.2.5 as completed.
 - Documented the distinction between internal canonical IDs and provider-owned external identities.

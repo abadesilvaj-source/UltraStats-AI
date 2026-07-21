@@ -1264,25 +1264,53 @@ from ultrastats_ai.domain.shared import (
 
 ---
 
-#### G5.3.3 — Tipos Numéricos
+##### G5.3.3 — Tipos Numéricos
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
 
-Entregas previstas:
+Entregas concluídas:
 
-- porcentagem;
-- probabilidade;
-- valores monetários;
-- odds;
-- posições;
-- números de rodada;
-- números de camisa;
-- altura;
-- peso;
-- idade;
-- validações e testes.
+- [x] base decimal `DecimalValue`;
+- [x] base inteira `IntegerValue`;
+- [x] porcentagem com `Percentage`;
+- [x] probabilidade com `Probability`;
+- [x] valores monetários com `Money`;
+- [x] odds decimais com `Odds`;
+- [x] posições com `Position`;
+- [x] números de rodada com `RoundNumber`;
+- [x] números de camisa com `ShirtNumber`;
+- [x] altura com `Height`;
+- [x] peso com `Weight`;
+- [x] idade com `Age`;
+- [x] validações específicas;
+- [x] imutabilidade;
+- [x] API pública;
+- [x] testes unitários;
+- [x] documentação arquitetural;
+- [x] execução da suíte completa.
+
+Estrutura resultante:
+
+```text
+DecimalValue
+├── Percentage
+├── Probability
+├── Odds
+├── Height
+└── Weight
+
+IntegerValue
+├── Position
+├── RoundNumber
+├── ShirtNumber
+└── Age
+
+Money
+```
+
+---
 
 #### G5.3.4 — Tipos Temporais e Geográficos
 

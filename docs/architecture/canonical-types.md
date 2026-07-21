@@ -2073,8 +2073,973 @@ from ultrastats_ai.domain.shared import (
 )
 ```
 ---
+# 15. Biblioteca de Tipos Numéricos
 
-# 15. API Pública
+## 15.1 Objetivo
+
+A biblioteca de tipos numéricos fornece Value Objects imutáveis para representar valores quantitativos do domínio.
+
+Seu objetivo é evitar o uso de números primitivos sem significado explícito.
+
+Em vez de utilizar diretamente:
+
+```python
+percentage = 75.5
+probability = 0.75
+age = 25
+```
+
+o domínio poderá utilizar:
+
+```python
+percentage = Percentage("75.5")
+probability = Probability("0.75")
+age = Age(25)
+```
+
+Cada tipo numérico concentra:
+
+- normalização;
+- validação;
+- imutabilidade;
+- igualdade por valor;
+- significado semântico;
+- regras específicas do domínio.
+
+---
+
+## 15.2 Princípios
+
+Os tipos numéricos seguem os seguintes princípios:
+
+1. valores são validados no momento da criação;
+2. objetos inválidos não podem existir;
+3. objetos são imutáveis;
+4. valores decimais utilizam `Decimal`;
+5. valores booleanos não são aceitos como números;
+6. valores infinitos e `NaN` são rejeitados;
+7. cada tipo representa um único conceito do domínio;
+8. regras específicas permanecem dentro do respectivo Value Object.
+
+---
+
+## 15.3 Hierarquia Geral
+
+A biblioteca numérica está organizada em duas classes-base principais:
+
+```text
+DecimalValue
+├── Percentage
+├── Probability
+├── Odds
+├── Height
+└── Weight
+
+IntegerValue
+├── Position
+├── RoundNumber
+├── ShirtNumber
+└── Age
+
+Money
+├── amount: Decimal
+└── currency: str
+```
+
+`Money` não herda diretamente de `DecimalValue`, pois representa uma composição formada por:
+
+```text
+valor monetário
++
+código da moeda
+```
+
+---
+
+## 15.4 DecimalValue
+
+`DecimalValue` é a classe-base dos Value Objects numéricos decimais.
+
+Ela aceita entradas nos seguintes formatos:
+
+```text
+Decimal
+int
+float
+str
+```
+
+Independentemente do tipo recebido, o valor é armazenado internamente como:
+
+```python
+Decimal
+```
+
+Exemplo:
+
+```python
+DecimalValue("10.50")
+```
+
+Resultado conceitual:
+
+```text
+Decimal("10.50")
+```
+
+### 15.4.1 Normalização
+
+As seguintes entradas são válidas:
+
+```python
+DecimalValue(10)
+DecimalValue(10.5)
+DecimalValue("10.50")
+DecimalValue(" 10.50 ")
+DecimalValue(Decimal("10.50"))
+```
+
+Strings têm seus espaços externos removidos antes da conversão.
+
+Valores `float` são convertidos inicialmente para string, reduzindo efeitos indesejados da representação binária do ponto flutuante.
+
+Exemplo:
+
+```python
+DecimalValue(0.1)
+```
+
+é convertido utilizando:
+
+```python
+Decimal(str(0.1))
+```
+
+### 15.4.2 Valores rejeitados
+
+São rejeitados:
+
+```text
+strings vazias
+strings não numéricas
+booleanos
+NaN
+Infinity
+-Infinity
+tipos não suportados
+```
+
+Exemplos inválidos:
+
+```python
+DecimalValue("")
+DecimalValue("abc")
+DecimalValue(True)
+DecimalValue("NaN")
+DecimalValue("Infinity")
+```
+
+### 15.4.3 Extensão
+
+Subclasses especializadas implementam suas próprias regras por meio do método:
+
+```python
+_validate()
+```
+
+Assim, a classe-base concentra a conversão e as subclasses concentram as regras semânticas.
+
+---
+
+## 15.5 IntegerValue
+
+`IntegerValue` é a classe-base dos Value Objects numéricos inteiros.
+
+Ela aceita:
+
+```text
+int
+str
+```
+
+Exemplos válidos:
+
+```python
+IntegerValue(10)
+IntegerValue("10")
+IntegerValue(" 10 ")
+IntegerValue("+10")
+IntegerValue("-10")
+```
+
+Todos os valores são armazenados internamente como:
+
+```python
+int
+```
+
+### 15.5.1 Valores rejeitados
+
+São rejeitados:
+
+```text
+booleanos
+strings vazias
+números decimais
+notação científica
+strings não numéricas
+tipos não suportados
+```
+
+Exemplos inválidos:
+
+```python
+IntegerValue(True)
+IntegerValue("")
+IntegerValue("10.5")
+IntegerValue("1e2")
+IntegerValue("abc")
+```
+
+### 15.5.2 Extensão
+
+Assim como `DecimalValue`, suas subclasses acrescentam regras específicas por meio de:
+
+```python
+_validate()
+```
+
+---
+
+## 15.6 Percentage
+
+`Percentage` representa uma porcentagem entre:
+
+```text
+0 e 100
+```
+
+Os limites são inclusivos.
+
+Exemplos válidos:
+
+```python
+Percentage(0)
+Percentage("25")
+Percentage("75.5")
+Percentage(100)
+```
+
+Exemplos inválidos:
+
+```python
+Percentage("-0.01")
+Percentage("100.01")
+Percentage(101)
+```
+
+A representação interna utiliza:
+
+```python
+Decimal
+```
+
+Exemplo:
+
+```python
+percentage = Percentage("75.5")
+```
+
+Valor armazenado:
+
+```python
+Decimal("75.5")
+```
+
+---
+
+## 15.7 Probability
+
+`Probability` representa uma probabilidade entre:
+
+```text
+0 e 1
+```
+
+Os limites são inclusivos.
+
+Exemplos válidos:
+
+```python
+Probability(0)
+Probability("0.25")
+Probability("0.755")
+Probability(1)
+```
+
+Exemplos inválidos:
+
+```python
+Probability("-0.01")
+Probability("1.01")
+Probability(2)
+```
+
+A probabilidade é armazenada como fração decimal.
+
+Exemplo:
+
+```text
+0.75 = 75%
+```
+
+A conversão para porcentagem não é realizada automaticamente, pois `Probability` e `Percentage` representam conceitos distintos.
+
+---
+
+## 15.8 Odds
+
+`Odds` representa uma odd no formato decimal.
+
+Seu valor deve ser:
+
+```text
+maior que 1
+```
+
+Exemplos válidos:
+
+```python
+Odds("1.01")
+Odds("1.50")
+Odds("2.00")
+Odds("10.75")
+```
+
+Exemplos inválidos:
+
+```python
+Odds(0)
+Odds(1)
+Odds("1.0")
+Odds("-2")
+```
+
+### 15.8.1 Probabilidade implícita
+
+A propriedade:
+
+```python
+implied_probability
+```
+
+calcula a probabilidade implícita da odd por meio da fórmula:
+
+```text
+probabilidade implícita = 1 / odd
+```
+
+Exemplo:
+
+```python
+odds = Odds("2.00")
+odds.implied_probability
+```
+
+Resultado:
+
+```python
+Decimal("0.5")
+```
+
+Isso representa uma probabilidade implícita de:
+
+```text
+50%
+```
+
+A propriedade retorna `Decimal`, não `Probability`, pois cálculos futuros poderão exigir políticas específicas de arredondamento ou margem da casa.
+
+---
+
+## 15.9 Money
+
+`Money` representa um valor monetário associado a uma moeda.
+
+Ele é composto por:
+
+```text
+amount
+currency
+```
+
+Exemplo:
+
+```python
+Money(
+    amount="150.50",
+    currency="BRL",
+)
+```
+
+### 15.9.1 Amount
+
+O campo `amount` utiliza as mesmas regras de conversão de `DecimalValue`.
+
+São aceitos:
+
+```text
+Decimal
+int
+float
+str
+```
+
+O valor é armazenado como:
+
+```python
+Decimal
+```
+
+Valores negativos são permitidos.
+
+Eles podem representar:
+
+```text
+prejuízos
+ajustes
+débitos
+lucros negativos
+variações negativas
+```
+
+Exemplo:
+
+```python
+Money("-25.50", "BRL")
+```
+
+### 15.9.2 Currency
+
+O campo `currency` deve possuir exatamente três letras.
+
+Exemplos válidos:
+
+```text
+BRL
+USD
+EUR
+GBP
+```
+
+O valor é normalizado para letras maiúsculas.
+
+Exemplo:
+
+```python
+Money("10.00", " brl ")
+```
+
+Resultado:
+
+```text
+amount = Decimal("10.00")
+currency = "BRL"
+```
+
+Exemplos inválidos:
+
+```text
+BR
+REAL
+B1L
+R$
+```
+
+A validação estrutural garante três letras, mas não verifica se o código está oficialmente registrado em uma lista internacional de moedas.
+
+### 15.9.3 Operações monetárias
+
+Valores monetários podem ser somados por meio de:
+
+```python
+first.add(second)
+```
+
+Exemplo:
+
+```python
+first = Money("10.50", "BRL")
+second = Money("5.25", "BRL")
+
+result = first.add(second)
+```
+
+Resultado:
+
+```python
+Money("15.75", "BRL")
+```
+
+Também podem ser subtraídos:
+
+```python
+result = first.subtract(second)
+```
+
+Operações entre moedas diferentes são rejeitadas.
+
+Exemplo inválido:
+
+```python
+Money("10", "BRL").add(
+    Money("10", "USD")
+)
+```
+
+A conversão cambial deverá ser realizada por um serviço específico antes da operação monetária.
+
+### 15.9.4 Valor negativo
+
+A propriedade:
+
+```python
+is_negative
+```
+
+indica se o valor monetário é menor que zero.
+
+Exemplo:
+
+```python
+Money("-10", "BRL").is_negative
+```
+
+Resultado:
+
+```text
+True
+```
+
+---
+
+## 15.10 Position
+
+`Position` representa uma posição classificatória.
+
+Seu valor deve ser um inteiro:
+
+```text
+maior ou igual a 1
+```
+
+Exemplos válidos:
+
+```python
+Position(1)
+Position("2")
+Position(20)
+```
+
+Exemplos inválidos:
+
+```python
+Position(0)
+Position(-1)
+Position("1.5")
+```
+
+O tipo pode ser utilizado em contextos como:
+
+```text
+posição em campeonato
+posição em ranking
+posição em tabela
+posição classificatória
+```
+
+---
+
+## 15.11 RoundNumber
+
+`RoundNumber` representa o número de uma rodada.
+
+Seu valor deve ser um inteiro:
+
+```text
+maior ou igual a 1
+```
+
+Exemplos válidos:
+
+```python
+RoundNumber(1)
+RoundNumber("10")
+RoundNumber(38)
+```
+
+Exemplos inválidos:
+
+```python
+RoundNumber(0)
+RoundNumber(-1)
+RoundNumber("1.5")
+```
+
+O tipo não estabelece um limite máximo global, pois competições diferentes podem possuir quantidades diferentes de rodadas.
+
+Limites específicos deverão ser aplicados pelo agregado ou pela competição correspondente.
+
+---
+
+## 15.12 ShirtNumber
+
+`ShirtNumber` representa o número utilizado na camisa de um atleta.
+
+O valor deve estar entre:
+
+```text
+1 e 99
+```
+
+Os limites são inclusivos.
+
+Exemplos válidos:
+
+```python
+ShirtNumber(1)
+ShirtNumber("10")
+ShirtNumber(99)
+```
+
+Exemplos inválidos:
+
+```python
+ShirtNumber(0)
+ShirtNumber(-1)
+ShirtNumber(100)
+```
+
+A biblioteca utiliza o intervalo geral de `1` a `99`.
+
+Restrições específicas de uma competição poderão ser implementadas em regras de domínio mais especializadas.
+
+---
+
+## 15.13 Height
+
+`Height` representa altura em centímetros.
+
+Seu valor deve estar:
+
+```text
+acima de 0
+e
+até 300 centímetros
+```
+
+Exemplos válidos:
+
+```python
+Height(170)
+Height("182")
+Height("182.5")
+Height(300)
+```
+
+Exemplos inválidos:
+
+```python
+Height(0)
+Height(-1)
+Height("300.01")
+```
+
+### 15.13.1 Unidade canônica
+
+A unidade canônica utilizada é:
+
+```text
+centímetros
+```
+
+Exemplo:
+
+```python
+Height("182")
+```
+
+representa:
+
+```text
+182 centímetros
+```
+
+### 15.13.2 Conversão para metros
+
+A propriedade:
+
+```python
+meters
+```
+
+retorna a altura convertida para metros.
+
+Exemplo:
+
+```python
+Height("182").meters
+```
+
+Resultado:
+
+```python
+Decimal("1.82")
+```
+
+A propriedade não modifica a unidade canônica armazenada.
+
+---
+
+## 15.14 Weight
+
+`Weight` representa peso em quilogramas.
+
+Seu valor deve estar:
+
+```text
+acima de 0
+e
+até 500 quilogramas
+```
+
+Exemplos válidos:
+
+```python
+Weight(70)
+Weight("82.5")
+Weight(100)
+Weight(500)
+```
+
+Exemplos inválidos:
+
+```python
+Weight(0)
+Weight(-1)
+Weight("500.01")
+```
+
+A unidade canônica utilizada é:
+
+```text
+quilogramas
+```
+
+Outras unidades deverão ser convertidas antes da criação do Value Object.
+
+---
+
+## 15.15 Age
+
+`Age` representa uma idade inteira em anos.
+
+Seu valor deve estar entre:
+
+```text
+0 e 130
+```
+
+Os limites são inclusivos.
+
+Exemplos válidos:
+
+```python
+Age(0)
+Age(18)
+Age("25")
+Age(130)
+```
+
+Exemplos inválidos:
+
+```python
+Age(-1)
+Age(131)
+Age("25.5")
+```
+
+O valor zero é permitido para representar pessoas que ainda não completaram um ano de idade.
+
+`Age` representa uma idade já calculada. Quando a data de nascimento estiver disponível, o cálculo deverá ser realizado a partir de um tipo temporal apropriado.
+
+---
+
+## 15.16 Imutabilidade e Igualdade
+
+Todos os tipos numéricos são imutáveis.
+
+Depois da criação, seus valores não podem ser alterados.
+
+Exemplo inválido:
+
+```python
+age = Age(25)
+age.value = 26
+```
+
+Dois Value Objects do mesmo tipo são iguais quando possuem o mesmo valor normalizado.
+
+Exemplo:
+
+```python
+Percentage("75.5") == Percentage(75.5)
+```
+
+Resultado:
+
+```text
+True
+```
+
+Tipos semanticamente diferentes não devem ser utilizados como substitutos, mesmo quando seus valores internos forem numericamente iguais.
+
+Exemplo conceitual:
+
+```text
+Percentage("1")
+Probability("1")
+```
+
+representam conceitos diferentes.
+
+---
+
+## 15.17 Organização Física
+
+A biblioteca está organizada no pacote:
+
+```text
+domain/shared/numeric/
+```
+
+Estrutura:
+
+```text
+numeric/
+├── __init__.py
+├── age.py
+├── decimal_value.py
+├── height.py
+├── integer_value.py
+├── money.py
+├── odds.py
+├── percentage.py
+├── position.py
+├── probability.py
+├── round_number.py
+├── shirt_number.py
+└── weight.py
+```
+
+Responsabilidades:
+
+```text
+decimal_value.py
+└── normalização e validação decimal compartilhada
+
+integer_value.py
+└── normalização e validação inteira compartilhada
+
+percentage.py
+└── porcentagens entre 0 e 100
+
+probability.py
+└── probabilidades entre 0 e 1
+
+money.py
+└── valores monetários e moedas
+
+odds.py
+└── odds decimais e probabilidade implícita
+
+position.py
+└── posições classificatórias
+
+round_number.py
+└── números de rodada
+
+shirt_number.py
+└── números de camisa
+
+height.py
+└── altura em centímetros
+
+weight.py
+└── peso em quilogramas
+
+age.py
+└── idade inteira em anos
+```
+
+---
+
+## 15.18 API Pública
+
+Importação pelo pacote numérico:
+
+```python
+from ultrastats_ai.domain.shared.numeric import (
+    Age,
+    DecimalValue,
+    Height,
+    IntegerValue,
+    Money,
+    Odds,
+    Percentage,
+    Position,
+    Probability,
+    RoundNumber,
+    ShirtNumber,
+    Weight,
+)
+```
+
+Importação pela API pública compartilhada:
+
+```python
+from ultrastats_ai.domain.shared import (
+    Age,
+    DecimalValue,
+    Height,
+    IntegerValue,
+    Money,
+    Odds,
+    Percentage,
+    Position,
+    Probability,
+    RoundNumber,
+    ShirtNumber,
+    Weight,
+)
+```
+
+Consumidores externos deverão preferir a API pública compartilhada:
+
+```python
+from ultrastats_ai.domain.shared import Percentage
+```
+
+em vez de depender diretamente da organização interna dos arquivos:
+
+```python
+from ultrastats_ai.domain.shared.numeric.percentage import Percentage
+```
+
+---
+---
+
+# 16. API Pública
 
 A biblioteca de tipos canônicos disponibiliza uma API pública única para acesso
 aos seus componentes.
@@ -2110,7 +3075,7 @@ permite reorganizações futuras sem impacto nas demais camadas da aplicação.
 
 ---
 
-# 16. Organização Física
+# 17. Organização Física
 
 A organização física da biblioteca reflete a separação conceitual entre as
 diferentes categorias de tipos compartilhados.
@@ -2141,7 +3106,7 @@ A única interface estável é a API pública disponibilizada pelo pacote
 
 ---
 
-# 17. Compatibilidade
+# 18. Compatibilidade
 
 A evolução da biblioteca deverá preservar, sempre que possível, a
 compatibilidade com versões anteriores.
@@ -2161,7 +3126,7 @@ arquitetural clara.
 
 ---
 
-# 18. Convenções para Novos Tipos
+# 19. Convenções para Novos Tipos
 
 Todo novo tipo compartilhado deverá seguir as convenções definidas neste
 documento.
@@ -2169,7 +3134,7 @@ documento.
 Antes da criação de uma nova classe, as seguintes perguntas deverão ser
 respondidas.
 
-## 18.1 O conceito já possui representação?
+## 19.1 O conceito já possui representação?
 
 Caso exista um tipo capaz de representar corretamente o conceito desejado,
 nenhuma nova especialização deverá ser criada.
@@ -2178,7 +3143,7 @@ A reutilização deve sempre ser priorizada.
 
 ---
 
-## 18.2 Existe diferença semântica?
+## 19.2 Existe diferença semântica?
 
 Diferenças apenas organizacionais não justificam novos tipos.
 
@@ -2187,7 +3152,7 @@ agrupamento de objetos.
 
 ---
 
-## 18.3 Existe comportamento próprio?
+## 19.3 Existe comportamento próprio?
 
 Caso o novo conceito compartilhe exatamente as mesmas regras do tipo existente,
 a criação de uma nova especialização provavelmente não será necessária.
@@ -2197,7 +3162,7 @@ comportamentos.
 
 ---
 
-## 18.4 O tipo pertence ao domínio?
+## 19.4 O tipo pertence ao domínio?
 
 Tipos específicos de:
 
@@ -2214,7 +3179,7 @@ Esses componentes deverão permanecer nas camadas de infraestrutura.
 
 ---
 
-## 18.5 O tipo possui nome adequado?
+## 19.5 O tipo possui nome adequado?
 
 Os nomes das classes deverão representar conceitos do domínio.
 
@@ -2236,7 +3201,7 @@ O nome do tipo deve representar o conceito, e nunca sua origem técnica.
 
 ---
 
-## 18.6 A especialização é realmente necessária?
+## 19.6 A especialização é realmente necessária?
 
 Quanto menor e mais coesa for a biblioteca, maior será sua facilidade de
 manutenção.
@@ -2246,7 +3211,7 @@ arquitetural ao domínio.
 
 ---
 
-# 19. Estado Atual da Biblioteca
+# 20. Estado Atual da Biblioteca
 
 No momento da elaboração deste documento, a biblioteca encontra-se organizada
 conforme a estrutura apresentada a seguir.
@@ -2284,7 +3249,7 @@ identificadores, nomes, códigos e demais categorias de Value Objects.
 
 ---
 
-# Considerações Finais
+# 21. Considerações Finais
 
 A biblioteca de tipos canônicos constitui um dos pilares da camada de domínio do
 UltraStats AI.
