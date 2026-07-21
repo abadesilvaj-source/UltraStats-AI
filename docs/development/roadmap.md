@@ -1429,10 +1429,46 @@ DomainEnum
 └── MatchStatus
 ```
 
+#### G5.4.2 — Participantes, Arbitragem e Movimentações
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- [x] papéis de participantes com `ParticipantRole`;
+- [x] diferenciação entre mandante, visitante e neutro;
+- [x] papéis de oficiais com `OfficialRole`;
+- [x] representação de árbitro principal;
+- [x] representação de árbitros assistentes;
+- [x] representação de VAR e AVAR;
+- [x] representação de comissário da partida;
+- [x] tipos de movimentação com `MovementType`;
+- [x] transferências definitivas;
+- [x] empréstimos e retornos;
+- [x] transferências livres;
+- [x] liberações e renovações;
+- [x] promoções, rebaixamentos e aposentadorias;
+- [x] integração com `DomainEnum`;
+- [x] API pública;
+- [x] testes unitários;
+- [x] documentação arquitetural;
+- [x] execução da suíte completa.
+
+Estrutura resultante:
+
+```text
+DomainEnum
+├── ParticipantRole
+├── OfficialRole
+└── MovementType
+```
+
 Próxima etapa:
 
 ```text
-G5.4.2 — Participantes e Arbitragem
+G5.4.3 — Eventos da Partida
 ```
 
 ---

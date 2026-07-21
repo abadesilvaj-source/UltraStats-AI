@@ -11,6 +11,10 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added canonical `ParticipantRole` values for home, away and neutral participants.
+- Added canonical `OfficialRole` values for referees, assistants, video officials and match commissioners.
+- Added canonical `MovementType` values for transfers, loans, releases, renewals and career movements.
+- Added unit tests for participant, official and movement domain enums.
 - Added reusable `DomainEnum` infrastructure for canonical string enums.
 - Added parsing, normalization, value listing, choices and membership utilities for domain enums.
 - Added canonical `CompetitionType`, `PhaseType` and `RoundType` enums.
@@ -175,6 +179,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Documented participant roles, official roles and movement types.
+- Updated the development roadmap to mark G5.4.2 as completed.
 - Documented the canonical domain enum infrastructure and sports enums.
 - Updated the development roadmap to mark G5.4.1 as completed.
 - Documented the canonical temporal and geographic Value Object libraries.

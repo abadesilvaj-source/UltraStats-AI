@@ -3913,7 +3913,165 @@ resultado atribuído administrativamente
 
 ---
 
-## 17.10 Organização Física
+## 17.10 ParticipantRole
+
+`ParticipantRole` representa o papel de um participante em uma partida.
+
+Valores:
+
+```text
+home
+away
+neutral
+```
+
+Significados:
+
+```text
+home
+participante mandante
+
+away
+participante visitante
+
+neutral
+participante sem classificação de mandante ou visitante
+```
+
+Exemplo:
+
+```python
+ParticipantRole.parse("HOME")
+```
+
+Resultado:
+
+```python
+ParticipantRole.HOME
+```
+
+O enum representa a posição do participante no evento.
+
+Ele não representa o tipo da entidade, como jogador, treinador ou organização.
+
+---
+
+## 17.11 OfficialRole
+
+`OfficialRole` representa a função desempenhada por um oficial da partida.
+
+Valores:
+
+```text
+referee
+assistant_referee
+fourth_official
+video_assistant_referee
+assistant_video_assistant_referee
+additional_assistant_referee
+reserve_assistant_referee
+match_commissioner
+```
+
+Significados gerais:
+
+```text
+referee
+árbitro principal
+
+assistant_referee
+árbitro assistente
+
+fourth_official
+quarto árbitro
+
+video_assistant_referee
+árbitro assistente de vídeo
+
+assistant_video_assistant_referee
+assistente do árbitro de vídeo
+
+additional_assistant_referee
+árbitro assistente adicional
+
+reserve_assistant_referee
+árbitro assistente reserva
+
+match_commissioner
+delegado ou comissário da partida
+```
+
+Os valores canônicos não armazenam traduções.
+
+Traduções e nomes destinados ao usuário pertencem à camada de apresentação.
+
+---
+
+## 17.12 MovementType
+
+`MovementType` representa a natureza de uma movimentação contratual ou esportiva.
+
+Valores:
+
+```text
+transfer
+loan
+loan_return
+free_transfer
+release
+contract_renewal
+promotion
+demotion
+retirement
+```
+
+Significados gerais:
+
+```text
+transfer
+transferência definitiva
+
+loan
+empréstimo temporário
+
+loan_return
+retorno após empréstimo
+
+free_transfer
+transferência sem taxa
+
+release
+liberação ou encerramento do vínculo
+
+contract_renewal
+renovação de contrato
+
+promotion
+promoção para outro elenco ou categoria
+
+demotion
+retorno ou rebaixamento para outro elenco ou categoria
+
+retirement
+encerramento da carreira
+```
+
+O enum registra somente o tipo da movimentação.
+
+Dados complementares deverão pertencer a uma estrutura específica, como:
+
+```text
+data da movimentação
+origem
+destino
+valor
+duração
+observações
+```
+
+---
+
+## 17.13 Organização Física
 
 ```text
 enums/
@@ -3921,6 +4079,9 @@ enums/
 ├── competition_type.py
 ├── domain_enum.py
 ├── match_status.py
+├── movement_type.py
+├── official_role.py
+├── participant_role.py
 ├── phase_type.py
 ├── round_type.py
 └── season_status.py
@@ -3930,7 +4091,7 @@ As próximas famílias de enums serão adicionadas ao mesmo pacote.
 
 ---
 
-## 17.11 API Pública
+## 17.14 API Pública
 
 Importação pelo pacote específico:
 
@@ -3939,6 +4100,9 @@ from ultrastats_ai.domain.shared.enums import (
     CompetitionType,
     DomainEnum,
     MatchStatus,
+    MovementType,
+    OfficialRole,
+    ParticipantRole,
     PhaseType,
     RoundType,
     SeasonStatus,
@@ -3952,6 +4116,9 @@ from ultrastats_ai.domain.shared import (
     CompetitionType,
     DomainEnum,
     MatchStatus,
+    MovementType,
+    OfficialRole,
+    ParticipantRole,
     PhaseType,
     RoundType,
     SeasonStatus,
