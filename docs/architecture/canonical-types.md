@@ -4071,18 +4071,169 @@ observações
 
 ---
 
-## 17.13 Organização Física
+## 17.13 EventType
+
+`EventType` representa a natureza de um acontecimento registrado durante uma partida.
+
+Valores:
+
+```text
+goal
+own_goal
+penalty_goal
+penalty_missed
+yellow_card
+second_yellow_card
+red_card
+substitution
+injury
+offside
+foul
+corner
+free_kick
+penalty_awarded
+kickoff
+half_time
+full_time
+extra_time_start
+extra_time_end
+penalty_shootout_start
+penalty_shootout_end
+```
+
+O enum registra apenas o tipo do evento.
+
+Dados complementares pertencem ao objeto de evento, como:
+
+```text
+timestamp
+minuto da partida
+participante
+jogador
+equipe
+resultado após o evento
+localização no campo
+```
+
+`EventType.HALF_TIME` representa um acontecimento.
+
+`MatchStatus.HALF_TIME` representa o estado atual da partida.
+
+---
+
+## 17.14 InterruptionType
+
+`InterruptionType` representa o motivo de uma interrupção da partida.
+
+Valores:
+
+```text
+injury
+weather
+crowd_trouble
+pitch_invasion
+technical_issue
+lighting_failure
+security_issue
+referee_decision
+var_check
+medical_emergency
+equipment_failure
+other
+```
+
+Uma interrupção pode ser temporária e não implica necessariamente abandono.
+
+O encerramento definitivo da partida deve ser representado pelo estado ou decisão correspondente.
+
+---
+
+## 17.15 DecisionType
+
+`DecisionType` representa a natureza de uma decisão esportiva ou administrativa.
+
+Valores:
+
+```text
+confirmed
+overturned
+awarded
+disallowed
+cancelled
+suspended
+postponed
+abandoned
+rescheduled
+administrative_win
+administrative_draw
+points_deduction
+fine
+no_action
+```
+
+O enum pode ser utilizado em diferentes contextos, como:
+
+```text
+decisões de arbitragem
+decisões disciplinares
+decisões administrativas
+alterações de calendário
+resultados atribuídos
+```
+
+O contexto, a autoridade responsável e a justificativa devem pertencer ao objeto de decisão.
+
+---
+
+## 17.16 ReviewType
+
+`ReviewType` representa o objeto principal de uma revisão.
+
+Valores:
+
+```text
+goal
+penalty
+red_card
+mistaken_identity
+offside
+handball
+foul
+ball_out_of_play
+disciplinary_action
+administrative
+other
+```
+
+O enum pode representar revisões:
+
+```text
+de vídeo
+disciplinares
+administrativas
+pós-partida
+```
+
+O resultado da revisão deve ser representado separadamente, por exemplo, com `DecisionType`.
+
+---
+
+## 17.17 Organização Física
 
 ```text
 enums/
 ├── __init__.py
 ├── competition_type.py
+├── decision_type.py
 ├── domain_enum.py
+├── event_type.py
+├── interruption_type.py
 ├── match_status.py
 ├── movement_type.py
 ├── official_role.py
 ├── participant_role.py
 ├── phase_type.py
+├── review_type.py
 ├── round_type.py
 └── season_status.py
 ```
@@ -4091,19 +4242,23 @@ As próximas famílias de enums serão adicionadas ao mesmo pacote.
 
 ---
 
-## 17.14 API Pública
+## 17.18 API Pública
 
 Importação pelo pacote específico:
 
 ```python
 from ultrastats_ai.domain.shared.enums import (
     CompetitionType,
+    DecisionType,
     DomainEnum,
+    EventType,
+    InterruptionType,
     MatchStatus,
     MovementType,
     OfficialRole,
     ParticipantRole,
     PhaseType,
+    ReviewType,
     RoundType,
     SeasonStatus,
 )
@@ -4114,12 +4269,16 @@ Importação pela API compartilhada:
 ```python
 from ultrastats_ai.domain.shared import (
     CompetitionType,
+    DecisionType,
     DomainEnum,
+    EventType,
+    InterruptionType,
     MatchStatus,
     MovementType,
     OfficialRole,
     ParticipantRole,
     PhaseType,
+    ReviewType,
     RoundType,
     SeasonStatus,
 )

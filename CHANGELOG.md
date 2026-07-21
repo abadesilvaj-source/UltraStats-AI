@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added canonical `EventType` values for goals, cards, substitutions and match lifecycle events.
+- Added canonical `InterruptionType` values for operational, medical, security and weather interruptions.
+- Added canonical `DecisionType` values for sporting and administrative decisions.
+- Added canonical `ReviewType` values for video, disciplinary and administrative reviews.
+- Added unit tests for match event, interruption, decision and review enums.
 - Added canonical `ParticipantRole` values for home, away and neutral participants.
 - Added canonical `OfficialRole` values for referees, assistants, video officials and match commissioners.
 - Added canonical `MovementType` values for transfers, loans, releases, renewals and career movements.
@@ -179,6 +184,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Documented match event, interruption, decision and review enums.
+- Updated the development roadmap to mark G5.4.3 as completed.
 - Documented participant roles, official roles and movement types.
 - Updated the development roadmap to mark G5.4.2 as completed.
 - Documented the canonical domain enum infrastructure and sports enums.

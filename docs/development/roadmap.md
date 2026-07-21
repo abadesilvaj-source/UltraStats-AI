@@ -1465,10 +1465,52 @@ DomainEnum
 └── MovementType
 ```
 
+#### G5.4.3 — Eventos, Interrupções, Decisões e Revisões
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- [x] tipos de eventos com `EventType`;
+- [x] gols, gols contra e gols de pênalti;
+- [x] cartões e expulsões;
+- [x] substituições, faltas, impedimentos e escanteios;
+- [x] eventos de início, intervalo e encerramento;
+- [x] tipos de interrupção com `InterruptionType`;
+- [x] interrupções climáticas;
+- [x] interrupções de segurança;
+- [x] falhas técnicas e de equipamento;
+- [x] interrupções para VAR;
+- [x] tipos de decisão com `DecisionType`;
+- [x] decisões confirmadas e revertidas;
+- [x] decisões administrativas;
+- [x] remarcações e deduções de pontos;
+- [x] tipos de revisão com `ReviewType`;
+- [x] revisões de gol, pênalti e cartão vermelho;
+- [x] revisões de impedimento, mão e falta;
+- [x] revisões disciplinares e administrativas;
+- [x] integração com `DomainEnum`;
+- [x] API pública;
+- [x] testes unitários;
+- [x] documentação arquitetural;
+- [x] execução da suíte completa.
+
+Estrutura resultante:
+
+```text
+DomainEnum
+├── EventType
+├── InterruptionType
+├── DecisionType
+└── ReviewType
+```
+
 Próxima etapa:
 
 ```text
-G5.4.3 — Eventos da Partida
+G5.4.4 — Mercado, Previsões, Recomendações e Apostas
 ```
 
 ---
