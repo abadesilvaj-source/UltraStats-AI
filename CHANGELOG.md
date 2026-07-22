@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added the canonical `Country` entity with immutable state transitions.
+- Added country identity, code, name, aliases and optional coordinates.
+- Added country name and alias conflict validation.
+- Added identity-based equality and hashing for countries.
+- Added unit and public API tests for `Country`.
 - Added the initial `domain.geography` package.
 - Added immutable `Aliases` collection for geographic entities.
 - Added geography-specific alias validation errors.
@@ -192,6 +197,7 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Updated the roadmap to mark G5.5.2 Country as completed.
 - Updated the roadmap to start G5.5 Geography and Venue.
 - Documented analytical domain enums for betting, predictions and recommendations.
 - Updated the roadmap to mark G5.4 as completed.

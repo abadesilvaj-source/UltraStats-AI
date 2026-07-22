@@ -3,25 +3,36 @@
 from ultrastats_ai.domain.geography import (
     AliasNotFoundError,
     Aliases,
+    Country,
+    CountryNameAliasConflictError,
     DuplicateAliasError,
     GeographyDomainError,
 )
+from ultrastats_ai.domain.geography import errors as geography_errors
 from ultrastats_ai.domain.geography.aliases import (
     Aliases as InternalAliases,
 )
-from ultrastats_ai.domain.geography.errors import (
-    AliasNotFoundError as InternalAliasNotFoundError,
-)
-from ultrastats_ai.domain.geography.errors import (
-    DuplicateAliasError as InternalDuplicateAliasError,
-)
-from ultrastats_ai.domain.geography.errors import (
-    GeographyDomainError as InternalGeographyDomainError,
+from ultrastats_ai.domain.geography.country import (
+    Country as InternalCountry,
 )
 
 
 def test_geography_types_are_exported_by_public_api() -> None:
     assert Aliases is InternalAliases
-    assert AliasNotFoundError is InternalAliasNotFoundError
-    assert DuplicateAliasError is InternalDuplicateAliasError
-    assert GeographyDomainError is InternalGeographyDomainError
+    assert Country is InternalCountry
+    assert (
+        AliasNotFoundError
+        is geography_errors.AliasNotFoundError
+    )
+    assert (
+        CountryNameAliasConflictError
+        is geography_errors.CountryNameAliasConflictError
+    )
+    assert (
+        DuplicateAliasError
+        is geography_errors.DuplicateAliasError
+    )
+    assert (
+        GeographyDomainError
+        is geography_errors.GeographyDomainError
+    )

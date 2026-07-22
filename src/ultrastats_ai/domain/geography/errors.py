@@ -13,3 +13,7 @@ class DuplicateAliasError(GeographyDomainError):
 
 class AliasNotFoundError(GeographyDomainError):
     """Erro lançado quando um alias solicitado não existe."""
+
+
+class CountryNameAliasConflictError(GeographyDomainError):
+    """Erro lançado quando o nome principal é repetido como alias."""

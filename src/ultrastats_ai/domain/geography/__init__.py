@@ -1,8 +1,10 @@
 """API pública do domínio geográfico."""
 
 from ultrastats_ai.domain.geography.aliases import Aliases
+from ultrastats_ai.domain.geography.country import Country
 from ultrastats_ai.domain.geography.errors import (
     AliasNotFoundError,
+    CountryNameAliasConflictError,
     DuplicateAliasError,
     GeographyDomainError,
 )
@@ -10,6 +12,8 @@ from ultrastats_ai.domain.geography.errors import (
 __all__ = [
     "AliasNotFoundError",
     "Aliases",
+    "Country",
+    "CountryNameAliasConflictError",
     "DuplicateAliasError",
     "GeographyDomainError",
 ]
