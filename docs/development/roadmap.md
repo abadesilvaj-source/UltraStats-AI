@@ -1578,7 +1578,43 @@ Escopo:
 Status:
 
 ```text
-PLANEJADO
+EM ANDAMENTO
+```
+
+#### G5.5.1 — Fundação do domínio geográfico
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- [x] criação do pacote `domain.geography`;
+- [x] exceção-base `GeographyDomainError`;
+- [x] exceção `DuplicateAliasError`;
+- [x] exceção `AliasNotFoundError`;
+- [x] coleção imutável `Aliases`;
+- [x] validação de tipos da coleção;
+- [x] prevenção de aliases duplicados;
+- [x] inclusão e remoção imutáveis;
+- [x] API pública inicial;
+- [x] testes unitários;
+- [x] testes da API pública;
+- [x] execução da suíte completa.
+
+Estrutura inicial:
+
+```text
+geography/
+├── __init__.py
+├── aliases.py
+└── errors.py
+```
+
+Próxima parte:
+
+```text
+G5.5.2 — Country
 ```
 
 ---

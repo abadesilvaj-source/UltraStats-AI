@@ -11,6 +11,10 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added the initial `domain.geography` package.
+- Added immutable `Aliases` collection for geographic entities.
+- Added geography-specific alias validation errors.
+- Added unit and public API tests for the geography foundation.
 - Added canonical `MarketType` enum for betting markets.
 - Added canonical `PredictionStatus`, `RecommendationStatus` and `BetStatus` enums.
 - Added canonical `RiskClassification` enum for recommendation risk levels.
@@ -188,6 +192,7 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Updated the roadmap to start G5.5 Geography and Venue.
 - Documented analytical domain enums for betting, predictions and recommendations.
 - Updated the roadmap to mark G5.4 as completed.
 - Documented match event, interruption, decision and review enums.
