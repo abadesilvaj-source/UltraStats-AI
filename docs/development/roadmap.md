@@ -1814,10 +1814,66 @@ geography/
 └── stadium.py
 ```
 
-Próxima parte:
+Etapa seguinte concluída:
 
 ```text
 G5.5.6 — Histórico e Persistência Geográfica
+```
+
+#### G5.5.6 — Histórico e Persistência Geográfica
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- [x] enum `GeographyEntityKind`;
+- [x] enum `GeographyChangeType`;
+- [x] Value Object `GeographyFieldChange`;
+- [x] entidade `GeographyHistoryEntry`;
+- [x] histórico imutável;
+- [x] identificação da entidade alterada;
+- [x] identificação do tipo de alteração;
+- [x] timestamp UTC;
+- [x] validação de campos duplicados;
+- [x] exigência de alterações para entradas `UPDATED`;
+- [x] consulta de campos alterados;
+- [x] consulta individual de alteração;
+- [x] protocolo `CountryRepository`;
+- [x] protocolo `RegionRepository`;
+- [x] protocolo `CityRepository`;
+- [x] protocolo `StadiumRepository`;
+- [x] protocolo `GeographyHistoryRepository`;
+- [x] independência de ORM;
+- [x] independência de banco de dados;
+- [x] API pública;
+- [x] testes unitários do histórico;
+- [x] testes dos contratos de repositório;
+- [x] testes das exceções;
+- [x] testes da API pública;
+- [x] documentação arquitetural;
+- [x] execução da suíte completa.
+
+Estrutura resultante:
+
+```text
+geography/
+├── __init__.py
+├── aliases.py
+├── city.py
+├── country.py
+├── errors.py
+├── history.py
+├── region.py
+├── repositories.py
+└── stadium.py
+```
+
+Próxima parte:
+
+```text
+G5.5.7 — Identidade Externa e Reconstrução Geográfica
 ```
 
 ---

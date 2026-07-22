@@ -5557,7 +5557,245 @@ A instância original permanece inalterada.
 
 ---
 
-## 18.8 Exceções
+## 18.8 Histórico Geográfico
+
+O histórico geográfico registra alterações relevantes realizadas nas entidades:
+
+```text
+Country
+Region
+City
+Stadium
+```
+
+A estrutura principal é:
+
+```text
+GeographyHistoryEntry
+├── id: CanonicalId
+├── entity_id: CanonicalId
+├── entity_kind: GeographyEntityKind
+├── change_type: GeographyChangeType
+├── occurred_at: UtcTimestamp
+└── changes: tuple[GeographyFieldChange, ...]
+```
+
+### 18.8.1 GeographyEntityKind
+
+`GeographyEntityKind` identifica a categoria da entidade alterada.
+
+Valores:
+
+```text
+country
+region
+city
+stadium
+```
+
+### 18.8.2 GeographyChangeType
+
+`GeographyChangeType` identifica a natureza da alteração.
+
+Valores:
+
+```text
+created
+updated
+deleted
+```
+
+Entradas do tipo:
+
+```text
+updated
+```
+
+devem possuir ao menos uma alteração de campo.
+
+### 18.8.3 GeographyFieldChange
+
+`GeographyFieldChange` representa a alteração de um único campo.
+
+Estrutura:
+
+```text
+GeographyFieldChange
+├── field_name: str
+├── previous_value: str | None
+└── current_value: str | None
+```
+
+Exemplo:
+
+```python
+GeographyFieldChange(
+    field_name="name",
+    previous_value="Araraquara",
+    current_value="Morada do Sol",
+)
+```
+
+A estrutura identifica:
+
+```text
+criação de valor
+remoção de valor
+atualização de valor
+```
+
+Os valores anterior e atual devem ser diferentes.
+
+### 18.8.4 Invariantes do histórico
+
+Uma entrada de histórico deverá preservar as seguintes regras:
+
+```text
+identidade própria
+identidade da entidade alterada
+tipo conhecido de entidade
+tipo conhecido de alteração
+timestamp em UTC
+coleção imutável de alterações
+ausência de campos duplicados
+ao menos uma alteração para UPDATED
+```
+
+O mesmo campo não pode aparecer mais de uma vez na mesma entrada.
+
+Exemplo inválido:
+
+```text
+name
+NAME
+```
+
+Essa violação gera:
+
+```text
+DuplicateHistoryFieldError
+```
+
+Uma atualização sem alterações gera:
+
+```text
+EmptyHistoryChangesError
+```
+
+### 18.8.5 Consulta de alterações
+
+`GeographyHistoryEntry` oferece:
+
+```text
+changed_fields
+has_changed_field
+get_change
+```
+
+Exemplo:
+
+```python
+entry.has_changed_field("name")
+```
+
+A comparação do nome do campo ignora diferenças de maiúsculas e minúsculas.
+
+---
+
+## 18.9 Contratos de Persistência
+
+A persistência geográfica é representada por protocolos de domínio.
+
+Os contratos disponíveis são:
+
+```text
+CountryRepository
+RegionRepository
+CityRepository
+StadiumRepository
+GeographyHistoryRepository
+```
+
+Esses contratos não implementam acesso ao banco de dados.
+
+Eles definem apenas as operações que uma implementação de infraestrutura deverá fornecer.
+
+### 18.9.1 CountryRepository
+
+Operações:
+
+```text
+get_by_id
+save
+delete
+list_all
+```
+
+### 18.9.2 RegionRepository
+
+Operações:
+
+```text
+get_by_id
+list_by_country
+save
+delete
+```
+
+### 18.9.3 CityRepository
+
+Operações:
+
+```text
+get_by_id
+list_by_region
+list_by_country
+save
+delete
+```
+
+### 18.9.4 StadiumRepository
+
+Operações:
+
+```text
+get_by_id
+list_by_city
+list_by_region
+list_by_country
+save
+delete
+```
+
+### 18.9.5 GeographyHistoryRepository
+
+Operações:
+
+```text
+append
+get_by_id
+list_for_entity
+```
+
+### 18.9.6 Independência de infraestrutura
+
+Os contratos não dependem de:
+
+```text
+ORM
+SQL
+PostgreSQL
+MongoDB
+Redis
+framework web
+provider externo
+```
+
+As implementações concretas deverão ser criadas em uma camada de infraestrutura.
+
+---
+
+## 18.10 Exceções
 
 O módulo geográfico possui a seguinte hierarquia inicial:
 
@@ -5569,7 +5807,10 @@ DomainValidationError
     ├── CountryNameAliasConflictError
     ├── RegionNameAliasConflictError
     ├── CityNameAliasConflictError
-    └── StadiumNameAliasConflictError
+    ├── StadiumNameAliasConflictError
+    └── GeographyHistoryError
+        ├── DuplicateHistoryFieldError
+        └── EmptyHistoryChangesError
 ```
 
 Responsabilidades:
@@ -5595,6 +5836,15 @@ nome principal de City repetido como alias
 
 StadiumNameAliasConflictError
 nome principal de Stadium repetido como alias
+
+GeographyHistoryError
+erro-base do histórico geográfico
+
+DuplicateHistoryFieldError
+campo repetido na mesma entrada de histórico
+
+EmptyHistoryChangesError
+atualização geográfica sem alterações
 ```
 
 Consumidores podem capturar todos os erros geográficos com:
@@ -5610,7 +5860,7 @@ Ou capturar uma violação específica.
 
 ---
 
-## 18.9 Organização Física
+## 18.11 Organização Física
 
 O módulo está organizado em:
 
@@ -5621,7 +5871,9 @@ domain/geography/
 ├── city.py
 ├── country.py
 ├── errors.py
+├── history.py
 ├── region.py
+├── repositories.py
 └── stadium.py
 ```
 
@@ -5640,8 +5892,14 @@ entidade canônica Country
 errors.py
 exceções específicas do domínio geográfico
 
+history.py
+objetos imutáveis do histórico geográfico
+
 region.py
 entidade canônica Region
+
+repositories.py
+contratos abstratos de persistência geográfica
 
 __init__.py
 API pública do módulo
@@ -5656,14 +5914,16 @@ tests/unit/domain/geography/
 ├── test_city.py
 ├── test_country.py
 ├── test_errors.py
+├── test_history.py
 ├── test_public_api.py
 ├── test_region.py
+├── test_repositories.py
 └── test_stadium.py
 ```
 
 ---
 
-## 18.10 API Pública
+## 18.12 API Pública
 
 Os consumidores deverão utilizar a API pública do pacote:
 
@@ -5673,25 +5933,26 @@ from ultrastats_ai.domain.geography import (
     Aliases,
     City,
     CityNameAliasConflictError,
+    CityRepository,
     Country,
     CountryNameAliasConflictError,
+    CountryRepository,
     DuplicateAliasError,
+    DuplicateHistoryFieldError,
+    EmptyHistoryChangesError,
+    GeographyChangeType,
     GeographyDomainError,
-    Region,
-    RegionNameAliasConflictError,from ultrastats_ai.domain.geography import (
-    AliasNotFoundError,
-    Aliases,
-    City,
-    CityNameAliasConflictError,
-    Country,
-    CountryNameAliasConflictError,
-    DuplicateAliasError,
-    GeographyDomainError,
+    GeographyEntityKind,
+    GeographyFieldChange,
+    GeographyHistoryEntry,
+    GeographyHistoryError,
+    GeographyHistoryRepository,
     Region,
     RegionNameAliasConflictError,
+    RegionRepository,
     Stadium,
     StadiumNameAliasConflictError,
-)
+    StadiumRepository,
 )
 ```
 
@@ -5711,13 +5972,17 @@ from ultrastats_ai.domain.geography.region import Region
 from ultrastats_ai.domain.geography import City
 
 from ultrastats_ai.domain.geography import Stadium
+
+from ultrastats_ai.domain.geography import GeographyHistoryEntry
+
+from ultrastats_ai.domain.geography import CountryRepository
 ```
 
 A API pública permite reorganizar os arquivos internos sem exigir alterações nos consumidores.
 
 ---
 
-## 18.11 Evolução Planejada
+## 18.13 Evolução Planejada
 
 As entidades geográficas canônicas iniciais estão implementadas:
 
@@ -5730,12 +5995,12 @@ Stadium
 
 As próximas etapas deverão acrescentar:
 
-```text
-histórico de alterações
-contratos de persistência
-mapeamento entre entidades e registros persistidos
-repositórios abstratos
-testes de reconstrução
+implementações concretas dos repositórios
+mapeadores de infraestrutura
+modelos de persistência
+migrações de banco de dados
+testes de integração com PostgreSQL
+reconstrução completa das entidades
 ```
 
 A hierarquia planejada será:

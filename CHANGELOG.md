@@ -11,6 +11,12 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added canonical geographic history types.
+- Added `GeographyEntityKind` and `GeographyChangeType`.
+- Added immutable `GeographyFieldChange` and `GeographyHistoryEntry`.
+- Added duplicate field and empty update validations for geographic history.
+- Added repository protocols for countries, regions, cities, stadiums and geographic history.
+- Added unit tests for geographic history and persistence contracts.
 - Added the canonical `Stadium` entity linked to `City`.
 - Added derived region and country access through the stadium geographic hierarchy.
 - Added immutable stadium operations for name, city, aliases and coordinates.
@@ -214,6 +220,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Documented geographic history and repository contracts.
+- Updated the roadmap to mark G5.5.6 as completed.
 - Documented the canonical `Stadium` entity and its geographic hierarchy.
 - Updated the roadmap to mark G5.5.5 Stadium as completed.
 - Documented the canonical `City` entity and its geographic relationships.

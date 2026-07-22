@@ -29,3 +29,15 @@ class CityNameAliasConflictError(GeographyDomainError):
 
 class StadiumNameAliasConflictError(GeographyDomainError):
     """Erro lançado quando o nome do estádio é repetido como alias."""
+
+
+class GeographyHistoryError(GeographyDomainError):
+    """Erro-base para violações do histórico geográfico."""
+
+
+class DuplicateHistoryFieldError(GeographyHistoryError):
+    """Erro lançado quando um campo aparece mais de uma vez no histórico."""
+
+
+class EmptyHistoryChangesError(GeographyHistoryError):
+    """Erro lançado quando uma atualização não possui alterações."""
