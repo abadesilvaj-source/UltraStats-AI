@@ -5,6 +5,7 @@ from ultrastats_ai.domain.geography.errors import (
     CountryNameAliasConflictError,
     DuplicateAliasError,
     GeographyDomainError,
+    RegionNameAliasConflictError,
 )
 from ultrastats_ai.domain.shared.errors import DomainValidationError
 
@@ -33,5 +34,12 @@ def test_alias_not_found_error_inherits_from_geography_error() -> None:
 def test_country_name_alias_conflict_error_inherits_from_geography_error() -> None:
     assert issubclass(
         CountryNameAliasConflictError,
+        GeographyDomainError,
+    )
+
+
+def test_region_name_alias_conflict_error_inherits_from_geography_error() -> None:
+    assert issubclass(
+        RegionNameAliasConflictError,
         GeographyDomainError,
     )

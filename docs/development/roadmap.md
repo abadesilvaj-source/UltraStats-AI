@@ -1657,10 +1657,60 @@ geography/
 └── errors.py
 ```
 
-Próxima parte:
+Etapa seguinte concluída:
 
 ```text
 G5.5.3 — Region
+```
+---
+#### G5.5.3 — Region
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- [x] entidade canônica `Region`;
+- [x] identidade baseada em `CanonicalId`;
+- [x] vínculo obrigatório com `Country`;
+- [x] nome principal baseado em `Name`;
+- [x] aliases baseados em `Aliases`;
+- [x] coordenadas geográficas opcionais;
+- [x] validação de tipos;
+- [x] prevenção de conflito entre nome e alias;
+- [x] alteração imutável de nome;
+- [x] alteração imutável de país;
+- [x] inclusão imutável de alias;
+- [x] remoção imutável de alias;
+- [x] atualização imutável de coordenadas;
+- [x] remoção de coordenadas;
+- [x] verificação de pertencimento com `belongs_to`;
+- [x] igualdade por identidade canônica;
+- [x] hash por identidade canônica;
+- [x] API pública;
+- [x] testes unitários;
+- [x] testes de imutabilidade;
+- [x] testes de pertencimento;
+- [x] testes da API pública;
+- [x] documentação arquitetural;
+- [x] execução da suíte completa.
+
+Estrutura resultante:
+
+```text
+geography/
+├── __init__.py
+├── aliases.py
+├── country.py
+├── errors.py
+└── region.py
+```
+
+Próxima parte:
+
+```text
+G5.5.4 — City
 ```
 ---
 ### G5.6 — Competition

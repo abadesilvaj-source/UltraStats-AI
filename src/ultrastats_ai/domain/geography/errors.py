@@ -17,3 +17,7 @@ class AliasNotFoundError(GeographyDomainError):
 
 class CountryNameAliasConflictError(GeographyDomainError):
     """Erro lançado quando o nome principal é repetido como alias."""
+
+
+class RegionNameAliasConflictError(GeographyDomainError):
+    """Erro lançado quando o nome da região é repetido como alias."""

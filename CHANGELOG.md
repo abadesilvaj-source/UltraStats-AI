@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added the canonical `Region` entity linked to `Country`.
+- Added immutable region state transitions for name, country, aliases and coordinates.
+- Added `belongs_to` identity-based country membership validation.
+- Added `RegionNameAliasConflictError`.
+- Added unit and public API tests for `Region`.
 - Added the canonical `Country` entity with immutable state transitions.
 - Added country identity, code, name, aliases and optional coordinates.
 - Added country name and alias conflict validation.
@@ -197,6 +202,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Documented the canonical `Region` entity and its public API.
+- Updated the roadmap to mark G5.5.3 Region as completed.
 - Updated the roadmap to mark G5.5.2 Country as completed.
 - Updated the roadmap to start G5.5 Geography and Venue.
 - Documented analytical domain enums for betting, predictions and recommendations.

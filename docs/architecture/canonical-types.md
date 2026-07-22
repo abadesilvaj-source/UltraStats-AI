@@ -4798,8 +4798,603 @@ from ultrastats_ai.domain.shared import (
 Consumidores externos deverão preferir a API compartilhada.
 
 ---
+# 18. Geography e Venue
 
-# 18. API Pública
+## 18.1 Objetivo
+
+O módulo `domain.geography` representa entidades canônicas relacionadas à organização geográfica e aos locais esportivos utilizados pelo domínio.
+
+As principais entidades previstas são:
+
+```text
+Country
+Region
+City
+Stadium
+```
+
+No estado atual, encontram-se implementadas:
+
+```text
+Country
+Region
+```
+
+As entidades geográficas utilizam Value Objects compartilhados para representar:
+
+```text
+identidade
+nomes
+códigos
+aliases
+coordenadas
+```
+
+A estrutura reutiliza:
+
+```text
+CanonicalId
+CountryCode
+Name
+AliasValue
+Coordinates
+```
+
+Além dos tipos específicos do módulo:
+
+```text
+Aliases
+GeographyDomainError
+DuplicateAliasError
+AliasNotFoundError
+CountryNameAliasConflictError
+RegionNameAliasConflictError
+```
+
+---
+
+## 18.2 Princípios Gerais
+
+As entidades geográficas seguem os seguintes princípios:
+
+1. cada entidade possui identidade canônica própria;
+2. a igualdade é baseada em `CanonicalId`;
+3. as entidades são imutáveis;
+4. alterações retornam novas instâncias;
+5. nomes principais não podem ser repetidos como aliases;
+6. coordenadas são opcionais quando não forem conhecidas;
+7. relações geográficas são representadas explicitamente;
+8. a camada de domínio não depende de banco de dados ou ORM.
+
+Exemplo conceitual:
+
+```text
+Country
+└── Region
+    └── City
+        └── Stadium
+```
+
+A implementação das entidades não depende da persistência.
+
+Repositórios, mapeadores e modelos de banco de dados deverão permanecer em camadas externas ao domínio.
+
+---
+
+## 18.3 Aliases
+
+`Aliases` representa uma coleção imutável e ordenada de objetos `AliasValue`.
+
+Exemplo:
+
+```python
+aliases = Aliases.from_iterable(
+    [
+        AliasValue("Estado de São Paulo"),
+        AliasValue("SP"),
+    ]
+)
+```
+
+A coleção oferece:
+
+```text
+empty
+from_iterable
+add
+discard
+contains
+as_tuple
+```
+
+Operações de inclusão e remoção retornam novas coleções.
+
+Exemplo:
+
+```python
+original = Aliases.empty()
+
+updated = original.add(
+    AliasValue("SP")
+)
+```
+
+Resultado conceitual:
+
+```text
+original
+coleção vazia
+
+updated
+coleção contendo "SP"
+```
+
+Aliases duplicados geram:
+
+```text
+DuplicateAliasError
+```
+
+A tentativa de remover um alias inexistente gera:
+
+```text
+AliasNotFoundError
+```
+
+---
+
+## 18.4 Country
+
+`Country` representa um país canônico do domínio.
+
+Estrutura:
+
+```text
+Country
+├── id: CanonicalId
+├── code: CountryCode
+├── name: Name
+├── aliases: Aliases
+└── coordinates: Coordinates | None
+```
+
+### 18.4.1 Identidade
+
+A identidade de `Country` é baseada exclusivamente em:
+
+```text
+CanonicalId
+```
+
+Duas instâncias com o mesmo identificador representam o mesmo país, mesmo quando possuam:
+
+```text
+nomes diferentes
+códigos diferentes
+aliases diferentes
+coordenadas diferentes
+```
+
+Exemplo conceitual:
+
+```python
+first.id == second.id
+```
+
+implica:
+
+```python
+first == second
+```
+
+### 18.4.2 Código
+
+O código do país utiliza:
+
+```text
+CountryCode
+```
+
+No contrato atual, `CountryCode` possui exatamente três caracteres.
+
+Exemplos:
+
+```text
+BRA
+ARG
+PRT
+ESP
+```
+
+### 18.4.3 Nome e aliases
+
+O nome principal utiliza:
+
+```text
+Name
+```
+
+Os aliases utilizam:
+
+```text
+Aliases
+```
+
+O nome principal não pode ser repetido como alias.
+
+Exemplo inválido:
+
+```text
+name:
+Brasil
+
+alias:
+BRASIL
+```
+
+Esse conflito gera:
+
+```text
+CountryNameAliasConflictError
+```
+
+A comparação considera:
+
+```text
+normalização Unicode
+remoção de espaços excedentes
+casefold
+```
+
+### 18.4.4 Coordenadas
+
+As coordenadas são opcionais:
+
+```python
+coordinates: Coordinates | None
+```
+
+Quando presentes, representam uma localização geográfica de referência do país.
+
+### 18.4.5 Operações imutáveis
+
+`Country` oferece:
+
+```text
+rename
+change_code
+add_alias
+remove_alias
+update_coordinates
+clear_coordinates
+has_alias
+```
+
+Todas as operações de alteração retornam uma nova instância.
+
+Exemplo:
+
+```python
+updated = country.rename(
+    Name("República Federativa do Brasil")
+)
+```
+
+A instância original permanece inalterada.
+
+---
+
+## 18.5 Region
+
+`Region` representa uma divisão administrativa ou geográfica pertencente a um país.
+
+Exemplos:
+
+```text
+São Paulo
+Minas Gerais
+Catalunha
+Baviera
+Texas
+```
+
+Estrutura:
+
+```text
+Region
+├── id: CanonicalId
+├── country: Country
+├── name: Name
+├── aliases: Aliases
+└── coordinates: Coordinates | None
+```
+
+### 18.5.1 Identidade
+
+A identidade de `Region` é baseada exclusivamente em:
+
+```text
+CanonicalId
+```
+
+Duas regiões com o mesmo identificador são consideradas iguais, mesmo que possuam:
+
+```text
+nomes diferentes
+aliases diferentes
+coordenadas diferentes
+versões diferentes do mesmo Country
+```
+
+### 18.5.2 Vínculo com Country
+
+Toda região deve possuir:
+
+```python
+country: Country
+```
+
+Esse vínculo representa o país ao qual a região pertence.
+
+Exemplo:
+
+```python
+region.country
+```
+
+O método:
+
+```python
+region.belongs_to(country)
+```
+
+verifica se a região pertence ao país informado.
+
+A comparação utiliza a identidade canônica de `Country`.
+
+### 18.5.3 Nome e aliases
+
+O nome principal utiliza:
+
+```text
+Name
+```
+
+Os aliases utilizam:
+
+```text
+Aliases
+```
+
+O nome principal não pode ser repetido como alias.
+
+Exemplo inválido:
+
+```text
+name:
+São Paulo
+
+alias:
+SÃO PAULO
+```
+
+Esse conflito gera:
+
+```text
+RegionNameAliasConflictError
+```
+
+A comparação considera:
+
+```text
+normalização Unicode
+remoção de espaços excedentes
+casefold
+```
+
+### 18.5.4 Coordenadas
+
+As coordenadas são opcionais:
+
+```python
+coordinates: Coordinates | None
+```
+
+Elas podem representar uma localização de referência da região.
+
+### 18.5.5 Operações imutáveis
+
+`Region` oferece:
+
+```text
+rename
+change_country
+add_alias
+remove_alias
+update_coordinates
+clear_coordinates
+has_alias
+belongs_to
+```
+
+Todas as operações de alteração retornam uma nova instância.
+
+Exemplo:
+
+```python
+updated = region.rename(
+    Name("Estado de São Paulo")
+)
+```
+
+A instância original permanece inalterada.
+
+---
+
+## 18.6 Exceções
+
+O módulo geográfico possui a seguinte hierarquia inicial:
+
+```text
+DomainValidationError
+└── GeographyDomainError
+    ├── DuplicateAliasError
+    ├── AliasNotFoundError
+    ├── CountryNameAliasConflictError
+    └── RegionNameAliasConflictError
+```
+
+Responsabilidades:
+
+```text
+GeographyDomainError
+erro-base do domínio geográfico
+
+DuplicateAliasError
+alias duplicado em uma coleção
+
+AliasNotFoundError
+tentativa de remover alias inexistente
+
+CountryNameAliasConflictError
+nome principal de Country repetido como alias
+
+RegionNameAliasConflictError
+nome principal de Region repetido como alias
+```
+
+Consumidores podem capturar todos os erros geográficos com:
+
+```python
+try:
+    ...
+except GeographyDomainError:
+    ...
+```
+
+Ou capturar uma violação específica.
+
+---
+
+## 18.7 Organização Física
+
+O módulo está organizado em:
+
+```text
+domain/geography/
+├── __init__.py
+├── aliases.py
+├── country.py
+├── errors.py
+└── region.py
+```
+
+Responsabilidades:
+
+```text
+aliases.py
+coleção imutável de aliases
+
+country.py
+entidade canônica Country
+
+errors.py
+exceções específicas do domínio geográfico
+
+region.py
+entidade canônica Region
+
+__init__.py
+API pública do módulo
+```
+
+Os testes estão organizados em:
+
+```text
+tests/unit/domain/geography/
+├── __init__.py
+├── test_aliases.py
+├── test_country.py
+├── test_errors.py
+├── test_public_api.py
+└── test_region.py
+```
+
+---
+
+## 18.8 API Pública
+
+Os consumidores deverão utilizar a API pública do pacote:
+
+```python
+from ultrastats_ai.domain.geography import (
+    AliasNotFoundError,
+    Aliases,
+    Country,
+    CountryNameAliasConflictError,
+    DuplicateAliasError,
+    GeographyDomainError,
+    Region,
+    RegionNameAliasConflictError,
+)
+```
+
+Para utilizar apenas uma entidade:
+
+```python
+from ultrastats_ai.domain.geography import Region
+```
+
+Imports diretamente dos módulos internos devem ser evitados fora da implementação do próprio domínio.
+
+Exemplo a evitar:
+
+```python
+from ultrastats_ai.domain.geography.region import Region
+```
+
+A API pública permite reorganizar os arquivos internos sem exigir alterações nos consumidores.
+
+---
+
+## 18.9 Evolução Planejada
+
+A próxima entidade geográfica será:
+
+```text
+City
+```
+
+Posteriormente será implementado:
+
+```text
+Stadium
+```
+
+A hierarquia planejada será:
+
+```text
+Country
+└── Region
+    └── City
+        └── Stadium
+```
+
+As próximas entidades deverão preservar:
+
+```text
+identidade canônica
+imutabilidade
+igualdade por ID
+aliases
+coordenadas opcionais
+API pública estável
+independência de infraestrutura
+```
+
+---
+
+# 19. API Pública
 
 A biblioteca de tipos canônicos disponibiliza uma API pública única para acesso
 aos seus componentes.
@@ -4835,7 +5430,7 @@ permite reorganizações futuras sem impacto nas demais camadas da aplicação.
 
 ---
 
-# 19. Organização Física
+# 20. Organização Física
 
 A organização física da biblioteca reflete a separação conceitual entre as
 diferentes categorias de tipos compartilhados.
@@ -4866,7 +5461,7 @@ A única interface estável é a API pública disponibilizada pelo pacote
 
 ---
 
-# 20. Compatibilidade
+# 21. Compatibilidade
 
 A evolução da biblioteca deverá preservar, sempre que possível, a
 compatibilidade com versões anteriores.
@@ -4886,7 +5481,7 @@ arquitetural clara.
 
 ---
 
-# 21. Convenções para Novos Tipos
+# 22. Convenções para Novos Tipos
 
 Todo novo tipo compartilhado deverá seguir as convenções definidas neste
 documento.
@@ -4894,7 +5489,7 @@ documento.
 Antes da criação de uma nova classe, as seguintes perguntas deverão ser
 respondidas.
 
-## 21.1 O conceito já possui representação?
+## 22.1 O conceito já possui representação?
 
 Caso exista um tipo capaz de representar corretamente o conceito desejado,
 nenhuma nova especialização deverá ser criada.
@@ -4903,7 +5498,7 @@ A reutilização deve sempre ser priorizada.
 
 ---
 
-## 21.2 Existe diferença semântica?
+## 22.2 Existe diferença semântica?
 
 Diferenças apenas organizacionais não justificam novos tipos.
 
@@ -4912,7 +5507,7 @@ agrupamento de objetos.
 
 ---
 
-## 21.3 Existe comportamento próprio?
+## 22.3 Existe comportamento próprio?
 
 Caso o novo conceito compartilhe exatamente as mesmas regras do tipo existente,
 a criação de uma nova especialização provavelmente não será necessária.
@@ -4922,7 +5517,7 @@ comportamentos.
 
 ---
 
-## 21.4 O tipo pertence ao domínio?
+## 22.4 O tipo pertence ao domínio?
 
 Tipos específicos de:
 
@@ -4939,7 +5534,7 @@ Esses componentes deverão permanecer nas camadas de infraestrutura.
 
 ---
 
-## 21.5 O tipo possui nome adequado?
+## 22.5 O tipo possui nome adequado?
 
 Os nomes das classes deverão representar conceitos do domínio.
 
@@ -4961,7 +5556,7 @@ O nome do tipo deve representar o conceito, e nunca sua origem técnica.
 
 ---
 
-## 21.6 A especialização é realmente necessária?
+## 22.6 A especialização é realmente necessária?
 
 Quanto menor e mais coesa for a biblioteca, maior será sua facilidade de
 manutenção.
@@ -4971,7 +5566,7 @@ arquitetural ao domínio.
 
 ---
 
-# 22. Estado Atual da Biblioteca
+# 23. Estado Atual da Biblioteca
 
 No momento da elaboração deste documento, a biblioteca encontra-se organizada
 conforme a estrutura apresentada a seguir.
@@ -5009,7 +5604,7 @@ identificadores, nomes, códigos e demais categorias de Value Objects.
 
 ---
 
-# 23. Considerações Finais
+# 24. Considerações Finais
 
 A biblioteca de tipos canônicos constitui um dos pilares da camada de domínio do
 UltraStats AI.

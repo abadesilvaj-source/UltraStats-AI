@@ -7,7 +7,9 @@ from ultrastats_ai.domain.geography.errors import (
     CountryNameAliasConflictError,
     DuplicateAliasError,
     GeographyDomainError,
+    RegionNameAliasConflictError,
 )
+from ultrastats_ai.domain.geography.region import Region
 
 __all__ = [
     "AliasNotFoundError",
@@ -16,4 +18,6 @@ __all__ = [
     "CountryNameAliasConflictError",
     "DuplicateAliasError",
     "GeographyDomainError",
+    "Region",
+    "RegionNameAliasConflictError",
 ]
