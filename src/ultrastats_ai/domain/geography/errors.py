@@ -21,3 +21,7 @@ class CountryNameAliasConflictError(GeographyDomainError):
 
 class RegionNameAliasConflictError(GeographyDomainError):
     """Erro lançado quando o nome da região é repetido como alias."""
+
+
+class CityNameAliasConflictError(GeographyDomainError):
+    """Erro lançado quando o nome da cidade é repetido como alias."""

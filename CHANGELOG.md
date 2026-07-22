@@ -11,6 +11,12 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added the canonical `City` entity linked to `Region`.
+- Added derived country access through the city region hierarchy.
+- Added immutable city operations for name, region, aliases and coordinates.
+- Added region and country membership checks for cities.
+- Added `CityNameAliasConflictError`.
+- Added unit and public API tests for `City`.
 - Added the canonical `Region` entity linked to `Country`.
 - Added immutable region state transitions for name, country, aliases and coordinates.
 - Added `belongs_to` identity-based country membership validation.
@@ -202,6 +208,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Documented the canonical `City` entity and its geographic relationships.
+- Updated the roadmap to mark G5.5.4 City as completed.
 - Documented the canonical `Region` entity and its public API.
 - Updated the roadmap to mark G5.5.3 Region as completed.
 - Updated the roadmap to mark G5.5.2 Country as completed.

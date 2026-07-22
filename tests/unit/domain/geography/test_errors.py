@@ -2,6 +2,7 @@
 
 from ultrastats_ai.domain.geography.errors import (
     AliasNotFoundError,
+    CityNameAliasConflictError,
     CountryNameAliasConflictError,
     DuplicateAliasError,
     GeographyDomainError,
@@ -41,5 +42,12 @@ def test_country_name_alias_conflict_error_inherits_from_geography_error() -> No
 def test_region_name_alias_conflict_error_inherits_from_geography_error() -> None:
     assert issubclass(
         RegionNameAliasConflictError,
+        GeographyDomainError,
+    )
+
+
+def test_city_name_alias_conflict_error_inherits_from_geography_error() -> None:
+    assert issubclass(
+        CityNameAliasConflictError,
         GeographyDomainError,
     )

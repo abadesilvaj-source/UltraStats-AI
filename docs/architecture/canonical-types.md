@@ -4818,6 +4818,7 @@ No estado atual, encontram-se implementadas:
 ```text
 Country
 Region
+City
 ```
 
 As entidades geográficas utilizam Value Objects compartilhados para representar:
@@ -5231,7 +5232,150 @@ A instância original permanece inalterada.
 
 ---
 
-## 18.6 Exceções
+## 18.6 City
+
+`City` representa uma cidade pertencente a uma região.
+
+Estrutura:
+
+```text
+City
+├── id: CanonicalId
+├── region: Region
+├── name: Name
+├── aliases: Aliases
+└── coordinates: Coordinates | None
+```
+
+### 18.6.1 Identidade
+
+A identidade de `City` é baseada exclusivamente em:
+
+```text
+CanonicalId
+```
+
+Duas instâncias com o mesmo identificador representam a mesma cidade, mesmo quando possuam nomes, aliases, coordenadas ou versões da região diferentes.
+
+### 18.6.2 Vínculo com Region
+
+Toda cidade possui um vínculo obrigatório com:
+
+```python
+region: Region
+```
+
+O método:
+
+```python
+city.belongs_to_region(region)
+```
+
+verifica se a cidade pertence à região informada.
+
+A comparação utiliza a identidade canônica de `Region`.
+
+### 18.6.3 Acesso ao Country
+
+O país não é armazenado novamente em `City`.
+
+Ele é obtido por meio da propriedade:
+
+```python
+city.country
+```
+
+Essa propriedade retorna:
+
+```python
+city.region.country
+```
+
+Isso evita duplicação e mantém a relação geográfica consistente.
+
+O método:
+
+```python
+city.belongs_to_country(country)
+```
+
+verifica se a cidade pertence ao país informado.
+
+### 18.6.4 Nome e aliases
+
+O nome principal utiliza:
+
+```text
+Name
+```
+
+Os aliases utilizam:
+
+```text
+Aliases
+```
+
+O nome principal não pode ser repetido como alias.
+
+Exemplo inválido:
+
+```text
+name:
+Araraquara
+
+alias:
+ARARAQUARA
+```
+
+Esse conflito gera:
+
+```text
+CityNameAliasConflictError
+```
+
+A comparação considera normalização Unicode, espaços normalizados e `casefold`.
+
+### 18.6.5 Coordenadas
+
+As coordenadas são opcionais:
+
+```python
+coordinates: Coordinates | None
+```
+
+Quando presentes, representam a posição geográfica de referência da cidade.
+
+### 18.6.6 Operações imutáveis
+
+`City` oferece:
+
+```text
+rename
+change_region
+add_alias
+remove_alias
+update_coordinates
+clear_coordinates
+has_alias
+belongs_to_region
+belongs_to_country
+```
+
+Todas as alterações retornam uma nova instância.
+
+Exemplo:
+
+```python
+updated = city.rename(
+    Name("Morada do Sol")
+)
+```
+
+A instância original permanece inalterada.
+
+---
+
+## 18.7 Exceções
 
 O módulo geográfico possui a seguinte hierarquia inicial:
 
@@ -5241,7 +5385,8 @@ DomainValidationError
     ├── DuplicateAliasError
     ├── AliasNotFoundError
     ├── CountryNameAliasConflictError
-    └── RegionNameAliasConflictError
+    ├── RegionNameAliasConflictError
+    └── CityNameAliasConflictError
 ```
 
 Responsabilidades:
@@ -5261,6 +5406,9 @@ nome principal de Country repetido como alias
 
 RegionNameAliasConflictError
 nome principal de Region repetido como alias
+
+CityNameAliasConflictError
+nome principal de City repetido como alias
 ```
 
 Consumidores podem capturar todos os erros geográficos com:
@@ -5276,7 +5424,7 @@ Ou capturar uma violação específica.
 
 ---
 
-## 18.7 Organização Física
+## 18.8 Organização Física
 
 O módulo está organizado em:
 
@@ -5284,6 +5432,7 @@ O módulo está organizado em:
 domain/geography/
 ├── __init__.py
 ├── aliases.py
+├── city.py
 ├── country.py
 ├── errors.py
 └── region.py
@@ -5294,6 +5443,9 @@ Responsabilidades:
 ```text
 aliases.py
 coleção imutável de aliases
+
+city.py
+entidade canônica City
 
 country.py
 entidade canônica Country
@@ -5314,6 +5466,7 @@ Os testes estão organizados em:
 tests/unit/domain/geography/
 ├── __init__.py
 ├── test_aliases.py
+├── test_city.py
 ├── test_country.py
 ├── test_errors.py
 ├── test_public_api.py
@@ -5322,7 +5475,7 @@ tests/unit/domain/geography/
 
 ---
 
-## 18.8 API Pública
+## 18.9 API Pública
 
 Os consumidores deverão utilizar a API pública do pacote:
 
@@ -5330,6 +5483,8 @@ Os consumidores deverão utilizar a API pública do pacote:
 from ultrastats_ai.domain.geography import (
     AliasNotFoundError,
     Aliases,
+    City,
+    CityNameAliasConflictError,
     Country,
     CountryNameAliasConflictError,
     DuplicateAliasError,
@@ -5351,21 +5506,17 @@ Exemplo a evitar:
 
 ```python
 from ultrastats_ai.domain.geography.region import Region
+
+from ultrastats_ai.domain.geography import City
 ```
 
 A API pública permite reorganizar os arquivos internos sem exigir alterações nos consumidores.
 
 ---
 
-## 18.9 Evolução Planejada
+## 18.10 Evolução Planejada
 
 A próxima entidade geográfica será:
-
-```text
-City
-```
-
-Posteriormente será implementado:
 
 ```text
 Stadium
