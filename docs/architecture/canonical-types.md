@@ -5794,8 +5794,176 @@ provider externo
 As implementações concretas deverão ser criadas em uma camada de infraestrutura.
 
 ---
+## 18.10 Identidade Externa Geográfica
 
-## 18.10 Exceções
+As entidades geográficas utilizam identidades canônicas internas.
+
+Identificadores pertencentes a providers externos são representados por:
+
+```text
+ExternalIdentity
+├── ProviderNamespace
+└── ExternalIdentifier
+```
+
+O vínculo entre uma identidade externa e uma entidade geográfica é representado por:
+
+```text
+GeographyExternalIdentityMapping
+├── entity_id: CanonicalId
+├── entity_kind: GeographyEntityKind
+└── external_identity: ExternalIdentity
+```
+
+### 18.10.1 Separação de identidades
+
+A identidade canônica pertence ao UltraStats AI.
+
+A identidade externa pertence ao provider.
+
+Exemplo:
+
+```text
+UltraStats AI:
+CanonicalId
+
+Football-Data:
+ExternalIdentity(
+    provider="football_data",
+    identifier="1234"
+)
+```
+
+Alterações no identificador do provider não devem gerar uma nova identidade canônica.
+
+### 18.10.2 Unicidade externa
+
+Uma mesma `ExternalIdentity` não pode estar vinculada simultaneamente a duas entidades geográficas.
+
+A tentativa de duplicação gera:
+
+```text
+DuplicateExternalIdentityError
+```
+
+### 18.10.3 Coleção imutável
+
+Os mapeamentos são armazenados em:
+
+```text
+GeographyExternalIdentities
+```
+
+Operações disponíveis:
+
+```text
+add
+discard
+contains
+get
+find_by_provider
+find_by_entity
+```
+
+Todas as alterações retornam uma nova coleção.
+
+### 18.10.4 Consultas
+
+Consulta por provider:
+
+```python
+identities.find_by_provider(
+    ProviderNamespace("football_data")
+)
+```
+
+Consulta por entidade:
+
+```python
+identities.find_by_entity(
+    city.id,
+    GeographyEntityKind.CITY,
+)
+```
+
+---
+
+## 18.11 Reconstrução Geográfica
+
+A reconstrução restaura entidades previamente persistidas sem gerar novas identidades.
+
+Tipos disponíveis:
+
+```text
+CountryReconstruction
+RegionReconstruction
+CityReconstruction
+StadiumReconstruction
+```
+
+### 18.11.1 Objetivo
+
+Os estados de reconstrução preservam:
+
+```text
+identidade canônica
+relacionamentos geográficos
+nome
+código, quando aplicável
+aliases
+coordenadas
+```
+
+### 18.11.2 Captura de estado
+
+O estado pode ser capturado a partir de uma entidade existente:
+
+```python
+state = CityReconstruction.from_entity(city)
+```
+
+### 18.11.3 Restauração
+
+A entidade pode ser restaurada por:
+
+```python
+restored = state.restore()
+```
+
+A restauração:
+
+```text
+não gera um novo ID
+não altera o ID existente
+não acessa o banco de dados
+não depende de ORM
+não depende de provider
+reexecuta as invariantes da entidade
+```
+
+### 18.11.4 Relações geográficas
+
+`RegionReconstruction` recebe um `Country` já reconstruído.
+
+`CityReconstruction` recebe uma `Region` já reconstruída.
+
+`StadiumReconstruction` recebe uma `City` já reconstruída.
+
+A ordem esperada de reconstrução é:
+
+```text
+Country
+    ↓
+Region
+    ↓
+City
+    ↓
+Stadium
+```
+
+---
+
+## 18.12 Exceções
 
 O módulo geográfico possui a seguinte hierarquia inicial:
 
@@ -5808,9 +5976,12 @@ DomainValidationError
     ├── RegionNameAliasConflictError
     ├── CityNameAliasConflictError
     ├── StadiumNameAliasConflictError
-    └── GeographyHistoryError
-        ├── DuplicateHistoryFieldError
-        └── EmptyHistoryChangesError
+    ├── GeographyHistoryError
+    │   ├── DuplicateHistoryFieldError
+    │   └── EmptyHistoryChangesError
+    └── GeographyExternalIdentityError
+        ├── DuplicateExternalIdentityError
+        └── ExternalIdentityNotFoundError
 ```
 
 Responsabilidades:
@@ -5845,6 +6016,15 @@ campo repetido na mesma entrada de histórico
 
 EmptyHistoryChangesError
 atualização geográfica sem alterações
+
+GeographyExternalIdentityError
+erro-base das identidades externas geográficas
+
+DuplicateExternalIdentityError
+identidade externa já vinculada
+
+ExternalIdentityNotFoundError
+identidade externa não localizada
 ```
 
 Consumidores podem capturar todos os erros geográficos com:
@@ -5860,7 +6040,7 @@ Ou capturar uma violação específica.
 
 ---
 
-## 18.11 Organização Física
+## 18.13 Organização Física
 
 O módulo está organizado em:
 
@@ -5871,7 +6051,9 @@ domain/geography/
 ├── city.py
 ├── country.py
 ├── errors.py
+├── external_identity.py
 ├── history.py
+├── reconstruction.py
 ├── region.py
 ├── repositories.py
 └── stadium.py
@@ -5892,8 +6074,14 @@ entidade canônica Country
 errors.py
 exceções específicas do domínio geográfico
 
+external_identity.py
+mapeamentos de identidades externas geográficas
+
 history.py
 objetos imutáveis do histórico geográfico
+
+reconstruction.py
+estados de reconstrução das entidades geográficas
 
 region.py
 entidade canônica Region
@@ -5914,8 +6102,10 @@ tests/unit/domain/geography/
 ├── test_city.py
 ├── test_country.py
 ├── test_errors.py
+├── test_external_identity.py
 ├── test_history.py
 ├── test_public_api.py
+├── test_reconstruction.py
 ├── test_region.py
 ├── test_repositories.py
 └── test_stadium.py
@@ -5923,7 +6113,7 @@ tests/unit/domain/geography/
 
 ---
 
-## 18.12 API Pública
+## 18.14 API Pública
 
 Os consumidores deverão utilizar a API pública do pacote:
 
@@ -5933,25 +6123,34 @@ from ultrastats_ai.domain.geography import (
     Aliases,
     City,
     CityNameAliasConflictError,
+    CityReconstruction,
     CityRepository,
     Country,
     CountryNameAliasConflictError,
+    CountryReconstruction,
     CountryRepository,
     DuplicateAliasError,
+    DuplicateExternalIdentityError,
     DuplicateHistoryFieldError,
     EmptyHistoryChangesError,
+    ExternalIdentityNotFoundError,
     GeographyChangeType,
     GeographyDomainError,
     GeographyEntityKind,
+    GeographyExternalIdentities,
+    GeographyExternalIdentityError,
+    GeographyExternalIdentityMapping,
     GeographyFieldChange,
     GeographyHistoryEntry,
     GeographyHistoryError,
     GeographyHistoryRepository,
     Region,
     RegionNameAliasConflictError,
+    RegionReconstruction,
     RegionRepository,
     Stadium,
     StadiumNameAliasConflictError,
+    StadiumReconstruction,
     StadiumRepository,
 )
 ```
@@ -5976,13 +6175,25 @@ from ultrastats_ai.domain.geography import Stadium
 from ultrastats_ai.domain.geography import GeographyHistoryEntry
 
 from ultrastats_ai.domain.geography import CountryRepository
+
+from ultrastats_ai.domain.geography import (
+    GeographyExternalIdentities,
+    GeographyExternalIdentityMapping,
+)
+
+from ultrastats_ai.domain.geography import (
+    CityReconstruction,
+    CountryReconstruction,
+    RegionReconstruction,
+    StadiumReconstruction,
+)
 ```
 
 A API pública permite reorganizar os arquivos internos sem exigir alterações nos consumidores.
 
 ---
 
-## 18.13 Evolução Planejada
+## 18.15 Evolução Planejada
 
 As entidades geográficas canônicas iniciais estão implementadas:
 
@@ -5993,14 +6204,25 @@ City
 Stadium
 ```
 
-As próximas etapas deverão acrescentar:
+A base inicial do domínio Geography e Venue está concluída.
 
-implementações concretas dos repositórios
-mapeadores de infraestrutura
-modelos de persistência
-migrações de banco de dados
-testes de integração com PostgreSQL
-reconstrução completa das entidades
+Foram implementados:
+
+entidades canônicas
+aliases
+localização
+histórico
+contratos de persistência
+identidades externas
+reconstrução
+API pública
+testes unitários
+
+Implementações concretas de banco de dados serão realizadas nas fases:
+
+G5.11 — Repositories e Unit of Work
+G5.12 — Modelos SQLAlchemy e Mapeamentos
+G5.13 — Migrations e Constraints
 ```
 
 A hierarquia planejada será:

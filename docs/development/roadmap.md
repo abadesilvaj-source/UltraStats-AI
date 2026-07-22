@@ -1578,7 +1578,7 @@ Escopo:
 Status:
 
 ```text
-EM ANDAMENTO
+CONCLUÍDO
 ```
 
 #### G5.5.1 — Fundação do domínio geográfico
@@ -1870,12 +1870,79 @@ geography/
 └── stadium.py
 ```
 
-Próxima parte:
+Etapa seguinte concluída:
 
 ```text
 G5.5.7 — Identidade Externa e Reconstrução Geográfica
 ```
 
+#### G5.5.7 — Identidade Externa e Reconstrução Geográfica
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- [x] mapeamento `GeographyExternalIdentityMapping`;
+- [x] vínculo entre identidade externa e identidade canônica;
+- [x] identificação do tipo de entidade geográfica;
+- [x] acesso ao provider do mapeamento;
+- [x] acesso à chave externa;
+- [x] verificação de pertencimento à entidade;
+- [x] verificação de pertencimento ao provider;
+- [x] coleção imutável `GeographyExternalIdentities`;
+- [x] prevenção de identidades externas duplicadas;
+- [x] inclusão imutável;
+- [x] remoção imutável;
+- [x] consulta por identidade externa;
+- [x] consulta por provider;
+- [x] consulta por entidade canônica;
+- [x] estado `CountryReconstruction`;
+- [x] estado `RegionReconstruction`;
+- [x] estado `CityReconstruction`;
+- [x] estado `StadiumReconstruction`;
+- [x] captura de estado por `from_entity`;
+- [x] reconstrução por `restore`;
+- [x] preservação da identidade canônica;
+- [x] preservação dos relacionamentos;
+- [x] preservação dos aliases;
+- [x] preservação das coordenadas;
+- [x] independência de ORM;
+- [x] independência de banco de dados;
+- [x] independência de providers concretos;
+- [x] API pública;
+- [x] testes unitários;
+- [x] testes de imutabilidade;
+- [x] testes de reconstrução;
+- [x] testes de identidades externas;
+- [x] testes das exceções;
+- [x] testes da API pública;
+- [x] documentação arquitetural;
+- [x] execução da suíte completa.
+
+Estrutura resultante:
+
+```text
+geography/
+├── __init__.py
+├── aliases.py
+├── city.py
+├── country.py
+├── errors.py
+├── external_identity.py
+├── history.py
+├── reconstruction.py
+├── region.py
+├── repositories.py
+└── stadium.py
+```
+
+Próxima fase:
+
+```text
+G5.6 — Competition
+```
 ---
 
 ### G5.6 — Competition
@@ -1907,7 +1974,7 @@ Escopo:
 Status:
 
 ```text
-PLANEJADO
+PRÓXIMO
 ```
 
 ---
@@ -2622,21 +2689,23 @@ O desenvolvimento deverá seguir estes princípios:
 ---
 
 ## 19. Status atual
+
 ```text
 Fase principal atual:
 G5 — Domínio Canônico
 
-Subfase atual:
-G5.3.2.3.2 — CountryCode
+Última subfase concluída:
+G5.5 — Geography e Venue
 
 Última etapa concluída:
-G5.3.2.3.1 — CodeValue
+G5.5.7 — Identidade Externa e Reconstrução Geográfica
 
-Objetivo atual:
-Definir e implementar o código canônico de países, incluindo a política de
-compatibilidade com padrões ISO.
+Próxima subfase:
+G5.6 — Competition
 
-Próxima etapa: G5.3.3 — Tipos Numéricos
+Próximo objetivo:
+Implementar as entidades canônicas de competição, temporadas, fases, rodadas e
+confrontos sem acoplamento aos formatos específicos dos providers.
 ```
 ---
 
@@ -2683,8 +2752,17 @@ entregas obrigatórias de documentação, revisão ou validação associadas a e
 ✔ G4 concluído
 ◉ G5 em andamento
 
-Etapa atual:
-G5.3.2.3 — Códigos Canônicos
+Subfases concluídas da G5:
+
+✔ G5.1 — Estrutura dos Pacotes do Domínio
+✔ G5.2 — Base Compartilhada do Domínio
+✔ G5.3 — Biblioteca de Value Objects
+✔ G5.4 — Enums e Estados do Domínio
+✔ G5.5 — Geography e Venue
+
+Próxima subfase:
+
+G5.6 — Competition
 
 A G4 representa o congelamento da arquitetura do UltraStats AI.
 

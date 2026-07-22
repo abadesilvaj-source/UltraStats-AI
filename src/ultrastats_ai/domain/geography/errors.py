@@ -41,3 +41,19 @@ class DuplicateHistoryFieldError(GeographyHistoryError):
 
 class EmptyHistoryChangesError(GeographyHistoryError):
     """Erro lançado quando uma atualização não possui alterações."""
+
+
+class GeographyExternalIdentityError(GeographyDomainError):
+    """Erro-base para identidades externas geográficas."""
+
+
+class DuplicateExternalIdentityError(
+    GeographyExternalIdentityError
+):
+    """Erro lançado quando uma identidade externa já está vinculada."""
+
+
+class ExternalIdentityNotFoundError(
+    GeographyExternalIdentityError
+):
+    """Erro lançado quando uma identidade externa não é encontrada."""

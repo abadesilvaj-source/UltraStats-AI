@@ -11,6 +11,13 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added `GeographyExternalIdentityMapping` for geographic provider mappings.
+- Added the immutable `GeographyExternalIdentities` collection.
+- Added duplicate and missing external identity errors.
+- Added provider and canonical entity queries for geographic external identities.
+- Added reconstruction states for countries, regions, cities and stadiums.
+- Added entity state capture and identity-preserving restoration.
+- Added unit tests for geographic external identities and reconstruction.
 - Added canonical geographic history types.
 - Added `GeographyEntityKind` and `GeographyChangeType`.
 - Added immutable `GeographyFieldChange` and `GeographyHistoryEntry`.
@@ -220,6 +227,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Documented geographic external identity mappings and reconstruction.
+- Marked G5.5.7 as completed.
+- Marked G5.5 Geography and Venue as completed.
+- Updated G5.6 Competition as the next planned subphase.
+- Corrected the global roadmap status to reflect the current project stage.
 - Documented geographic history and repository contracts.
 - Updated the roadmap to mark G5.5.6 as completed.
 - Documented the canonical `Stadium` entity and its geographic hierarchy.

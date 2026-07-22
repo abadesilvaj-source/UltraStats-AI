@@ -5,9 +5,12 @@ from ultrastats_ai.domain.geography.errors import (
     CityNameAliasConflictError,
     CountryNameAliasConflictError,
     DuplicateAliasError,
+    DuplicateExternalIdentityError,
     DuplicateHistoryFieldError,
     EmptyHistoryChangesError,
+    ExternalIdentityNotFoundError,
     GeographyDomainError,
+    GeographyExternalIdentityError,
     GeographyHistoryError,
     RegionNameAliasConflictError,
     StadiumNameAliasConflictError,
@@ -82,4 +85,23 @@ def test_empty_history_changes_error_inherits_from_history_error() -> None:
     assert issubclass(
         EmptyHistoryChangesError,
         GeographyHistoryError,
+    )
+
+def test_geography_external_identity_error_inherits_from_geography_error() -> None:
+    assert issubclass(
+        GeographyExternalIdentityError,
+        GeographyDomainError,
+    )
+
+
+def test_duplicate_external_identity_error_inherits_from_external_identity_error() -> None:
+    assert issubclass(
+        DuplicateExternalIdentityError,
+        GeographyExternalIdentityError,
+    )
+
+def test_external_identity_not_found_error_inherits_from_external_identity_error() -> None:
+    assert issubclass(
+        ExternalIdentityNotFoundError,
+        GeographyExternalIdentityError,
     )
