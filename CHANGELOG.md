@@ -11,6 +11,25 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- contexto canônico `domain.competition`;
+- entidade `Competition`;
+- entidade `Season`;
+- entidade `Stage`;
+- entidade `Round`;
+- agregado `Tie`;
+- entidade interna `TieMatchReference`;
+- coleção imutável de aliases do contexto competitivo;
+- regras de vigência temporal para temporadas, fases e rodadas;
+- ordenação de fases, rodadas e partidas de confrontos;
+- validação da hierarquia entre `Competition`, `Season`, `Stage` e `Round`;
+- transições controladas de `SeasonStatus`;
+- validação de identidade e sequência das partidas de um `Tie`;
+- histórico imutável do contexto competitivo;
+- estados de reconstrução das entidades competitivas;
+- contratos de persistência do contexto de competições;
+- API pública de `ultrastats_ai.domain.competition`;
+- testes unitários da sprint G5.6;
+- documentação arquitetural `docs/architecture/competition-domain.md`.
 - Added `GeographyExternalIdentityMapping` for geographic provider mappings.
 - Added the immutable `GeographyExternalIdentities` collection.
 - Added duplicate and missing external identity errors.
@@ -197,6 +216,15 @@ acompanhar a evolução oficial do roadmap.
 
 ### Changed
 
+### Changed
+
+- Centralizada a configuração do pytest no arquivo `pyproject.toml`.
+- Migradas as configurações `testpaths`, `pythonpath`, `python_files` e `python_functions`.
+- Adotada a pasta `src` como raiz de importação do pacote `ultrastats_ai`.
+- Configurada cobertura de linhas e branches pelo Coverage.py.
+- Definida cobertura mínima obrigatória de 100%.
+- Configurado relatório de cobertura HTML em `htmlcov`.
+- Removido o arquivo legado `pytest.ini`.
 - códigos canônicos internos passaram a utilizar normalização em letras maiúsculas e uma política restrita de caracteres;
 - tipos como clube, federação, associação e empresa passaram a ser tratados separadamente do nome da organização;
 - papéis como jogador, treinador e árbitro passaram a ser tratados como conceitos separados do nome da pessoa;
