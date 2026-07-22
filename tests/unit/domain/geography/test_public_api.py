@@ -11,6 +11,8 @@ from ultrastats_ai.domain.geography import (
     GeographyDomainError,
     Region,
     RegionNameAliasConflictError,
+    Stadium,
+    StadiumNameAliasConflictError,
 )
 from ultrastats_ai.domain.geography import errors as geography_errors
 from ultrastats_ai.domain.geography.aliases import (
@@ -25,6 +27,9 @@ from ultrastats_ai.domain.geography.country import (
 from ultrastats_ai.domain.geography.region import (
     Region as InternalRegion,
 )
+from ultrastats_ai.domain.geography.stadium import (
+    Stadium as InternalStadium,
+)
 
 
 def test_geography_types_are_exported_by_public_api() -> None:
@@ -32,6 +37,7 @@ def test_geography_types_are_exported_by_public_api() -> None:
     assert City is InternalCity
     assert Country is InternalCountry
     assert Region is InternalRegion
+    assert Stadium is InternalStadium
 
     assert (
         AliasNotFoundError
@@ -61,4 +67,9 @@ def test_geography_types_are_exported_by_public_api() -> None:
     assert (
         RegionNameAliasConflictError
         is geography_errors.RegionNameAliasConflictError
+    )
+
+    assert (
+        StadiumNameAliasConflictError
+        is geography_errors.StadiumNameAliasConflictError
     )

@@ -1758,12 +1758,70 @@ geography/
 └── region.py
 ```
 
-Próxima parte:
+Etapa seguinte concluída:
 
 ```text
 G5.5.5 — Stadium
 ```
+
+#### G5.5.5 — Stadium
+
+```text
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- [x] entidade canônica `Stadium`;
+- [x] identidade baseada em `CanonicalId`;
+- [x] vínculo obrigatório com `City`;
+- [x] acesso derivado à `Region`;
+- [x] acesso derivado ao `Country`;
+- [x] nome principal baseado em `Name`;
+- [x] aliases baseados em `Aliases`;
+- [x] coordenadas opcionais;
+- [x] validação de tipos;
+- [x] prevenção de conflito entre nome e alias;
+- [x] alteração imutável de nome;
+- [x] alteração imutável de cidade;
+- [x] inclusão imutável de alias;
+- [x] remoção imutável de alias;
+- [x] atualização imutável de coordenadas;
+- [x] remoção de coordenadas;
+- [x] verificação de pertencimento à cidade;
+- [x] verificação de pertencimento à região;
+- [x] verificação de pertencimento ao país;
+- [x] igualdade por identidade canônica;
+- [x] hash por identidade canônica;
+- [x] API pública;
+- [x] testes unitários;
+- [x] testes de imutabilidade;
+- [x] testes das relações geográficas;
+- [x] testes da API pública;
+- [x] documentação arquitetural;
+- [x] execução da suíte completa.
+
+Estrutura resultante:
+
+```text
+geography/
+├── __init__.py
+├── aliases.py
+├── city.py
+├── country.py
+├── errors.py
+├── region.py
+└── stadium.py
+```
+
+Próxima parte:
+
+```text
+G5.5.6 — Histórico e Persistência Geográfica
+```
+
 ---
+
 ### G5.6 — Competition
 
 Entidades previstas:

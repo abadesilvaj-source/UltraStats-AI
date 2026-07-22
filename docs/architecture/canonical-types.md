@@ -4819,6 +4819,7 @@ No estado atual, encontram-se implementadas:
 Country
 Region
 City
+Stadium
 ```
 
 As entidades geográficas utilizam Value Objects compartilhados para representar:
@@ -5375,7 +5376,188 @@ A instância original permanece inalterada.
 
 ---
 
-## 18.7 Exceções
+## 18.7 Stadium
+
+`Stadium` representa um estádio ou local esportivo pertencente a uma cidade.
+
+Estrutura:
+
+```text
+Stadium
+├── id: CanonicalId
+├── city: City
+├── name: Name
+├── aliases: Aliases
+└── coordinates: Coordinates | None
+```
+
+### 18.7.1 Identidade
+
+A identidade de `Stadium` é baseada exclusivamente em:
+
+```text
+CanonicalId
+```
+
+Duas instâncias com o mesmo identificador representam o mesmo estádio, mesmo quando possuam:
+
+```text
+nomes diferentes
+aliases diferentes
+coordenadas diferentes
+versões diferentes da mesma cidade
+```
+
+A igualdade e o hash utilizam somente a identidade canônica.
+
+### 18.7.2 Vínculo com City
+
+Todo estádio possui vínculo obrigatório com:
+
+```python
+city: City
+```
+
+O método:
+
+```python
+stadium.belongs_to_city(city)
+```
+
+verifica se o estádio pertence à cidade informada.
+
+A comparação utiliza a identidade canônica de `City`.
+
+### 18.7.3 Acesso à Region
+
+A região não é armazenada novamente em `Stadium`.
+
+Ela é obtida pela propriedade:
+
+```python
+stadium.region
+```
+
+Essa propriedade retorna:
+
+```python
+stadium.city.region
+```
+
+O método:
+
+```python
+stadium.belongs_to_region(region)
+```
+
+verifica o pertencimento do estádio à região.
+
+### 18.7.4 Acesso ao Country
+
+O país também é derivado da hierarquia geográfica.
+
+A propriedade:
+
+```python
+stadium.country
+```
+
+retorna:
+
+```python
+stadium.city.country
+```
+
+O método:
+
+```python
+stadium.belongs_to_country(country)
+```
+
+verifica o pertencimento do estádio ao país informado.
+
+### 18.7.5 Nome e aliases
+
+O nome principal utiliza:
+
+```text
+Name
+```
+
+Os aliases utilizam:
+
+```text
+Aliases
+```
+
+O nome principal não pode ser repetido como alias.
+
+Exemplo inválido:
+
+```text
+name:
+Allianz Parque
+
+alias:
+ALLIANZ PARQUE
+```
+
+Esse conflito gera:
+
+```text
+StadiumNameAliasConflictError
+```
+
+A comparação considera:
+
+```text
+normalização Unicode
+normalização de espaços
+casefold
+```
+
+### 18.7.6 Coordenadas
+
+As coordenadas são opcionais:
+
+```python
+coordinates: Coordinates | None
+```
+
+Quando presentes, devem representar a localização geográfica de referência do estádio.
+
+### 18.7.7 Operações imutáveis
+
+`Stadium` oferece:
+
+```text
+rename
+change_city
+add_alias
+remove_alias
+update_coordinates
+clear_coordinates
+has_alias
+belongs_to_city
+belongs_to_region
+belongs_to_country
+```
+
+Todas as alterações retornam uma nova instância.
+
+Exemplo:
+
+```python
+updated = stadium.rename(
+    Name("Arena Palmeiras")
+)
+```
+
+A instância original permanece inalterada.
+
+---
+
+## 18.8 Exceções
 
 O módulo geográfico possui a seguinte hierarquia inicial:
 
@@ -5386,7 +5568,8 @@ DomainValidationError
     ├── AliasNotFoundError
     ├── CountryNameAliasConflictError
     ├── RegionNameAliasConflictError
-    └── CityNameAliasConflictError
+    ├── CityNameAliasConflictError
+    └── StadiumNameAliasConflictError
 ```
 
 Responsabilidades:
@@ -5409,6 +5592,9 @@ nome principal de Region repetido como alias
 
 CityNameAliasConflictError
 nome principal de City repetido como alias
+
+StadiumNameAliasConflictError
+nome principal de Stadium repetido como alias
 ```
 
 Consumidores podem capturar todos os erros geográficos com:
@@ -5424,7 +5610,7 @@ Ou capturar uma violação específica.
 
 ---
 
-## 18.8 Organização Física
+## 18.9 Organização Física
 
 O módulo está organizado em:
 
@@ -5435,7 +5621,8 @@ domain/geography/
 ├── city.py
 ├── country.py
 ├── errors.py
-└── region.py
+├── region.py
+└── stadium.py
 ```
 
 Responsabilidades:
@@ -5470,12 +5657,13 @@ tests/unit/domain/geography/
 ├── test_country.py
 ├── test_errors.py
 ├── test_public_api.py
-└── test_region.py
+├── test_region.py
+└── test_stadium.py
 ```
 
 ---
 
-## 18.9 API Pública
+## 18.10 API Pública
 
 Os consumidores deverão utilizar a API pública do pacote:
 
@@ -5490,7 +5678,20 @@ from ultrastats_ai.domain.geography import (
     DuplicateAliasError,
     GeographyDomainError,
     Region,
+    RegionNameAliasConflictError,from ultrastats_ai.domain.geography import (
+    AliasNotFoundError,
+    Aliases,
+    City,
+    CityNameAliasConflictError,
+    Country,
+    CountryNameAliasConflictError,
+    DuplicateAliasError,
+    GeographyDomainError,
+    Region,
     RegionNameAliasConflictError,
+    Stadium,
+    StadiumNameAliasConflictError,
+)
 )
 ```
 
@@ -5508,18 +5709,33 @@ Exemplo a evitar:
 from ultrastats_ai.domain.geography.region import Region
 
 from ultrastats_ai.domain.geography import City
+
+from ultrastats_ai.domain.geography import Stadium
 ```
 
 A API pública permite reorganizar os arquivos internos sem exigir alterações nos consumidores.
 
 ---
 
-## 18.10 Evolução Planejada
+## 18.11 Evolução Planejada
 
-A próxima entidade geográfica será:
+As entidades geográficas canônicas iniciais estão implementadas:
 
 ```text
+Country
+Region
+City
 Stadium
+```
+
+As próximas etapas deverão acrescentar:
+
+```text
+histórico de alterações
+contratos de persistência
+mapeamento entre entidades e registros persistidos
+repositórios abstratos
+testes de reconstrução
 ```
 
 A hierarquia planejada será:

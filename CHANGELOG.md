@@ -11,6 +11,12 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- Added the canonical `Stadium` entity linked to `City`.
+- Added derived region and country access through the stadium geographic hierarchy.
+- Added immutable stadium operations for name, city, aliases and coordinates.
+- Added city, region and country membership checks for stadiums.
+- Added `StadiumNameAliasConflictError`.
+- Added unit and public API tests for `Stadium`.
 - Added the canonical `City` entity linked to `Region`.
 - Added derived country access through the city region hierarchy.
 - Added immutable city operations for name, region, aliases and coordinates.
@@ -208,6 +214,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- Documented the canonical `Stadium` entity and its geographic hierarchy.
+- Updated the roadmap to mark G5.5.5 Stadium as completed.
 - Documented the canonical `City` entity and its geographic relationships.
 - Updated the roadmap to mark G5.5.4 City as completed.
 - Documented the canonical `Region` entity and its public API.

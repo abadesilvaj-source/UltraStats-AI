@@ -10,8 +10,10 @@ from ultrastats_ai.domain.geography.errors import (
     DuplicateAliasError,
     GeographyDomainError,
     RegionNameAliasConflictError,
+    StadiumNameAliasConflictError,
 )
 from ultrastats_ai.domain.geography.region import Region
+from ultrastats_ai.domain.geography.stadium import Stadium
 
 __all__ = [
     "AliasNotFoundError",
@@ -24,4 +26,6 @@ __all__ = [
     "GeographyDomainError",
     "Region",
     "RegionNameAliasConflictError",
+    "Stadium",
+    "StadiumNameAliasConflictError",
 ]
