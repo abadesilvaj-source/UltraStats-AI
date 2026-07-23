@@ -537,6 +537,7 @@ Status:
 
 ```text
 CONCLUÍDO
+```
 
 ---
 
@@ -1084,7 +1085,9 @@ TextValue
     ├── CountryCode
     ├── CompetitionCode
     └── OrganizationCode
+```
 
+---
 
 ##### G5.3.2.4 — Slugs e Aliases
 
@@ -1947,7 +1950,13 @@ G5.6 — Competition
 
 ### G5.6 — Competition
 
-Entidades previstas:
+Objetivo:
+
+Implementar e consolidar o Bounded Context competitivo do UltraStats AI,
+representando competições, temporadas, fases, rodadas e confrontos sem
+acoplamento aos formatos específicos dos providers.
+
+Entidades implementadas:
 
 ```text
 Competition
@@ -1958,23 +1967,110 @@ Tie
 TieMatchReference
 ```
 
-Escopo:
+Módulos implementados:
 
-- estrutura competitiva;
-- temporadas;
-- fases;
-- rodadas;
-- confrontos;
-- regras de vigência;
-- ordenação;
-- relacionamentos;
-- persistência;
-- testes.
+```text
+domain.competition.aliases
+domain.competition.competition
+domain.competition.errors
+domain.competition.history
+domain.competition.reconstruction
+domain.competition.repositories
+domain.competition.round
+domain.competition.season
+domain.competition.stage
+domain.competition.tie
+domain.competition.tie_match_reference
+```
+
+Escopo concluído:
+
+- [x] estrutura do Bounded Context competitivo;
+- [x] entidade canônica `Competition`;
+- [x] Aggregate Root conceitual `Season`;
+- [x] entidade canônica `Stage`;
+- [x] entidade canônica `Round`;
+- [x] Aggregate Root conceitual `Tie`;
+- [x] entidade interna `TieMatchReference`;
+- [x] aliases competitivos imutáveis;
+- [x] validação de conflitos entre nomes e aliases;
+- [x] regras de vigência temporal;
+- [x] transições controladas de temporada;
+- [x] ordenação de fases, rodadas e partidas;
+- [x] validação da hierarquia competitiva;
+- [x] relacionamento entre competição e temporada;
+- [x] relacionamento entre temporada e fase;
+- [x] relacionamento entre temporada, fase e rodada;
+- [x] relacionamento entre confronto, competição, temporada e fase;
+- [x] prevenção de partidas duplicadas em confrontos;
+- [x] prevenção de sequências duplicadas em confrontos;
+- [x] igualdade baseada em identidade canônica;
+- [x] hash baseado em identidade canônica;
+- [x] imutabilidade das entidades e agregados;
+- [x] histórico imutável do contexto competitivo;
+- [x] estados de reconstrução;
+- [x] contratos de repositório;
+- [x] API pública;
+- [x] independência de ORM;
+- [x] independência de banco de dados;
+- [x] independência de providers concretos;
+- [x] configuração central do pytest no `pyproject.toml`;
+- [x] migração de `testpaths`;
+- [x] migração de `pythonpath`;
+- [x] migração dos padrões de arquivos de teste;
+- [x] migração dos padrões de funções de teste;
+- [x] configuração de cobertura de linhas;
+- [x] configuração de cobertura de branches;
+- [x] configuração do relatório HTML;
+- [x] definição da cobertura mínima obrigatória em 100%;
+- [x] remoção do arquivo legado `pytest.ini`;
+- [x] ampliação da suíte unitária do contexto Competition;
+- [x] testes de validações e caminhos de erro;
+- [x] testes de hierarquia;
+- [x] testes de identidade e hash;
+- [x] testes de imutabilidade;
+- [x] testes de transições de estado;
+- [x] testes de reconstrução;
+- [x] testes de histórico;
+- [x] testes dos contratos de repositório;
+- [x] testes da API pública.
+
+Validação concluída:
+
+- [x] toda a suíte do contexto executada sem falhas;
+- [x] cobertura integral de linhas confirmada;
+- [x] cobertura integral de branches confirmada;
+- [x] configuração carregada pelo `pyproject.toml`;
+- [x] arquivo legado `pytest.ini` removido;
+- [x] relatório HTML gerado em `htmlcov`;
+- [x] relatório JSON gerado em `coverage-competition.json`;
+- [x] ausência de linhas não cobertas;
+- [x] ausência de branches parcialmente cobertos;
+- [x] ausência de alterações nos módulos de produção para alcançar a cobertura.
+
+Resultado final:
+
+```text
+409 testes aprovados
+0 testes falhando
+0 erros
+673 statements cobertos
+228 branches cobertos
+0 linhas ausentes
+0 branches parcialmente cobertos
+100,00% de cobertura de linhas e branches
+```
 
 Status:
 
 ```text
-PRÓXIMO
+CONCLUÍDO
+```
+
+Próxima sprint:
+
+```text
+G5.7 — People e Team
 ```
 
 ---
@@ -2282,24 +2378,36 @@ Etapas concluídas:
 ```text
 G5.1 — Estrutura dos Pacotes do Domínio
 G5.2 — Base Compartilhada do Domínio
-G5.3.1 — Identificadores Canônicos
-G5.3.2.1 — Base TextValue
-G5.3.2.2 — Nomes Canônicos
-G5.3.2.3.1 — CodeValue
+G5.3 — Biblioteca de Value Objects
+G5.4 — Enums e Estados do Domínio
+G5.5 — Geography e Venue
+G5.6 — Competition
 ```
 
 Etapa atual:
 
 ```text
-G5.3.2.3 — Códigos Canônicos
+G5.7 — People e Team
+```
+
+Último resultado validado:
+
+```text
+G5.6 — Competition
+
+409 testes aprovados
+100,00% de cobertura de linhas e branches
+0 linhas ausentes
+0 branches parcialmente cobertos
 ```
 
 Próximo objetivo:
 
 ```text
-Concluir os códigos canônicos semanticamente tipados e consolidar sua API
-pública.
+Implementar as entidades canônicas de pessoas, profissionais, equipes, vínculos
+e inscrições sem acoplamento aos formatos específicos dos providers.
 ```
+
 
 A implementação continuará respeitando os documentos:
 
@@ -2695,18 +2803,26 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Última subfase concluída:
-G5.5 — Geography e Venue
-
-Última etapa concluída:
-G5.5.7 — Identidade Externa e Reconstrução Geográfica
-
-Próxima subfase:
 G5.6 — Competition
 
+Última entrega concluída:
+Implementação, testes, configuração de cobertura e consolidação documental do
+Bounded Context Competition.
+
+Resultado da última entrega:
+409 testes aprovados
+100,00% de cobertura de linhas e branches
+0 linhas ausentes
+0 branches parcialmente cobertos
+
+Subfase atual:
+G5.7 — People e Team
+
 Próximo objetivo:
-Implementar as entidades canônicas de competição, temporadas, fases, rodadas e
-confrontos sem acoplamento aos formatos específicos dos providers.
+Implementar pessoas, jogadores, treinadores, árbitros, equipes, vínculos e
+inscrições sem acoplamento aos formatos específicos dos providers.
 ```
+
 ---
 
 ## 20. Atualização deste documento
@@ -2759,10 +2875,12 @@ Subfases concluídas da G5:
 ✔ G5.3 — Biblioteca de Value Objects
 ✔ G5.4 — Enums e Estados do Domínio
 ✔ G5.5 — Geography e Venue
+✔ G5.6 — Competition
 
 Próxima subfase:
 
-G5.6 — Competition
+G5.7 — People e Team
+```
 
 A G4 representa o congelamento da arquitetura do UltraStats AI.
 

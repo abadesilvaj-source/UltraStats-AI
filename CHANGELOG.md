@@ -12,24 +12,28 @@ acompanhar a evolução oficial do roadmap.
 ### Added
 
 - contexto canônico `domain.competition`;
-- entidade `Competition`;
-- entidade `Season`;
-- entidade `Stage`;
-- entidade `Round`;
-- agregado `Tie`;
+- entidade canônica `Competition`;
+- Aggregate Root conceitual `Season`;
+- entidade canônica `Stage`;
+- entidade canônica `Round`;
+- Aggregate Root conceitual `Tie`;
 - entidade interna `TieMatchReference`;
-- coleção imutável de aliases do contexto competitivo;
+- coleção imutável `CompetitionAliases`;
+- erros específicos do contexto competitivo;
 - regras de vigência temporal para temporadas, fases e rodadas;
-- ordenação de fases, rodadas e partidas de confrontos;
-- validação da hierarquia entre `Competition`, `Season`, `Stage` e `Round`;
 - transições controladas de `SeasonStatus`;
-- validação de identidade e sequência das partidas de um `Tie`;
+- ordenação de fases, rodadas e partidas de confrontos;
+- validação da hierarquia entre `Competition`, `Season`, `Stage`, `Round` e `Tie`;
+- validação da identidade das partidas de um confronto;
+- validação da sequência das partidas de um confronto;
 - histórico imutável do contexto competitivo;
-- estados de reconstrução das entidades competitivas;
-- contratos de persistência do contexto de competições;
+- estados de reconstrução para `Competition`, `Season`, `Stage`, `Round` e `Tie`;
+- contratos de persistência do contexto competitivo;
 - API pública de `ultrastats_ai.domain.competition`;
-- testes unitários da sprint G5.6;
-- documentação arquitetural `docs/architecture/competition-domain.md`.
+- testes unitários de aliases, entidades, agregados, histórico, reconstrução, repositórios e API pública;
+- testes de validações, hierarquia, identidade, hash, imutabilidade e transições;
+- cobertura integral dos módulos do contexto competitivo;
+- documentação arquitetural `docs/architecture/competition-domain.md`;
 - Added `GeographyExternalIdentityMapping` for geographic provider mappings.
 - Added the immutable `GeographyExternalIdentities` collection.
 - Added duplicate and missing external identity errors.
@@ -214,17 +218,25 @@ acompanhar a evolução oficial do roadmap.
 - contrato base de `UnitOfWork`;
 - testes unitários da base compartilhada.
 
-### Changed
 
 ### Changed
 
+- centralizada a configuração do pytest no arquivo `pyproject.toml`;
+- migradas as configurações `testpaths`, `pythonpath`, `python_files` e `python_functions`;
+- adotada a pasta `src` como raiz de importação do pacote `ultrastats_ai`;
+- habilitada a medição de cobertura de linhas e branches;
+- configurado o relatório de cobertura HTML em `htmlcov`;
+- configurado o relatório JSON em `coverage-competition.json`;
+- definida cobertura mínima obrigatória de 100%;
+- ampliada a suíte unitária do contexto `domain.competition`;
+- consolidadas em uma única sprint G5.6 a implementação, a configuração de testes e a validação do contexto competitivo;
+- atualizado o fluxo oficial do roadmap para iniciar a G5.7 após a conclusão da G5.6;
 - Centralizada a configuração do pytest no arquivo `pyproject.toml`.
 - Migradas as configurações `testpaths`, `pythonpath`, `python_files` e `python_functions`.
 - Adotada a pasta `src` como raiz de importação do pacote `ultrastats_ai`.
 - Configurada cobertura de linhas e branches pelo Coverage.py.
 - Definida cobertura mínima obrigatória de 100%.
 - Configurado relatório de cobertura HTML em `htmlcov`.
-- Removido o arquivo legado `pytest.ini`.
 - códigos canônicos internos passaram a utilizar normalização em letras maiúsculas e uma política restrita de caracteres;
 - tipos como clube, federação, associação e empresa passaram a ser tratados separadamente do nome da organização;
 - papéis como jogador, treinador e árbitro passaram a ser tratados como conceitos separados do nome da pessoa;
@@ -245,8 +257,19 @@ acompanhar a evolução oficial do roadmap.
 - definição da documentação como parte obrigatória das entregas;
 - atualização do README principal para representar a arquitetura atual.
 
+### Removed
+
+- arquivo legado `pytest.ini`, substituído pela configuração centralizada no `pyproject.toml`;
+- subdivisão documental `G5.6.1`, incorporada à sprint consolidada G5.6;
+
 ### Fixed
 
+- duplicação do título `Changed` no changelog;
+- status desatualizado da fase G5 no roadmap;
+- indicação incorreta da G5.5 como última subfase concluída;
+- indicação incorreta da G5.6 como próxima subfase;
+- separação indevida da qualidade de testes em uma sprint `G5.6.1`;
+- blocos de código Markdown não fechados no roadmap;
 - indicação incorreta da G4.A.3 como próxima etapa;
 - inconsistência entre a documentação arquitetural e o roadmap;
 - ausência dos novos documentos no índice da documentação;
@@ -255,6 +278,16 @@ acompanhar a evolução oficial do roadmap.
 
 ### Documentation
 
+- consolidada a documentação da sprint G5.6 em uma única entrega;
+- removida do roadmap a subdivisão `G5.6.1`;
+- documentada a migração definitiva do pytest para o `pyproject.toml`;
+- documentada a ampliação da suíte unitária do contexto Competition;
+- registrada a execução de 409 testes do contexto competitivo;
+- registrada a cobertura de 100,00% das linhas e branches do contexto competitivo;
+- registrados 673 statements e 228 branches integralmente cobertos;
+- registrada a ausência de linhas não cobertas e branches parcialmente cobertos;
+- atualizado o status geral da G5 para refletir a conclusão da G5.6;
+- definida a G5.7 — People e Team como próxima subfase;
 - Documented geographic external identity mappings and reconstruction.
 - Marked G5.5.7 as completed.
 - Marked G5.5 Geography and Venue as completed.
