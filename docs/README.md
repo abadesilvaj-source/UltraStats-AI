@@ -77,6 +77,7 @@ docs/architecture/package-structure.md
 docs/architecture/canonical-types.md
 docs/architecture/people-domain.md
 docs/architecture/team-domain.md
+docs/architecture/match-domain.md
 ```
 
 ### 3.1 Domain Overview
@@ -676,10 +677,10 @@ Documento de acompanhamento atualizado:
 docs/development/roadmap.md
 ```
 
-Próxima atividade documental:
+Atividade documental atual:
 
 ```text
-Documentar a implementação da G5.8 — Match e Tie.
+Evoluir a documentação juntamente com as fatias da G5.8 — Match e Tie.
 ```
 
 ---
@@ -708,6 +709,7 @@ Geography, Competition, People e Team.
 | Agregados e regras | `architecture/domain-aggregates-and-rules.md` |
 | People | `architecture/people-domain.md` |
 | Team | `architecture/team-domain.md` |
+| Match | `architecture/match-domain.md` |
 | Roadmap | `development/roadmap.md` |
 
 ---

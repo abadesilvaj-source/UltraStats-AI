@@ -2185,7 +2185,52 @@ Escopo:
 Status:
 
 ```text
-PLANEJADO
+EM ANDAMENTO
+```
+
+#### G5.8.A — Match Foundation
+
+Entregas concluídas:
+
+- [x] identificador canônico `MatchParticipantId`;
+- [x] enum `MatchType`;
+- [x] enum `MatchParticipantStatus`;
+- [x] entidade interna `MatchParticipant`;
+- [x] Aggregate Root `Match`;
+- [x] referência a competição, temporada, fase e rodada por identidade;
+- [x] exatamente dois participantes por partida;
+- [x] papéis obrigatórios `HOME` e `AWAY`;
+- [x] ownership de participantes pelo Match;
+- [x] suporte a participantes ainda não definidos;
+- [x] prevenção de identidades, equipes, papéis e ordens duplicadas;
+- [x] programação por data esportiva ou timestamp UTC;
+- [x] substituição imutável do estado de participantes;
+- [x] API pública explícita do contexto;
+- [x] documentação arquitetural inicial;
+- [x] cobertura integral de linhas e branches.
+
+Resultado validado:
+
+```text
+2248 testes aprovados
+0 testes falhando
+3774 statements cobertos
+1186 branches cobertos
+0 linhas ausentes
+0 branches parcialmente cobertos
+100,00% de cobertura de linhas e branches
+```
+
+Status:
+
+```text
+CONCLUÍDO
+```
+
+Próxima fatia:
+
+```text
+G5.8.B — Match Lifecycle e Schedule History
 ```
 
 ---

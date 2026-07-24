@@ -173,6 +173,11 @@ class MatchId(EntityId):
 
 
 @dataclass(frozen=True, slots=True)
+class MatchParticipantId(EntityId):
+    """Identificador canônico de participante de partida."""
+
+
+@dataclass(frozen=True, slots=True)
 class TieId(EntityId):
     """Identificador canônico de confronto agregado."""
 

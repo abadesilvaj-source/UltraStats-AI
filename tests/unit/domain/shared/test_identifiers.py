@@ -11,6 +11,7 @@ from ultrastats_ai.domain.shared.identifiers import (
     CompetitionId,
     CountryId,
     MatchId,
+    MatchParticipantId,
     PlayerId,
     PredictionId,
     TeamId,
@@ -37,6 +38,12 @@ def test_new_creates_unique_identifiers() -> None:
 
     assert first != second
     assert first.value != second.value
+
+
+def test_match_participant_identifier_is_canonical() -> None:
+    identifier = MatchParticipantId.new()
+
+    assert isinstance(identifier.value, UUID)
 
 
 def test_from_string_creates_identifier() -> None:

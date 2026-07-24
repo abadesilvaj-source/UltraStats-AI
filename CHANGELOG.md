@@ -11,6 +11,14 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- fundação do contexto canônico `domain.match`;
+- Aggregate Root `Match` e entidade interna `MatchParticipant`;
+- identificador canônico `MatchParticipantId`;
+- enums `MatchType` e `MatchParticipantStatus`;
+- regras de ownership e composição obrigatória de participantes;
+- suporte a participantes definidos e placeholders;
+- programação canônica por data ou timestamp UTC;
+- testes integrais e documentação inicial do Match Context;
 - contextos canônicos `domain.people` e `domain.team`;
 - entidades `Person`, `Player`, `Coach`, `Referee`, `Team`,
   `TeamMembership` e `SquadRegistration`;

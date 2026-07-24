@@ -285,7 +285,7 @@ G5.7 — People e Team
 CONCLUÍDO
 
 G5.8 — Match e Tie
-PRÓXIMA ETAPA
+EM ANDAMENTO
 ```
 
 A arquitetura técnica da G4 está congelada e as etapas G5.1 a G5.7 do domínio
@@ -301,9 +301,10 @@ Após a consolidação da G5.7, será iniciada:
 G5.8 — Match e Tie
 ```
 
-Essa etapa implementará o ciclo de vida canônico das partidas, participantes,
-local, oficiais, escalações, eventos, estatísticas, interrupções, decisões,
-revisões e vínculos com confrontos competitivos.
+A fundação já implementa `Match`, `MatchParticipant`, identidades, enums,
+ownership, agenda e composição obrigatória de mandante e visitante. As próximas
+fatias acrescentarão ciclo de vida, local, oficiais, períodos, escalações,
+eventos, estatísticas, interrupções, decisões e revisões.
 
 ---
 
