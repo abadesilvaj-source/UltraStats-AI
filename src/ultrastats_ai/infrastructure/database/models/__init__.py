@@ -167,6 +167,25 @@ class DataQuarantineRecord(CanonicalBase):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class StatisticalSnapshotRecord(CanonicalBase):
+    __tablename__ = "statistical_snapshots"
+    __table_args__ = (
+        UniqueConstraint("team_id", "reference_at", name="uq_statistical_snapshot"),
+        Index("ix_statistical_snapshot_team", "team_id", "reference_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    team_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    reference_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    sample_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    effective_sample_size: Mapped[str] = mapped_column(String(64), nullable=False)
+    reliability: Mapped[str] = mapped_column(String(64), nullable=False)
+    metrics: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    distributions: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    trends: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    contexts: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+
+
 __all__ = [
     "AggregateRecord",
     "AuditLogRecord",
@@ -178,4 +197,5 @@ __all__ = [
     "DataQuarantineRecord",
     "FusionResultRecord",
     "IdentityDecisionRecord",
+    "StatisticalSnapshotRecord",
 ]
