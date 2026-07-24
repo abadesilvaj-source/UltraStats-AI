@@ -128,6 +128,16 @@ def test_mapping_does_not_belong_to_another_kind() -> None:
     )
 
 
+def test_mapping_does_not_belong_to_another_entity() -> None:
+    mapping = make_mapping()
+
+    assert not mapping.belongs_to(
+        make_entity_id(
+            "00000000-0000-0000-0000-000000001999"
+        )
+    )
+
+
 def test_mapping_belongs_to_returns_false_for_invalid_types() -> None:
     mapping = make_mapping()
 
@@ -205,6 +215,13 @@ def test_collection_rejects_invalid_item() -> None:
     ):
         GeographyExternalIdentities.from_iterable(
             ["invalid"]  # type: ignore[list-item]
+        )
+
+
+def test_collection_constructor_requires_tuple() -> None:
+    with pytest.raises(TypeError, match="tuple"):
+        GeographyExternalIdentities(  # type: ignore[arg-type]
+            [make_mapping()]
         )
 
 
@@ -303,6 +320,31 @@ def test_get_returns_mapping() -> None:
     assert identities.get(
         mapping.external_identity
     ) == mapping
+
+
+def test_contains_returns_false_for_invalid_type() -> None:
+    identities = GeographyExternalIdentities.empty()
+
+    assert not identities.contains(  # type: ignore[arg-type]
+        "invalid"
+    )
+
+
+def test_get_skips_non_matching_mapping_before_match() -> None:
+    first = make_mapping()
+    second = make_mapping(
+        entity_id=make_entity_id(
+            "00000000-0000-0000-0000-000000001002"
+        ),
+        external_identity=make_external_identity(
+            identifier="city-456"
+        ),
+    )
+    identities = GeographyExternalIdentities.from_iterable(
+        [first, second]
+    )
+
+    assert identities.get(second.external_identity) == second
 
 
 def test_get_returns_none_for_unknown_identity() -> None:

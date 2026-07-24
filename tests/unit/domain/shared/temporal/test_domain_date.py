@@ -87,6 +87,13 @@ def test_domain_date_calculates_days_until_another_date() -> None:
     assert end.days_until(start) == -10
 
 
+def test_domain_date_rejects_invalid_days_until_argument() -> None:
+    with pytest.raises(TypeError, match="outro DomainDate"):
+        DomainDate("2026-07-21").days_until(  # type: ignore[arg-type]
+            "2026-07-31"
+        )
+
+
 def test_domain_date_is_immutable() -> None:
     domain_date = DomainDate("2026-07-21")
 

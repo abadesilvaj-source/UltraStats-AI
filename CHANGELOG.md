@@ -11,6 +11,19 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- contextos canônicos `domain.people` e `domain.team`;
+- entidades `Person`, `Player`, `Coach`, `Referee`, `Team`,
+  `TeamMembership` e `SquadRegistration`;
+- aliases imutáveis e erros específicos para pessoas e equipes;
+- enums de perfis, funções, categorias, estados, vínculos e inscrições;
+- histórico e reconstrução do contexto People;
+- Aggregate Root `Team` com controle de membros e inscrições;
+- APIs públicas explícitas para os contextos People e Team;
+- documentação arquitetural `people-domain.md` e `team-domain.md`;
+- testes unitários de entidades, aliases, enums, erros, histórico,
+  reconstrução, invariantes e APIs públicas;
+- cobertura obrigatória integrada ao comando padrão do pytest;
+- testes dos caminhos defensivos compartilhados, geográficos e de Unit of Work;
 - contexto canônico `domain.competition`;
 - entidade canônica `Competition`;
 - Aggregate Root conceitual `Season`;

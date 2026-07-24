@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+import pytest
+
 from ultrastats_ai.domain.shared.aggregate_root import AggregateRoot
 from ultrastats_ai.domain.shared.domain_event import DomainEvent
 
@@ -46,3 +48,17 @@ def test_clear_domain_events_removes_pending_events() -> None:
     aggregate.clear_domain_events()
 
     assert aggregate.domain_events == ()
+
+
+def test_record_event_rejects_non_domain_event() -> None:
+    aggregate = ExampleAggregate(10)
+
+    with pytest.raises(TypeError, match="DomainEvent"):
+        aggregate.record_event("created")  # type: ignore[arg-type]
+
+
+def test_domain_event_exposes_logical_name_and_utc_timestamp() -> None:
+    event = ExampleCreated(aggregate_id=10)
+
+    assert event.event_name == "ExampleCreated"
+    assert event.occurred_at.tzinfo is not None

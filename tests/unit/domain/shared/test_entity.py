@@ -1,5 +1,7 @@
 """Testes da abstração Entity."""
 
+import pytest
+
 from ultrastats_ai.domain.shared.entity import Entity
 
 
@@ -45,3 +47,22 @@ def test_entity_can_be_used_in_set() -> None:
     entities = {first, second}
 
     assert len(entities) == 1
+
+
+def test_entity_rejects_missing_identifier() -> None:
+    with pytest.raises(ValueError, match="não pode ser None"):
+        ExampleEntity(None)  # type: ignore[arg-type]
+
+
+def test_entity_is_equal_to_itself() -> None:
+    entity = ExampleEntity(10)
+
+    assert entity == entity
+
+
+def test_entity_is_not_equal_to_non_entity() -> None:
+    assert ExampleEntity(10) != 10
+
+
+def test_entity_repr_exposes_type_and_identifier() -> None:
+    assert repr(ExampleEntity(10)) == "ExampleEntity(id=10)"

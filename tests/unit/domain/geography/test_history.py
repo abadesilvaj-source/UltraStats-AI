@@ -19,6 +19,11 @@ from ultrastats_ai.domain.shared import (
 )
 
 
+def test_geography_enum_string_values_are_canonical() -> None:
+    assert str(GeographyEntityKind.CITY) == "city"
+    assert str(GeographyChangeType.UPDATED) == "updated"
+
+
 def make_history_id(
     value: str = "00000000-0000-0000-0000-000000100001",
 ) -> CanonicalId:

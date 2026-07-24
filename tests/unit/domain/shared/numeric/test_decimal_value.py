@@ -48,6 +48,11 @@ def test_decimal_value_rejects_boolean() -> None:
         DecimalValue(True)
 
 
+def test_decimal_value_rejects_unsupported_type() -> None:
+    with pytest.raises(TypeError, match="Decimal, int, float ou str"):
+        DecimalValue(object())  # type: ignore[arg-type]
+
+
 def test_decimal_value_is_immutable() -> None:
     decimal_value = DecimalValue("10")
 

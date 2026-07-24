@@ -133,6 +133,13 @@ def test_adjacent_temporal_intervals_do_not_overlap() -> None:
     assert not first.overlaps(second)
 
 
+def test_temporal_interval_rejects_invalid_overlap_argument() -> None:
+    with pytest.raises(TypeError, match="outro TemporalInterval"):
+        create_interval().overlaps(  # type: ignore[arg-type]
+            "2026-07-21"
+        )
+
+
 def test_temporal_interval_is_immutable() -> None:
     interval = create_interval()
 

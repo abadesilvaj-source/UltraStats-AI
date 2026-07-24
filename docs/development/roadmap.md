@@ -2105,7 +2105,35 @@ Escopo:
 Status:
 
 ```text
-PLANEJADO
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- [x] contexto canônico `domain.people`;
+- [x] entidades `Person`, `Player`, `Coach` e `Referee`;
+- [x] aliases, perfis profissionais, estados e histórico de pessoas;
+- [x] reconstrução de pessoas preservando identidade;
+- [x] contexto canônico `domain.team`;
+- [x] Aggregate Root `Team`;
+- [x] entidades `TeamMembership` e `SquadRegistration`;
+- [x] aliases, estados, vigência, vínculos e inscrições;
+- [x] APIs públicas explícitas para People e Team;
+- [x] documentação arquitetural dos dois contextos;
+- [x] portão global de cobertura integrado ao comando padrão do pytest;
+- [x] 100% de cobertura de linhas e branches do domínio canônico;
+- [x] remoção de artefatos de cobertura do versionamento.
+
+Resultado final:
+
+```text
+2182 testes aprovados
+0 testes falhando
+3566 statements cobertos
+1092 branches cobertos
+0 linhas ausentes
+0 branches parcialmente cobertos
+100,00% de cobertura de linhas e branches
 ```
 
 ---
@@ -2382,20 +2410,21 @@ G5.3 — Biblioteca de Value Objects
 G5.4 — Enums e Estados do Domínio
 G5.5 — Geography e Venue
 G5.6 — Competition
+G5.7 — People e Team
 ```
 
 Etapa atual:
 
 ```text
-G5.7 — People e Team
+G5.8 — Match e Tie
 ```
 
 Último resultado validado:
 
 ```text
-G5.6 — Competition
+G5.7 — People e Team
 
-409 testes aprovados
+2182 testes aprovados
 100,00% de cobertura de linhas e branches
 0 linhas ausentes
 0 branches parcialmente cobertos
@@ -2404,8 +2433,8 @@ G5.6 — Competition
 Próximo objetivo:
 
 ```text
-Implementar as entidades canônicas de pessoas, profissionais, equipes, vínculos
-e inscrições sem acoplamento aos formatos específicos dos providers.
+Implementar o ciclo de vida canônico de partidas, participantes, oficiais,
+escalações, eventos, estatísticas, interrupções, decisões e revisões.
 ```
 
 
@@ -2803,24 +2832,24 @@ Fase principal atual:
 G5 — Domínio Canônico
 
 Última subfase concluída:
-G5.6 — Competition
+G5.7 — People e Team
 
 Última entrega concluída:
-Implementação, testes, configuração de cobertura e consolidação documental do
-Bounded Context Competition.
+Implementação, testes e consolidação documental dos Bounded Contexts People e
+Team.
 
 Resultado da última entrega:
-409 testes aprovados
+2182 testes aprovados
 100,00% de cobertura de linhas e branches
 0 linhas ausentes
 0 branches parcialmente cobertos
 
 Subfase atual:
-G5.7 — People e Team
+G5.8 — Match e Tie
 
 Próximo objetivo:
-Implementar pessoas, jogadores, treinadores, árbitros, equipes, vínculos e
-inscrições sem acoplamento aos formatos específicos dos providers.
+Implementar o Match Context sem acoplamento aos formatos específicos dos
+providers.
 ```
 
 ---
@@ -2876,10 +2905,11 @@ Subfases concluídas da G5:
 ✔ G5.4 — Enums e Estados do Domínio
 ✔ G5.5 — Geography e Venue
 ✔ G5.6 — Competition
+✔ G5.7 — People e Team
 
 Próxima subfase:
 
-G5.7 — People e Team
+G5.8 — Match e Tie
 ```
 
 A G4 representa o congelamento da arquitetura do UltraStats AI.
