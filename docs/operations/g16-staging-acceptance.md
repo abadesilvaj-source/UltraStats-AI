@@ -32,12 +32,15 @@ migrations, scheduler e dashboard. A evidência estruturada está em
 - API-Football: plano Free ativo, 263 fixtures, 10 respostas de odds e
   estatísticas de partida, sem erros de contrato.
 
-## Decisão sobre Football-Data.org
+## Football-Data.org
 
-Por decisão do operador em 24/07/2026, Football-Data.org passa a ser uma fonte
-complementar opcional até o recebimento do token. A API-Football, homologada
-com dados reais de fixtures, odds e estatísticas, satisfaz a capacidade
-obrigatória de dados ao vivo e apostas. OpenLigaDB, Football-Data.co.uk e
-StatsBomb permanecem como fontes públicas de fallback e treinamento.
+O token foi recebido e homologado em 24/07/2026. O health check foi aprovado e
+13 competições ficaram acessíveis. A consulta da data de validação retornou zero
+partidas, resposta válida para o filtro solicitado. Football-Data.org volta a
+integrar o conjunto de fontes requeridas.
+
+A API-Football permanece como fonte de fixtures, odds e estatísticas.
+OpenLigaDB, Football-Data.co.uk e StatsBomb fornecem fallback, histórico e
+treinamento.
 
 Nenhum token deve ser incluído em commits, evidências ou logs.

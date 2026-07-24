@@ -31,7 +31,7 @@ primeira versão estável.
 - [x] carga, backup/restore, rollback e controles de segurança;
 - [x] coleta real de OpenLigaDB, Football-Data.co.uk e StatsBomb Open Data;
 - [x] API-Football homologada com fixtures, odds e estatísticas reais;
-- [x] Football-Data.org classificada como complementar até o token chegar;
+- [x] Football-Data.org autenticada e homologada com token real;
 - [x] aceite operacional registrado;
 - [x] promoção para `v0.1.0`.
 

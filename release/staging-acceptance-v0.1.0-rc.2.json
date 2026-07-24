@@ -31,11 +31,12 @@
       "sample_records": 3940
     },
     "football_data": {
-      "configured": false,
-      "reachable": false,
-      "contract_valid": false,
-      "required": false,
-      "reason": "FOOTBALL_DATA_API_TOKEN ausente"
+      "configured": true,
+      "reachable": true,
+      "contract_valid": true,
+      "required": true,
+      "competitions": 13,
+      "validation_matches": 0
     },
     "api_football": {
       "configured": true,

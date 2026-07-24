@@ -14,6 +14,7 @@ acompanhar a evolução oficial do roadmap.
 - conclusão integral da G16 e promoção da primeira versão estável `v0.1.0`;
 - API-Football Free homologada com fixtures, odds e estatísticas reais;
 - Football-Data.org mantida como fonte complementar opcional até o token;
+- Football-Data.org posteriormente autenticada e homologada com 13 competições;
 
 - gate auditável da G16 para serviços, providers, dashboard, carga, backup,
   segurança, rollback, observação e aceite humano;
