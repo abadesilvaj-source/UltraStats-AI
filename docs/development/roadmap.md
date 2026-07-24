@@ -2692,8 +2692,20 @@ Football-Data.org
 ### Status
 
 ```text
-PLANEJADO
+EM ANDAMENTO
 ```
+
+Primeira entrega concluída:
+
+- contrato e configuração comum;
+- cliente HTTP resiliente e rate limiting;
+- tratamento uniforme de erros;
+- adapter Football-Data.org v4;
+- collectors e preservação idempotente de payload bruto;
+- health check e contrato de snapshot para dashboard.
+
+Próximo incremento: persistência SQLAlchemy durável dos payloads e execução
+operacional autenticada em ambiente configurado.
 
 ---
 
