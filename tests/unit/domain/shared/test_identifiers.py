@@ -8,6 +8,7 @@ import pytest
 from ultrastats_ai.domain.shared.errors import DomainValidationError
 from ultrastats_ai.domain.shared.identifiers import (
     CanonicalId,
+    BetLegId,
     CompetitionId,
     CountryId,
     LineupEntryId,
@@ -24,8 +25,12 @@ from ultrastats_ai.domain.shared.identifiers import (
     MatchSquadId,
     MatchStatisticId,
     MatchVenueId,
+    OddsSnapshotId,
     PlayerId,
     PredictionId,
+    PredictionExplanationId,
+    PredictionResultId,
+    SettlementId,
     TeamId,
 )
 
@@ -91,6 +96,22 @@ def test_operational_match_identifiers_are_canonical(
     identifier = identifier_type.new()
 
     assert isinstance(identifier.value, UUID)
+
+
+@pytest.mark.parametrize(
+    "identifier_type",
+    [
+        OddsSnapshotId,
+        BetLegId,
+        SettlementId,
+        PredictionResultId,
+        PredictionExplanationId,
+    ],
+)
+def test_g59_identifiers_are_canonical(
+    identifier_type: type[CanonicalId],
+) -> None:
+    assert isinstance(identifier_type.new().value, UUID)
 
 
 def test_from_string_creates_identifier() -> None:
