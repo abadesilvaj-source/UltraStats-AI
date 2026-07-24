@@ -2754,8 +2754,22 @@ Canonical Domain
 ### Status
 
 ```text
-PLANEJADO
+EM ANDAMENTO
 ```
+
+Primeira entrega concluída:
+
+- normalização Unicode determinística;
+- aliases e candidatos por entidade canônica;
+- matching automático com confiança;
+- thresholds para associação e revisão manual;
+- decisões auditáveis, rejeição e quarentena reprocessável;
+- observações com rastreabilidade ao payload bruto;
+- fusão por campo com prioridade de provider;
+- detecção e registro de conflitos.
+
+Próximo incremento: persistência das decisões, fila de revisão, quarentena
+durável e orquestração de reprocessamento.
 
 ---
 

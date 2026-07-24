@@ -11,6 +11,9 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- início da G7 com normalização, matching, revisão manual e Data Fusion;
+- decisões de identidade, quarentena reprocessável e observações rastreáveis;
+- fusão por campo com prioridade de provider e conflitos auditáveis;
 - conclusão integral da G6 com framework canônico e adapter Football-Data.org;
 - cliente HTTP com autenticação, rate limiting, retries e erros uniformes;
 - collectors idempotentes, payload bruto, health check e snapshot operacional;
