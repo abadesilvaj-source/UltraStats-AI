@@ -1,0 +1,22 @@
+{
+  "version": "0.1.0",
+  "commit": "8cf723c",
+  "migration_head": "b8151a2c9e10",
+  "components": [
+    "api_football",
+    "backtesting",
+    "dashboard",
+    "database",
+    "live_engine",
+    "model_validation",
+    "multisource_engine",
+    "operations",
+    "prediction",
+    "recommendation",
+    "risk",
+    "scheduler",
+    "staging"
+  ],
+  "created_at": "2026-07-24T21:30:00+00:00",
+  "checksum": "829c6c87bbb85a319faa1c6c7c7248787dac76c83d755b4541041b6a6d40a5a5"
+}
