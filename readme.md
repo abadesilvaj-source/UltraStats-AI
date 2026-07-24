@@ -386,6 +386,13 @@ carga controlada e manifesto reproduzível. A suíte consolidada possui 2.609
 testes e 100% de cobertura. O próximo passo é a homologação humana em staging e
 a promoção controlada para a primeira versão estável.
 
+A correção de escopo G15.1/G15.2 está concluída na `v0.1.0-rc.2`. O motor
+integra API-Football, Football-Data.co.uk, StatsBomb Open Data e OpenLigaDB,
+mantendo Football-Data.org, proveniência por campo, identidade canônica,
+continuidade degradada e histórico temporal de odds. A validação de modelos
+usa dataset versionado, splits temporais, backtesting, calibração e gate
+auditável. A suíte consolidada possui 2.629 testes e 100% de cobertura.
+
 ---
 
 ## 12. Roadmap
