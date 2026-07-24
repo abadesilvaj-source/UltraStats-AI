@@ -25,3 +25,19 @@ class MatchParticipantNotFoundError(MatchDomainError):
 
 class DuplicateMatchParticipantError(MatchDomainError):
     """Indica identidade, equipe, papel ou ordem duplicada."""
+
+
+class InvalidMatchStatusTransitionError(MatchDomainError):
+    """Indica uma transição operacional não permitida."""
+
+
+class InvalidScheduleChangeError(MatchDomainError):
+    """Indica uma alteração de agenda incompleta ou redundante."""
+
+
+class DuplicateScheduleChangeError(MatchDomainError):
+    """Indica identidade duplicada no histórico de agenda."""
+
+
+class ScheduleChangeOwnershipError(MatchDomainError):
+    """Indica histórico pertencente a outra partida."""

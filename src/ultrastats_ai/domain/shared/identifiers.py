@@ -178,6 +178,11 @@ class MatchParticipantId(EntityId):
 
 
 @dataclass(frozen=True, slots=True)
+class MatchScheduleChangeId(EntityId):
+    """Identificador canônico de alteração de agenda."""
+
+
+@dataclass(frozen=True, slots=True)
 class TieId(EntityId):
     """Identificador canônico de confronto agregado."""
 

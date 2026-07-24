@@ -301,10 +301,11 @@ Após a consolidação da G5.7, será iniciada:
 G5.8 — Match e Tie
 ```
 
-A fundação já implementa `Match`, `MatchParticipant`, identidades, enums,
-ownership, agenda e composição obrigatória de mandante e visitante. As próximas
-fatias acrescentarão ciclo de vida, local, oficiais, períodos, escalações,
-eventos, estatísticas, interrupções, decisões e revisões.
+A implementação já inclui `Match`, `MatchParticipant`, identidades, enums,
+ownership, composição obrigatória de mandante e visitante, ciclo de vida
+validado e histórico auditável de reagendamentos. As próximas fatias
+acrescentarão local, oficiais, períodos, escalações, eventos, estatísticas,
+interrupções, decisões e revisões.
 
 ---
 

@@ -6,15 +6,21 @@ import ultrastats_ai.domain.match as match_api
 def test_match_public_api_is_explicit() -> None:
     assert set(match_api.__all__) == {
         "DuplicateMatchParticipantError",
+        "DuplicateScheduleChangeError",
         "InvalidMatchParticipantsError",
         "InvalidMatchScheduleError",
+        "InvalidMatchStatusTransitionError",
+        "InvalidScheduleChangeError",
         "Match",
         "MatchDomainError",
         "MatchParticipant",
         "MatchParticipantNotFoundError",
         "MatchParticipantOwnershipError",
         "MatchParticipantStatus",
+        "MatchScheduleChange",
         "MatchType",
+        "ScheduleChangeOwnershipError",
+        "can_transition",
     }
 
 

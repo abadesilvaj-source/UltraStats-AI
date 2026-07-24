@@ -8,17 +8,23 @@ from typing import Any
 from ultrastats_ai.domain.match.enums import MatchType
 from ultrastats_ai.domain.match.errors import (
     DuplicateMatchParticipantError,
+    DuplicateScheduleChangeError,
     InvalidMatchParticipantsError,
     InvalidMatchScheduleError,
+    InvalidMatchStatusTransitionError,
     MatchParticipantNotFoundError,
     MatchParticipantOwnershipError,
+    ScheduleChangeOwnershipError,
 )
+from ultrastats_ai.domain.match.lifecycle import can_transition
 from ultrastats_ai.domain.match.participant import MatchParticipant
+from ultrastats_ai.domain.match.schedule_change import MatchScheduleChange
 from ultrastats_ai.domain.shared import (
     CompetitionId,
     DomainDate,
     MatchId,
     MatchParticipantId,
+    MatchScheduleChangeId,
     MatchStatus,
     ParticipantRole,
     RoundId,
@@ -42,6 +48,7 @@ class Match:
     round_id: RoundId | None = None
     scheduled_date: DomainDate | None = None
     scheduled_start_at: UtcTimestamp | None = None
+    schedule_changes: tuple[MatchScheduleChange, ...] = ()
 
     def __post_init__(self) -> None:
         self.validate()
@@ -85,6 +92,8 @@ class Match:
             )
         if not isinstance(self.participants, tuple):
             raise TypeError("participants deve ser tuple.")
+        if not isinstance(self.schedule_changes, tuple):
+            raise TypeError("schedule_changes deve ser tuple.")
         if len(self.participants) != 2:
             raise InvalidMatchParticipantsError(
                 "Uma partida deve possuir exatamente dois participantes."
@@ -99,6 +108,7 @@ class Match:
 
         self._validate_schedule()
         self._validate_participants()
+        self._validate_schedule_changes()
 
     def _validate_schedule(self) -> None:
         if (
@@ -151,6 +161,24 @@ class Match:
             raise InvalidMatchParticipantsError(
                 "A fundação exige participantes HOME e AWAY."
             )
+
+    def _validate_schedule_changes(self) -> None:
+        known_ids: set[MatchScheduleChangeId] = set()
+
+        for change in self.schedule_changes:
+            if not isinstance(change, MatchScheduleChange):
+                raise TypeError(
+                    "schedule_changes deve conter MatchScheduleChange."
+                )
+            if change.match_id != self.id:
+                raise ScheduleChangeOwnershipError(
+                    "A alteração de agenda pertence a outra partida."
+                )
+            if change.id in known_ids:
+                raise DuplicateScheduleChangeError(
+                    "A identidade da alteração de agenda está duplicada."
+                )
+            known_ids.add(change.id)
 
     @property
     def home(self) -> MatchParticipant:
@@ -221,23 +249,47 @@ class Match:
     def reschedule(
         self,
         *,
+        change_id: MatchScheduleChangeId,
         scheduled_date: DomainDate | None,
         scheduled_start_at: UtcTimestamp | None,
+        changed_at: UtcTimestamp,
+        reason: str,
     ) -> Match:
         """Atualiza a programação preservando a identidade da partida."""
+
+        if scheduled_date is None and scheduled_start_at is None:
+            raise InvalidMatchScheduleError(
+                "A partida reagendada exige data ou horário."
+            )
+
+        change = MatchScheduleChange(
+            id=change_id,
+            match_id=self.id,
+            previous_date=self.scheduled_date,
+            previous_start_at=self.scheduled_start_at,
+            new_date=scheduled_date,
+            new_start_at=scheduled_start_at,
+            changed_at=changed_at,
+            reason=reason,
+        )
 
         return replace(
             self,
             scheduled_date=scheduled_date,
             scheduled_start_at=scheduled_start_at,
             status=MatchStatus.SCHEDULED,
+            schedule_changes=self.schedule_changes + (change,),
         )
 
     def change_status(self, status: MatchStatus) -> Match:
-        """Atualiza o estado; a política completa virá na próxima fatia."""
+        """Atualiza o estado quando a transição é permitida."""
 
         if not isinstance(status, MatchStatus):
             raise TypeError("status deve ser MatchStatus.")
+        if not can_transition(self.status, status):
+            raise InvalidMatchStatusTransitionError(
+                f"Transição inválida: {self.status} -> {status}."
+            )
 
         return replace(self, status=status)
 

@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- ciclo de vida explícito do agregado `Match`, com transições validadas;
+- estados canônicos completos de preparação, jogo, interrupção e resultado;
+- entidade imutável `MatchScheduleChange` e seu identificador canônico;
+- histórico ordenado e auditável de reagendamentos, preservando o `MatchId`;
+- validações de motivo, alteração efetiva, ownership e duplicidade no histórico;
 - fundação do contexto canônico `domain.match`;
 - Aggregate Root `Match` e entidade interna `MatchParticipant`;
 - identificador canônico `MatchParticipantId`;

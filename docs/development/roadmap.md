@@ -2233,6 +2233,46 @@ Próxima fatia:
 G5.8.B — Match Lifecycle e Schedule History
 ```
 
+#### G5.8.B — Match Lifecycle e Schedule History
+
+Entregas concluídas:
+
+- [x] expansão canônica de `MatchStatus`;
+- [x] matriz explícita de transições válidas do ciclo de vida;
+- [x] rejeição de transições inválidas e de mudanças após estados terminais;
+- [x] identificador canônico `MatchScheduleChangeId`;
+- [x] entidade imutável `MatchScheduleChange`;
+- [x] histórico ordenado de alterações de data e horário no agregado;
+- [x] preservação do `MatchId` em reagendamentos;
+- [x] validação de motivo, diferença efetiva, ownership e identidades duplicadas;
+- [x] API pública explícita do ciclo de vida e do histórico;
+- [x] documentação arquitetural atualizada;
+- [x] cobertura integral de linhas e branches.
+
+Resultado validado:
+
+```text
+2296 testes aprovados
+0 testes falhando
+3857 statements cobertos
+1222 branches cobertos
+0 linhas ausentes
+0 branches parcialmente cobertos
+100,00% de cobertura de linhas e branches
+```
+
+Status:
+
+```text
+CONCLUÍDO
+```
+
+Próxima fatia:
+
+```text
+G5.8.C — Match Venue
+```
+
 ---
 
 ### G5.9 — Betting, Prediction e Bankroll

@@ -6,6 +6,7 @@ from ultrastats_ai.domain.match import (
     DuplicateMatchParticipantError,
     InvalidMatchParticipantsError,
     InvalidMatchScheduleError,
+    InvalidMatchStatusTransitionError,
     Match,
     MatchParticipantNotFoundError,
     MatchParticipantOwnershipError,
@@ -16,6 +17,7 @@ from ultrastats_ai.domain.shared import (
     DomainDate,
     MatchId,
     MatchParticipantId,
+    MatchScheduleChangeId,
     MatchStatus,
     ParticipantRole,
     RoundId,
@@ -376,13 +378,19 @@ def test_reschedule_preserves_identity_and_sets_status() -> None:
     timestamp = UtcTimestamp("2026-08-02T20:00:00Z")
 
     updated = match.reschedule(
+        change_id=MatchScheduleChangeId.new(),
         scheduled_date=DomainDate("2026-08-02"),
         scheduled_start_at=timestamp,
+        changed_at=UtcTimestamp("2026-07-25T12:00:00Z"),
+        reason="Mudança de calendário",
     )
 
     assert updated.id == match.id
     assert updated.status is MatchStatus.SCHEDULED
     assert updated.scheduled_start_at == timestamp
+    assert len(updated.schedule_changes) == 1
+    assert updated.schedule_changes[0].previous_date is None
+    assert updated.schedule_changes[0].new_start_at == timestamp
 
 
 def test_reschedule_requires_new_schedule() -> None:
@@ -390,8 +398,11 @@ def test_reschedule_requires_new_schedule() -> None:
 
     with pytest.raises(InvalidMatchScheduleError):
         match.reschedule(
+            change_id=MatchScheduleChangeId.new(),
             scheduled_date=None,
             scheduled_start_at=None,
+            changed_at=UtcTimestamp("2026-07-25T12:00:00Z"),
+            reason="Sem nova data",
         )
 
 
@@ -402,6 +413,16 @@ def test_change_status_returns_new_match() -> None:
 
     assert updated.status is MatchStatus.LIVE
     assert match.status is MatchStatus.SCHEDULED
+
+
+def test_change_status_rejects_invalid_transition() -> None:
+    match = make_match()
+
+    with pytest.raises(
+        InvalidMatchStatusTransitionError,
+        match="Transição inválida",
+    ):
+        match.change_status(MatchStatus.FINISHED)
 
 
 def test_change_status_rejects_invalid_type() -> None:
