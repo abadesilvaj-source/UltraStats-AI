@@ -11,9 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
-- início da G6 com framework canônico de providers e adapter Football-Data.org;
+- conclusão integral da G6 com framework canônico e adapter Football-Data.org;
 - cliente HTTP com autenticação, rate limiting, retries e erros uniformes;
 - collectors idempotentes, payload bruto, health check e snapshot operacional;
+- stores SQLAlchemy de payloads e health checks, registry, factory por ambiente,
+  migration reversível e dashboard Streamlit de providers;
 - conclusão integral da G5.10–G5.15 e, consequentemente, de toda a G5;
 - dez Domain Services e onze Domain Policies determinísticos;
 - repository SQLAlchemy genérico para snapshots de Aggregate Roots;

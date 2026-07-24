@@ -23,8 +23,13 @@ aplica timeout, rate limiting e retries para HTTP 429 e falhas 5xx. O plano
 gratuito deve ser configurado para dez requisições por minuto.
 
 Collectors preservam o payload bruto antes de qualquer normalização. A store
-em memória disponibilizada nesta primeira entrega é determinística e útil para
-testes; a store SQLAlchemy durável será a próxima evolução da G6.
+SQLAlchemy usa uma representação JSON canônica e fingerprint SHA-256 para
+garantir deduplicação. A store em memória permanece disponível para testes.
 
 O health check e `ProviderDashboard.snapshot` oferecem o contrato de dados para
-o painel operacional sem acoplar a integração a uma interface específica.
+o painel operacional. A página `10_Providers.py` permite executar a verificação
+e consultar o último estado persistido.
+
+O adapter somente aceita `FOOTBALL_DATA_API_TOKEN`; a variável genérica legada
+`SPORTS_API_KEY` não é reutilizada, evitando o envio de credenciais de outro
+provider. A validação live depende de uma chave real configurada localmente.

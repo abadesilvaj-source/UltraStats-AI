@@ -319,6 +319,13 @@ versionada, Outbox, Inbox, Audit Log, migration reversível e validação
 arquitetural. A suíte consolidada possui 2.439 testes e cobertura de 100% de
 linhas e branches. A próxima fase é a G6 — Integração com Providers.
 
+A G6 também está concluída. O projeto possui integração Football-Data.org v4,
+cliente HTTP resiliente, rate limiting, collectors, armazenamento durável e
+idempotente de payloads brutos, health checks persistentes, registry, factory
+por ambiente e dashboard operacional. A suíte consolidada possui 2.445 testes
+e 100% de cobertura. A próxima fase é a G7 — Resolução de Identidade e Data
+Fusion.
+
 ---
 
 ## 12. Roadmap

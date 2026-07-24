@@ -2692,10 +2692,10 @@ Football-Data.org
 ### Status
 
 ```text
-EM ANDAMENTO
+CONCLUÍDO
 ```
 
-Primeira entrega concluída:
+Entregas concluídas:
 
 - contrato e configuração comum;
 - cliente HTTP resiliente e rate limiting;
@@ -2703,9 +2703,14 @@ Primeira entrega concluída:
 - adapter Football-Data.org v4;
 - collectors e preservação idempotente de payload bruto;
 - health check e contrato de snapshot para dashboard.
+- persistência SQLAlchemy durável de payloads e health checks;
+- deduplicação por fingerprint SHA-256;
+- registry e factory configurável por ambiente;
+- migration reversível `8b6a6d20e002`;
+- dashboard Streamlit de providers;
+- 2.445 testes com 100% de cobertura.
 
-Próximo incremento: persistência SQLAlchemy durável dos payloads e execução
-operacional autenticada em ambiente configurado.
+Próxima etapa: G7 — Resolução de Identidade e Data Fusion.
 
 ---
 
