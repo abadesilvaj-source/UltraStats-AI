@@ -353,6 +353,13 @@ inseguras e o histórico permanece auditável. A suíte consolidada possui 2.489
 testes e 100% de cobertura. A próxima fase é a G11 — Gestão de Risco e
 Portfólio.
 
+A G11 está concluída. A plataforma aplica Kelly integral e fracionado conforme
+o perfil do usuário, limita exposição por aposta, dia, competição, mercado e
+correlação, otimiza portfólios por Opportunity Score e simula estratégias com
+ROI, yield e drawdown. Perfis e snapshots são persistentes e auditáveis. A
+suíte consolidada possui 2.506 testes e 100% de cobertura. A próxima fase é a
+G12 — Experiência do Usuário.
+
 ---
 
 ## 12. Roadmap

@@ -2982,8 +2982,25 @@ Ajudar o usuário a controlar exposição e risco financeiro.
 ### Status
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
+
+### Entregas concluídas
+
+- gestão de banca integrada ao planejamento de exposição;
+- Kelly integral e Kelly fracionado por perfil;
+- perfis conservador, moderado e agressivo;
+- limites por aposta, por dia, por competição e por mercado;
+- controle de posições correlacionadas;
+- otimização determinística por Opportunity Score;
+- simulador de estratégia com composição da banca;
+- cálculo de lucro, ROI, yield e drawdown máximo;
+- perfis e snapshots de portfólio persistentes;
+- migration reversível `d4bf1261d117`;
+- dashboard de risco, exposição e desempenho;
+- 2.506 testes com 100% de cobertura.
+
+Próxima etapa: G12 — Experiência do Usuário.
 
 ---
 

@@ -11,6 +11,12 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- conclusão integral da G11 — Gestão de Risco e Portfólio;
+- Kelly integral e fracionado com perfis conservador, moderado e agressivo;
+- limites por aposta, dia, competição, mercado e correlação;
+- otimização de portfólio e simulador de estratégia;
+- ROI, yield, drawdown, perfis e snapshots persistentes;
+- migration reversível e dashboard de risco e portfólio;
 - conclusão integral da G10 — Motor de Recomendações;
 - cálculo de odds justas, EV, edge, confiança, risco e Opportunity Score;
 - comparação de odds, ranking e diversificação de recomendações correlacionadas;

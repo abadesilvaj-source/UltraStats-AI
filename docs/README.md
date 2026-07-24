@@ -633,6 +633,8 @@ Exemplo:
 [Roadmap](development/roadmap.md)
 
 [Motor de Recomendações](architecture/recommendation-engine.md)
+
+[Gestão de Risco e Portfólio](architecture/risk-and-portfolio.md)
 ```
 
 Exemplo dentro de uma subpasta:
