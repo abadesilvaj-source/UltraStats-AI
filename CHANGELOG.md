@@ -11,6 +11,13 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- conclusão integral da G5.9 — Betting, Prediction e Bankroll;
+- `Bookmaker`, `BettingMarket`, `BettingSelection` e `OddsSnapshot`;
+- `Prediction`, `PredictionResult` e `PredictionExplanation` imutáveis;
+- `Recommendation` com validação decimal de valor esperado;
+- Aggregate Root `Bankroll` com ledger, saldo e exposição derivados;
+- `Bet`, `BetLeg` e `Settlement` com liquidação auditável;
+- identificadores canônicos para snapshots, pernas, liquidações e resultados;
 - conclusão integral do Match Context e da etapa G5.8;
 - entidades `MatchOfficial`, `MatchPeriod`, `MatchSquad`, `Lineup`,
   `LineupEntry`, `MatchEvent`, `MatchStatistic`, `MatchInterruption`,

@@ -286,6 +286,9 @@ CONCLUÍDO
 
 G5.8 — Match e Tie
 CONCLUÍDO
+
+G5.9 — Betting, Prediction e Bankroll
+CONCLUÍDO
 ```
 
 A arquitetura técnica da G4 está congelada e as etapas G5.1 a G5.7 do domínio
@@ -305,6 +308,10 @@ A G5.8 está concluída. O Match Context inclui participantes, agenda, local,
 oficiais, períodos, convocação, escalações, eventos, estatísticas,
 interrupções, decisões e revisões, além da integração por identidade com
 `Tie`.
+
+A G5.9 também está concluída. Betting, Prediction, Recommendation e Bankroll
+agora possuem modelos canônicos, históricos imutáveis, precisão decimal,
+controle de ownership e liquidação financeira auditável.
 
 ---
 

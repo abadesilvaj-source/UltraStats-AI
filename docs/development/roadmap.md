@@ -2402,7 +2402,43 @@ Escopo:
 Status:
 
 ```text
-PLANEJADO
+CONCLUÍDO
+```
+
+Entregas concluídas:
+
+- [x] Aggregate Root `Bookmaker`;
+- [x] mercados canônicos e seleções com ownership;
+- [x] snapshots imutáveis e históricos de odds;
+- [x] Aggregate Root `Prediction`;
+- [x] resultados probabilísticos e odd justa;
+- [x] explicações auditáveis;
+- [x] recomendações com EV, confiança, stake e risco;
+- [x] Aggregate Root `Bankroll`;
+- [x] ledger derivável por `BankrollTransaction`;
+- [x] apostas simples e múltiplas por `Bet` e `BetLeg`;
+- [x] liquidação auditável por `Settlement`;
+- [x] saldo e exposição derivados;
+- [x] precisão decimal por `Money`, `Odds`, `Probability` e `Percentage`;
+- [x] APIs públicas e documentação arquitetural;
+- [x] cobertura integral de linhas e branches.
+
+Resultado final validado:
+
+```text
+2423 testes aprovados
+0 testes falhando
+4807 statements cobertos
+1456 branches cobertos
+0 linhas ausentes
+0 branches parcialmente cobertos
+100,00% de cobertura de linhas e branches
+```
+
+Resultado da G5.9:
+
+```text
+Betting, Prediction e Bankroll concluídos
 ```
 
 ---
