@@ -367,6 +367,13 @@ notificações internas e push e indicador discreto de atualização. A suíte
 consolidada possui 2.527 testes e 100% de cobertura. A próxima fase é a G13 —
 Motor ao Vivo.
 
+A G13 está concluída. O Motor ao Vivo ingere eventos idempotentes, mantém
+placar, relógio, estatísticas e odds, recalcula probabilidades e recomendações,
+suspende feeds anômalos, degrada com segurança diante de atrasos e enfileira
+notificações push. Eventos, snapshots e anomalias são auditáveis. A suíte
+consolidada possui 2.557 testes e 100% de cobertura. A próxima fase é a G14 —
+Produção, Segurança e Escalabilidade.
+
 ---
 
 ## 12. Roadmap

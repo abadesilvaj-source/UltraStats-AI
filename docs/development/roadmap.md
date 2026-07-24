@@ -3094,8 +3094,26 @@ Atualizar probabilidades e recomendações durante as partidas.
 ### Status
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
+
+### Entregas concluídas
+
+- ingestão idempotente de eventos ao vivo;
+- snapshots revisionados e atualização contínua;
+- placar, tempo de jogo e estatísticas ao vivo;
+- odds, probabilidades e recomendações ao vivo;
+- suspensão manual e automática;
+- retomada explícita e encerramento seguro;
+- degradação controlada para feeds atrasados;
+- detecção de regressões, desordem, saltos de odds e timeout;
+- fila persistente de notificações push;
+- eventos, snapshots e anomalias auditáveis;
+- migration reversível `f6d12483f339`;
+- dashboard operacional do Motor ao Vivo;
+- 2.557 testes com 100% de cobertura.
+
+Próxima etapa: G14 — Produção, Segurança e Escalabilidade.
 
 ---
 

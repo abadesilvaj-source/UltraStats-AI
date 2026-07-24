@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- conclusão integral da G13 — Motor ao Vivo;
+- ingestão idempotente e snapshots revisionados de partidas;
+- placar, relógio, estatísticas, odds, probabilidades e recomendações ao vivo;
+- suspensão, retomada, degradação controlada e detecção de anomalias;
+- fila push, persistência, migration reversível e dashboard operacional;
 - conclusão integral da G12 — Experiência do Usuário;
 - hub com modos simples e avançado e navegação unificada;
 - perfil acessível, favoritos, alertas, cenários, timeline e busca natural;
