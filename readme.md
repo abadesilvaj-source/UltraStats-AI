@@ -380,6 +380,12 @@ circuit breaker, auditoria, retenção, autoscaling, testes de carga e revisão 
 dependências. A suíte consolidada possui 2.585 testes e 100% de cobertura. Com
 isso, o roadmap principal G1–G14 está concluído.
 
+A G15 está concluída. A `v0.1.0-rc.1` possui staging parametrizado, CI com
+PostgreSQL, migration full-chain, smoke gate, E2E integrado, backup/restore,
+carga controlada e manifesto reproduzível. A suíte consolidada possui 2.609
+testes e 100% de cobertura. O próximo passo é a homologação humana em staging e
+a promoção controlada para a primeira versão estável.
+
 ---
 
 ## 12. Roadmap

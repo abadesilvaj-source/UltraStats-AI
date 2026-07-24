@@ -3166,11 +3166,60 @@ CONCLUÍDO
 - dashboard e runbook de produção;
 - 2.585 testes com 100% de cobertura.
 
-Roadmap principal G1–G14 concluído.
+Base funcional G1–G14 concluída.
+
+Próxima etapa: G15 — Release Candidate e Validação Integrada.
 
 ---
 
-## 17. Funcionalidades fora do escopo
+## 17. G15 — Release Candidate e Validação Integrada
+
+### Objetivo
+
+Consolidar as entregas, homologar o sistema integrado e produzir a primeira
+versão candidata.
+
+### Escopo
+
+- integração cumulativa G1–G14;
+- ambiente de staging;
+- pipeline de CI;
+- migration full-chain;
+- smoke tests;
+- testes ponta a ponta;
+- validação de backup e recuperação;
+- validação de segurança e dependências;
+- carga controlada;
+- manifesto reproduzível;
+- release notes;
+- primeira versão candidata.
+
+### Status
+
+```text
+CONCLUÍDO
+```
+
+### Entregas concluídas
+
+- versão `0.1.0-rc.1`;
+- release gate com 12 critérios bloqueantes;
+- CI com PostgreSQL, migrations, testes, smoke e Docker build;
+- Docker Compose de staging sem credenciais padrão;
+- migration full-chain em banco vazio;
+- correção portável da migration histórica `db33d016d6b4`;
+- E2E completo dos motores e contextos operacionais;
+- smoke test com 100 requisições e zero falhas;
+- manifesto SHA-256 reproduzível;
+- release notes e guia de promoção;
+- 2.609 testes com 100% de cobertura.
+
+Roadmap G1–G15 concluído. Próximo passo operacional: homologação humana no
+ambiente de staging e promoção controlada da RC.
+
+---
+
+## 18. Funcionalidades fora do escopo
 
 O UltraStats AI não terá como objetivo oferecer análise de outros esportes.
 
@@ -3186,7 +3235,7 @@ da interface.
 
 ---
 
-## 18. Princípios do roadmap
+## 19. Princípios do roadmap
 
 O desenvolvimento deverá seguir estes princípios:
 
@@ -3205,36 +3254,36 @@ O desenvolvimento deverá seguir estes princípios:
 
 ---
 
-## 19. Status atual
+## 20. Status atual
 
 ```text
 Fase principal atual:
-Roadmap principal G1–G14 concluído
+Roadmap G1–G15 concluído
 
 Última etapa concluída:
-G14 — Produção, Segurança e Escalabilidade
+G15 — Release Candidate e Validação Integrada
 
 Última entrega concluída:
-Hardening integral de segurança, observabilidade, recuperação, resiliência e
-escala.
+Release candidate `v0.1.0-rc.1`, staging, CI, full-chain migration, E2E e gate
+técnico integral.
 
 Resultado da última entrega:
-2.585 testes aprovados
+2.609 testes aprovados
 100,00% de cobertura de linhas e branches
 0 linhas ausentes
 0 branches parcialmente cobertos
 
 Etapa atual:
-Operação contínua e evolução orientada por métricas
+Homologação humana da release candidate em staging
 
 Próximo objetivo:
-Preparar releases incrementais, adapters de infraestrutura do ambiente alvo e
-validação operacional contínua.
+Promover a candidata aprovada para a primeira versão estável após aceite
+operacional.
 ```
 
 ---
 
-## 20. Atualização deste documento
+## 21. Atualização deste documento
 
 A atualização do roadmap faz parte do desenvolvimento do UltraStats AI e deverá
 ser tratada como uma entrega da fase de documentação.

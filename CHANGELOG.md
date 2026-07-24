@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- conclusão integral da G15 — Release Candidate e Validação Integrada;
+- release gate, CI, staging, smoke test e manifesto reproduzível;
+- migration full-chain e E2E de todos os contextos G8–G14;
+- primeira release candidate `v0.1.0-rc.1`;
+- 2.609 testes com 100% de cobertura;
 - conclusão integral da G14 — Produção, Segurança e Escalabilidade;
 - autenticação, PBKDF2, RBAC, proteção de segredos e segurança de API;
 - métricas, alertas, backup/restore, cache, filas e circuit breaker;

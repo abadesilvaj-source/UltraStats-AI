@@ -1,36 +1,23 @@
 # Roadmap UltraStats AI
 
-## Sprint 1 — Infraestrutura
+O roadmap detalhado e oficial está em
+[`docs/development/roadmap.md`](docs/development/roadmap.md).
 
-- [x] Python
-- [x] VS Code
-- [x] Ambiente virtual
-- [x] Git
-- [x] Docker
-- [x] PostgreSQL
+## Estado consolidado
 
-## Sprint 2 — Banco de dados
+- [x] G1–G5 — Fundação e Domínio Canônico
+- [x] G6 — Providers
+- [x] G7 — Identidade e Data Fusion
+- [x] G8 — Motor Estatístico
+- [x] G9 — Modelos Preditivos
+- [x] G10 — Motor de Recomendações
+- [x] G11 — Gestão de Risco e Portfólio
+- [x] G12 — Experiência do Usuário
+- [x] G13 — Motor ao Vivo
+- [x] G14 — Produção, Segurança e Escalabilidade
+- [x] G15 — Release Candidate e Validação Integrada
 
-- [x] SQLAlchemy
-- [x] Alembic
-- [x] Tabela de equipes
-- [x] Tabelas centrais
-- [x] Mercados iniciais
-- [x] Partida de teste
+Release candidate atual: `v0.1.0-rc.1`.
 
-## Sprint 3 — Arquitetura
-
-- [x] Repositories
-- [x] Services
-- [x] Testes com pytest
-- [x] Scripts reorganizados
-
-## Sprint 4 — Fluxo de análise
-
-- [ ] Registrar odds
-- [ ] Registrar previsões
-- [ ] Calcular probabilidade implícita
-- [ ] Calcular EV
-- [ ] Registrar apostas
-- [ ] Registrar resultados oficiais
-- [ ] Auditar previsões
+Próximo passo: homologação humana em staging e promoção controlada para a
+primeira versão estável.
