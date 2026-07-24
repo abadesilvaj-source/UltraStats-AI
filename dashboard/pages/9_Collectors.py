@@ -56,13 +56,13 @@ def load_scheduler_status() -> dict:
         session.close()
 
 
-def execute_mock_sync() -> dict:
+def execute_real_sync() -> dict:
     session = SessionLocal()
 
     try:
         return DashboardService(
             session
-        ).run_mock_sync()
+        ).run_real_sync()
 
     finally:
         session.close()
@@ -291,14 +291,14 @@ st.subheader("Execução manual")
 
 
 st.info(
-    "O provedor mock lê o arquivo local "
-    "`data/providers/mock_sports_data.json`."
+    "Executa o pipeline real multi-provider, incluindo partidas, odds e "
+    "previsões. A operação consome a cota das APIs configuradas."
 )
 
 
 confirmation = st.checkbox(
     "Confirmo que desejo executar "
-    "a sincronização do provedor mock."
+    "uma sincronização real agora."
 )
 
 
@@ -318,15 +318,17 @@ if run_button:
         with st.spinner(
             "Executando sincronização..."
         ):
-            execution = execute_mock_sync()
+            execution = execute_real_sync()
 
         load_sync_history.clear()
+        load_scheduler_status.clear()
+        st.cache_data.clear()
 
         st.success(
             "Sincronização concluída com sucesso."
         )
 
-        result = execution["result"]
+        result = execution["operational"]
 
         summary_1, summary_2, summary_3 = (
             st.columns(3)
@@ -334,17 +336,17 @@ if run_button:
 
         summary_1.metric(
             "Competições",
-            result["competitions"]["total"],
+            result["competitions"],
         )
 
         summary_2.metric(
             "Equipes",
-            result["teams"]["total"],
+            result["teams"],
         )
 
         summary_3.metric(
             "Partidas",
-            result["matches"]["total"],
+            result["matches"],
         )
 
         st.write(
@@ -356,6 +358,15 @@ if run_button:
             f"**Duração:** "
             f"{execution['duration_seconds']:.4f}s"
         )
+        st.write(
+            f"**Previsões atualizadas:** "
+            f"{result['predictions']}"
+        )
+        if execution["degraded"]:
+            st.warning(
+                "A sincronização terminou em modo degradado: uma ou mais "
+                "fontes falharam, mas os dados disponíveis foram processados."
+            )
 
     except Exception as error:
         load_sync_history.clear()
@@ -399,8 +410,34 @@ else:
             == status_filter
         ]
 
+    display_history = history_df[
+        [
+            "id",
+            "source",
+            "status",
+            "started_at",
+            "duration_seconds",
+            "matches_created",
+            "matches_updated",
+            "triggered_by",
+            "error_message",
+        ]
+    ].rename(
+        columns={
+            "id": "Execução",
+            "source": "Fonte",
+            "status": "Status",
+            "started_at": "Início",
+            "duration_seconds": "Duração (s)",
+            "matches_created": "Itens novos",
+            "matches_updated": "Itens atualizados",
+            "triggered_by": "Acionamento",
+            "error_message": "Erro",
+        }
+    )
+
     st.dataframe(
-        history_df,
+        display_history,
         use_container_width=True,
         hide_index=True,
     )

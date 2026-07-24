@@ -120,7 +120,12 @@ if not markets:
 
 if not bankrolls:
     st.warning(
-        "Não existe banca ativa."
+        "Você precisa criar e ativar uma banca antes de registrar apostas."
+    )
+    st.page_link(
+        "pages/1_Banca.py",
+        label="Criar minha primeira banca",
+        icon="💰",
     )
     st.stop()
 

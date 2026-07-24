@@ -6,6 +6,7 @@ from app.repositories import (
     CompetitionRepository,
     MarketRepository,
     MatchRepository,
+    OddRepository,
     PredictionRepository,
     TeamRepository,
 )
@@ -70,6 +71,10 @@ class DashboardService:
         )
 
         self.market_repository = MarketRepository(
+            session
+        )
+
+        self.odd_repository = OddRepository(
             session
         )
 
@@ -396,8 +401,46 @@ class DashboardService:
             .list_all()
         )
 
-        return [
-            {
+        rows = []
+        selection_labels = {
+            "Home": "Mandante",
+            "Draw": "Empate",
+            "Away": "Visitante",
+            "Over 2.5": "Mais de 2,5 gols",
+            "Under 2.5": "Menos de 2,5 gols",
+            "Yes": "Sim",
+            "No": "Não",
+        }
+
+        for prediction in predictions:
+            match = self.match_repository.find_by_id(
+                prediction.match_id
+            )
+            market = self.market_repository.find_by_id(
+                prediction.market_id
+            )
+            odd = self.odd_repository.find_latest(
+                prediction.match_id,
+                prediction.market_id,
+                prediction.selection,
+            )
+
+            if match:
+                home = self.team_repository.find_by_id(
+                    match.home_team_id
+                )
+                away = self.team_repository.find_by_id(
+                    match.away_team_id
+                )
+                competition = (
+                    self.competition_repository.find_by_id(
+                        match.competition_id
+                    )
+                )
+            else:
+                home = away = competition = None
+
+            rows.append({
                 "id": prediction.id,
                 "match_id": (
                     prediction.match_id
@@ -407,6 +450,40 @@ class DashboardService:
                 ),
                 "selection": (
                     prediction.selection
+                ),
+                "selecao": selection_labels.get(
+                    prediction.selection,
+                    prediction.selection,
+                ),
+                "partida": (
+                    f"{home.name} x {away.name}"
+                    if home and away
+                    else "Partida indisponível"
+                ),
+                "competicao": (
+                    competition.name
+                    if competition
+                    else "Não informada"
+                ),
+                "inicio": (
+                    match.kickoff_at
+                    if match
+                    else None
+                ),
+                "mercado": (
+                    market.name
+                    if market
+                    else "Não informado"
+                ),
+                "odd": (
+                    float(odd.odd_value)
+                    if odd
+                    else None
+                ),
+                "bookmaker": (
+                    odd.bookmaker
+                    if odd
+                    else None
                 ),
                 "model_version": (
                     prediction.model_version
@@ -440,9 +517,9 @@ class DashboardService:
                 "created_at": (
                     prediction.created_at
                 ),
-            }
-            for prediction in predictions
-        ]
+            })
+
+        return rows
     
     def simulate_stake(
         self,
@@ -1103,6 +1180,16 @@ class DashboardService:
                 collector=collector,
                 triggered_by="dashboard",
             )
+        )
+
+    def run_real_sync(self) -> dict:
+        """Executa o mesmo pipeline multi-provider usado pelo scheduler."""
+        from app.services import MultiProviderSyncService
+
+        return MultiProviderSyncService(
+            self.session
+        ).run(
+            triggered_by="dashboard",
         )
     
     def get_scheduler_status(
