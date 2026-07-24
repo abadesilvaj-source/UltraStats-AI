@@ -75,6 +75,8 @@ docs/architecture/canonical-domain-model.md
 docs/architecture/domain-aggregates-and-rules.md
 docs/architecture/package-structure.md
 docs/architecture/canonical-types.md
+docs/architecture/people-domain.md
+docs/architecture/team-domain.md
 ```
 
 ### 3.1 Domain Overview
@@ -655,7 +657,10 @@ G4.C — Arquitetura de Dados
 CONCLUÍDO
 
 G4.D — Organização da Documentação
-EM ANDAMENTO
+CONCLUÍDO
+
+G5.7 — People e Team
+CONCLUÍDO
 ```
 
 Documentos arquiteturais principais concluídos:
@@ -671,49 +676,24 @@ Documento de acompanhamento atualizado:
 docs/development/roadmap.md
 ```
 
-Próximas atividades documentais:
+Próxima atividade documental:
 
 ```text
-1. revisar o README da raiz;
-2. revisar o changelog;
-3. verificar links internos;
-4. revisar referências cruzadas;
-5. registrar a conclusão da G4.D;
-6. atualizar novamente o roadmap;
-7. preparar a entrada no G5.
+Documentar a implementação da G5.8 — Match e Tie.
 ```
 
 ---
 
-## 16. Próxima fase técnica
+## 16. Próxima etapa técnica
 
-Após a conclusão da G4.D, a próxima fase será:
-
-```text
-G5 — Domínio Canônico
-```
-
-Primeira etapa prevista:
+Após a conclusão da G5.7, a próxima etapa será:
 
 ```text
-G5.1 — Estrutura dos Pacotes do Domínio
+G5.8 — Match e Tie
 ```
 
-O G5 transformará as decisões arquiteturais em:
-
-- módulos Python;
-- entidades;
-- Aggregate Roots;
-- Value Objects;
-- enums;
-- Domain Services;
-- Domain Policies;
-- repositories;
-- Unit of Work;
-- modelos SQLAlchemy;
-- migrations;
-- constraints;
-- testes automatizados.
+O Match Context será construído sobre os contextos canônicos já consolidados de
+Geography, Competition, People e Team.
 
 ---
 
@@ -726,6 +706,8 @@ O G5 transformará as decisões arquiteturais em:
 | Decisões arquiteturais | `architecture/architecture-decisions.md` |
 | Modelo canônico | `architecture/canonical-domain-model.md` |
 | Agregados e regras | `architecture/domain-aggregates-and-rules.md` |
+| People | `architecture/people-domain.md` |
+| Team | `architecture/team-domain.md` |
 | Roadmap | `development/roadmap.md` |
 
 ---

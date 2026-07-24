@@ -38,6 +38,20 @@ reports/generated/
 # Cache
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
+
+# Coverage
+.coverage
+htmlcov/
+coverage*.json
+
+# Distribuição
+build/
+dist/
+*.egg-info/
+
+# Arquivos de configuração locais
+*.local
 
 docker-compose.backup.yml
 

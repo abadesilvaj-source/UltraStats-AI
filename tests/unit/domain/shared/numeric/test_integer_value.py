@@ -37,6 +37,11 @@ def test_integer_value_rejects_boolean() -> None:
         IntegerValue(True)
 
 
+def test_integer_value_rejects_unsupported_type() -> None:
+    with pytest.raises(TypeError, match="int ou str"):
+        IntegerValue(1.5)  # type: ignore[arg-type]
+
+
 def test_integer_value_is_immutable() -> None:
     integer_value = IntegerValue(10)
 

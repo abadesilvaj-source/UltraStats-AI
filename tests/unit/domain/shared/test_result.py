@@ -54,3 +54,21 @@ def test_failure_requires_an_error() -> None:
         match="O erro do resultado não pode ser None.",
     ):
         Result[int, str].failure(None)  # type: ignore[arg-type]
+
+
+def test_success_constructor_rejects_error_payload() -> None:
+    with pytest.raises(ValueError, match="sucesso não pode possuir erro"):
+        Result[int, str](
+            _value=10,
+            _error="invalid",
+            _is_success=True,
+        )
+
+
+def test_failure_constructor_requires_error_payload() -> None:
+    with pytest.raises(ValueError, match="falha deve possuir um erro"):
+        Result[int, str](
+            _value=None,
+            _error=None,
+            _is_success=False,
+        )

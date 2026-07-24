@@ -264,7 +264,7 @@ G3 — Coleta de Dados
 CONCLUÍDO
 
 G4 — Arquitetura do Domínio
-EM ANDAMENTO
+CONCLUÍDO
 
 G4.A — Arquitetura do Domínio
 CONCLUÍDO
@@ -276,48 +276,34 @@ G4.C — Arquitetura de Dados
 CONCLUÍDO
 
 G4.D — Organização da Documentação
-EM ANDAMENTO
+CONCLUÍDO
 
 G5 — Domínio Canônico
-PLANEJADO
+EM ANDAMENTO
+
+G5.7 — People e Team
+CONCLUÍDO
+
+G5.8 — Match e Tie
+PRÓXIMA ETAPA
 ```
 
-A arquitetura técnica principal da G4 está concluída.
-
-A atividade atual é finalizar a organização documental antes do início da
-implementação do domínio canônico.
+A arquitetura técnica da G4 está congelada e as etapas G5.1 a G5.7 do domínio
+canônico estão concluídas.
 
 ---
 
-## 11. Próxima fase técnica
+## 11. Próxima etapa técnica
 
-Após a conclusão da G4.D, será iniciada:
-
-```text
-G5 — Domínio Canônico
-```
-
-Primeira etapa:
+Após a consolidação da G5.7, será iniciada:
 
 ```text
-G5.1 — Estrutura dos Pacotes do Domínio
+G5.8 — Match e Tie
 ```
 
-O G5 transformará a arquitetura em:
-
-- módulos Python;
-- entidades;
-- Aggregate Roots;
-- Value Objects;
-- enums;
-- Domain Services;
-- Domain Policies;
-- repositories;
-- Unit of Work;
-- modelos SQLAlchemy;
-- migrations;
-- constraints;
-- testes automatizados.
+Essa etapa implementará o ciclo de vida canônico das partidas, participantes,
+local, oficiais, escalações, eventos, estatísticas, interrupções, decisões,
+revisões e vínculos com confrontos competitivos.
 
 ---
 
@@ -411,8 +397,14 @@ O projeto deverá possuir testes para:
 - reprocessamento;
 - modelos preditivos.
 
-Os comandos definitivos de execução serão documentados quando a estrutura do G5
-for criada.
+O comando oficial de validação é:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
+
+O comando executa toda a suíte e exige 100% de cobertura de linhas e branches
+para `src/ultrastats_ai`.
 
 ---
 

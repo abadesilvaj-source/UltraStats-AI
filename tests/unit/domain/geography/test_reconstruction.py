@@ -252,9 +252,44 @@ def test_stadium_reconstruction_rejects_invalid_entity() -> None:
             "Brasil",
         ),
         (
+            CountryReconstruction,
+            "aliases",
+            (),
+        ),
+        (
+            CountryReconstruction,
+            "coordinates",
+            "invalid",
+        ),
+        (
+            RegionReconstruction,
+            "id",
+            "invalid",
+        ),
+        (
             RegionReconstruction,
             "country",
             "Brasil",
+        ),
+        (
+            RegionReconstruction,
+            "name",
+            "São Paulo",
+        ),
+        (
+            RegionReconstruction,
+            "aliases",
+            (),
+        ),
+        (
+            RegionReconstruction,
+            "coordinates",
+            "invalid",
+        ),
+        (
+            CityReconstruction,
+            "id",
+            "invalid",
         ),
         (
             CityReconstruction,
@@ -262,9 +297,44 @@ def test_stadium_reconstruction_rejects_invalid_entity() -> None:
             "São Paulo",
         ),
         (
+            CityReconstruction,
+            "name",
+            "São Paulo",
+        ),
+        (
+            CityReconstruction,
+            "aliases",
+            (),
+        ),
+        (
+            CityReconstruction,
+            "coordinates",
+            "invalid",
+        ),
+        (
+            StadiumReconstruction,
+            "id",
+            "invalid",
+        ),
+        (
             StadiumReconstruction,
             "city",
             "São Paulo",
+        ),
+        (
+            StadiumReconstruction,
+            "name",
+            "Estádio",
+        ),
+        (
+            StadiumReconstruction,
+            "aliases",
+            (),
+        ),
+        (
+            StadiumReconstruction,
+            "coordinates",
+            "invalid",
         ),
     ],
 )

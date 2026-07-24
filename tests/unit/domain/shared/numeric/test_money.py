@@ -65,6 +65,11 @@ def test_money_rejects_operation_with_different_currencies() -> None:
         brl.add(usd)
 
 
+def test_money_rejects_operation_with_non_money_value() -> None:
+    with pytest.raises(TypeError, match="outro objeto Money"):
+        Money("10", "BRL").add(10)  # type: ignore[arg-type]
+
+
 def test_money_is_immutable() -> None:
     money = Money("10", "BRL")
 

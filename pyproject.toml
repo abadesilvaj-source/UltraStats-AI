@@ -44,6 +44,9 @@ python_functions = [
 addopts = [
     "--strict-markers",
     "--strict-config",
+    "--cov=ultrastats_ai",
+    "--cov-branch",
+    "--cov-report=term-missing",
 ]
 
 
