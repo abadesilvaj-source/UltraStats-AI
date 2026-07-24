@@ -186,6 +186,50 @@ class StatisticalSnapshotRecord(CanonicalBase):
     contexts: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
 
 
+class PredictiveModelRecord(CanonicalBase):
+    __tablename__ = "predictive_models"
+    __table_args__ = (
+        UniqueConstraint("name", "version", "competition_id", "market", name="uq_predictive_model"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    version: Mapped[str] = mapped_column(String(64), nullable=False)
+    competition_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    market: Mapped[str] = mapped_column(String(64), nullable=False)
+    parameters: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class PredictiveForecastRecord(CanonicalBase):
+    __tablename__ = "predictive_forecasts"
+    __table_args__ = (
+        UniqueConstraint("match_id", "model_name", "model_version", "market", name="uq_predictive_forecast"),
+        Index("ix_predictive_forecast_match", "match_id", "generated_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    match_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    market: Mapped[str] = mapped_column(String(64), nullable=False)
+    probabilities: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    explanations: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ModelBacktestRecord(CanonicalBase):
+    __tablename__ = "model_backtests"
+    __table_args__ = (Index("ix_model_backtest_model", "model_name", "model_version"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    model_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    samples: Mapped[int] = mapped_column(Integer, nullable=False)
+    metrics: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 __all__ = [
     "AggregateRecord",
     "AuditLogRecord",
@@ -198,4 +242,7 @@ __all__ = [
     "FusionResultRecord",
     "IdentityDecisionRecord",
     "StatisticalSnapshotRecord",
+    "ModelBacktestRecord",
+    "PredictiveForecastRecord",
+    "PredictiveModelRecord",
 ]
