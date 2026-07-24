@@ -10,9 +10,19 @@ from ultrastats_ai.domain.shared.identifiers import (
     CanonicalId,
     CompetitionId,
     CountryId,
+    LineupEntryId,
+    LineupId,
+    MatchDecisionId,
+    MatchEventId,
     MatchId,
+    MatchInterruptionId,
+    MatchOfficialId,
     MatchParticipantId,
+    MatchPeriodId,
+    MatchRevisionId,
     MatchScheduleChangeId,
+    MatchSquadId,
+    MatchStatisticId,
     MatchVenueId,
     PlayerId,
     PredictionId,
@@ -56,6 +66,29 @@ def test_match_schedule_change_identifier_is_canonical() -> None:
 
 def test_match_venue_identifier_is_canonical() -> None:
     identifier = MatchVenueId.new()
+
+    assert isinstance(identifier.value, UUID)
+
+
+@pytest.mark.parametrize(
+    "identifier_type",
+    [
+        MatchOfficialId,
+        MatchPeriodId,
+        MatchSquadId,
+        LineupId,
+        LineupEntryId,
+        MatchEventId,
+        MatchStatisticId,
+        MatchInterruptionId,
+        MatchDecisionId,
+        MatchRevisionId,
+    ],
+)
+def test_operational_match_identifiers_are_canonical(
+    identifier_type: type[CanonicalId],
+) -> None:
+    identifier = identifier_type.new()
 
     assert isinstance(identifier.value, UUID)
 
