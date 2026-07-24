@@ -1,0 +1,18 @@
+{
+  "version": "0.1.0-rc.2",
+  "commit": "27a54f5",
+  "migration_head": "b8151a2c9e10",
+  "components": [
+    "api_football",
+    "backtesting",
+    "calibration",
+    "football_data_uk",
+    "model_gate",
+    "multisource_engine",
+    "openligadb",
+    "statsbomb_open_data",
+    "temporal_odds"
+  ],
+  "created_at": "2026-07-24T20:30:00+00:00",
+  "checksum": "f3bee815e3466ec18a3b8b0cedeaaac22ba233be45bd21078b09df21766a2e56"
+}
