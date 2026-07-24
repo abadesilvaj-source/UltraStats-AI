@@ -368,6 +368,67 @@ class AutomaticReportRecord(CanonicalBase):
     generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class LiveEventRecord(CanonicalBase):
+    __tablename__ = "live_events"
+    __table_args__ = (Index("ix_live_event_match", "match_id", "occurred_at"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    match_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class LiveSnapshotRecord(CanonicalBase):
+    __tablename__ = "live_snapshots"
+    __table_args__ = (
+        UniqueConstraint("match_id", "revision", name="uq_live_snapshot_revision"),
+        Index("ix_live_snapshot_match", "match_id", "revision"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    match_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    phase: Mapped[str] = mapped_column(String(32), nullable=False)
+    health: Mapped[str] = mapped_column(String(32), nullable=False)
+    minute: Mapped[int] = mapped_column(Integer, nullable=False)
+    home_score: Mapped[int] = mapped_column(Integer, nullable=False)
+    away_score: Mapped[int] = mapped_column(Integer, nullable=False)
+    statistics: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    odds: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    probabilities: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    recommendations: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False)
+    anomalies: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class LiveAnomalyRecord(CanonicalBase):
+    __tablename__ = "live_anomalies"
+    __table_args__ = (Index("ix_live_anomaly_match", "match_id", "detected_at"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    match_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    event_id: Mapped[str | None] = mapped_column(String(64))
+    code: Mapped[str] = mapped_column(String(64), nullable=False)
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class LivePushDeliveryRecord(CanonicalBase):
+    __tablename__ = "live_push_deliveries"
+    __table_args__ = (
+        UniqueConstraint("match_id", "revision", "message", name="uq_live_push_delivery"),
+        Index("ix_live_push_pending", "status", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    match_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    message: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 __all__ = [
     "AggregateRecord",
     "AuditLogRecord",
@@ -393,4 +454,8 @@ __all__ = [
     "UserExperienceProfileRecord",
     "UserFavoriteRecord",
     "UserNotificationRecord",
+    "LiveAnomalyRecord",
+    "LiveEventRecord",
+    "LivePushDeliveryRecord",
+    "LiveSnapshotRecord",
 ]
