@@ -105,6 +105,44 @@ def test_openligadb_normalizes_list_and_rejects_capability() -> None:
     source.close()
 
 
+def test_engine_supports_parameters_per_source() -> None:
+    seen = {}
+
+    class Source:
+        capabilities = frozenset({DataCapability.FIXTURES})
+
+        def __init__(self, name):
+            self.name = name
+
+        def collect(self, capability, **params):
+            seen[self.name] = params
+            return ()
+
+        def health_check(self):
+            raise AssertionError
+
+        def close(self):
+            pass
+
+    engine = MultiSourceEngine(
+        (Source("one"), Source("two")),
+        {"one": 0, "two": 1},
+    )
+    report = engine.collect(
+        DataCapability.FIXTURES,
+        common="value",
+        source_params={
+            "one": {"specific": 1},
+            "two": {"specific": 2},
+        },
+    )
+    assert report.successful_sources == ("one", "two")
+    assert seen == {
+        "one": {"common": "value", "specific": 1},
+        "two": {"common": "value", "specific": 2},
+    }
+
+
 def test_statsbomb_extracts_events_and_xg() -> None:
     payload = [
         {

@@ -11,6 +11,18 @@ O intervalo local recomendado é de 60 minutos para respeitar a franquia gratuit
 da API-Football. StatsBomb Open Data permanece disponível para coletas de
 eventos/xG orientadas por partida, pois seu contrato exige um `match_id`.
 
+### Pipeline operacional
+
+A coleta de fixtures API-Football é promovida para as tabelas consumidas pelo
+dashboard. O processo resolve competição e equipes pelos identificadores
+externos, atualiza o ciclo de vida das partidas, garante os mercados principais,
+vincula odds disponíveis e produz previsões Poisson idempotentes.
+
+Previsões sem histórico estatístico suficiente são identificadas como
+`evidence_level=low`; elas permitem operar e observar o sistema, mas não devem
+ser interpretadas como recomendações de alta confiança. O EV só é calculado
+quando existe odd real correspondente.
+
 Esta seção reúne documentos relacionados às integrações com provedores externos de dados de futebol.
 
 Documentos previstos:

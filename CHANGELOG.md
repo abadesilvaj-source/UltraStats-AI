@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- pipeline operacional ponta a ponta para promover fixtures API-Football em
+  competições, equipes e partidas; criar mercados; vincular odds reais; e
+  registrar previsões Poisson idempotentes com nível de evidência explícito;
+- parâmetros independentes por provider, evitando combinações inválidas entre
+  API-Football, OpenLigaDB e Football-Data.co.uk;
 - scheduler multi-provider real com persistência idempotente de payloads,
   health checks por fonte, fallback degradado e auditoria de execuções;
 - conclusão do pacote técnico G17–G22 para lançamento;

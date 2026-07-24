@@ -266,6 +266,7 @@ class MultiSourceEngine:
         self.priority = priority
 
     def collect(self, capability: DataCapability, **params: Any) -> CollectionReport:
+        source_params = params.pop("source_params", {})
         candidates = sorted(
             (source for source in self.sources if capability in source.capabilities),
             key=lambda source: (self.priority.get(source.name, 10_000), source.name),
@@ -275,7 +276,9 @@ class MultiSourceEngine:
         failed: dict[str, str] = {}
         for source in candidates:
             try:
-                observations.extend(source.collect(capability, **params))
+                selected_params = dict(params)
+                selected_params.update(source_params.get(source.name, {}))
+                observations.extend(source.collect(capability, **selected_params))
                 successful.append(source.name)
             except (ProviderResponseError, KeyError, ValueError) as error:
                 failed[source.name] = str(error)

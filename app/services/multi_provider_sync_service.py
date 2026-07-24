@@ -18,6 +18,7 @@ from ultrastats_ai.infrastructure.providers.persistence import (
     SqlAlchemyHealthStore,
     SqlAlchemyRawPayloadStore,
 )
+from app.services.operational_pipeline_service import OperationalPipelineService
 
 
 class MultiProviderSyncService:
@@ -57,9 +58,46 @@ class MultiProviderSyncService:
                     failures[source.name] = health.message
 
             parameters = self._fixture_parameters()
-            report = engine.collect(DataCapability.FIXTURES, **parameters)
+            report = engine.collect(
+                DataCapability.FIXTURES,
+                source_params={
+                    "api_football": {
+                        "date": parameters["date"],
+                        "timezone": "America/Sao_Paulo",
+                    },
+                    "openligadb": {
+                        "league": parameters["league"],
+                        "season": parameters["season"],
+                    },
+                    "football_data_uk": {
+                        "path": parameters["path"],
+                    },
+                },
+            )
             failures.update(report.failed_sources)
             for observation in report.observations:
+                payload = RawProviderPayload(
+                    provider=observation.provider,
+                    resource=observation.capability.value,
+                    external_id=observation.external_id,
+                    payload=observation.values,
+                    collected_at=observation.observed_at,
+                )
+                if self.raw_store.save(payload):
+                    saved += 1
+                else:
+                    skipped += 1
+
+            odds_report = engine.collect(
+                DataCapability.ODDS,
+                source_params={
+                    "api_football": {
+                        "date": parameters["date"],
+                    }
+                },
+            )
+            failures.update(odds_report.failed_sources)
+            for observation in odds_report.observations:
                 payload = RawProviderPayload(
                     provider=observation.provider,
                     resource=observation.capability.value,
@@ -101,6 +139,10 @@ class MultiProviderSyncService:
             ):
                 raise RuntimeError("Nenhum provider real respondeu com sucesso.")
 
+            operational = OperationalPipelineService(self.session).process(
+                fixtures=report.observations,
+                odds=odds_report.observations,
+            )
             self.session.commit()
             completed = self.monitor.mark_success(
                 sync_run.id,
@@ -121,6 +163,7 @@ class MultiProviderSyncService:
                 "successful_sources": report.successful_sources,
                 "failures": failures,
                 "degraded": bool(failures),
+                "operational": operational,
             }
         except Exception as error:
             self.session.rollback()

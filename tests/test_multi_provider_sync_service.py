@@ -42,8 +42,20 @@ class FakeEngine:
         self.closed = False
 
     def collect(self, capability, **params):
+        assert "source_params" in params
+        if capability is DataCapability.ODDS:
+            return CollectionReport(
+                capability,
+                (),
+                ("api_football",),
+                {},
+                False,
+            )
         assert capability is DataCapability.FIXTURES
-        assert {"date", "league", "season", "path"} <= params.keys()
+        configured = params["source_params"]
+        assert configured["api_football"]["timezone"] == "America/Sao_Paulo"
+        assert configured["openligadb"]["league"] == "bl1"
+        assert configured["football_data_uk"]["path"].endswith(".csv")
         observations = (
             SourceObservation(
                 "api_football",

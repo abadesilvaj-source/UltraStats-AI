@@ -26,6 +26,9 @@ from app.services.scheduler_heartbeat_service import (
 from app.services.multi_provider_sync_service import (
     MultiProviderSyncService,
 )
+from app.services.operational_pipeline_service import (
+    OperationalPipelineService,
+)
 
 __all__ = [
     "AnalysisService",
@@ -41,6 +44,7 @@ __all__ = [
     "CollectorOrchestratorService",
     "SchedulerHeartbeatService",
     "MultiProviderSyncService",
+    "OperationalPipelineService",
 ]
 
 from app.services.performance_service import (
