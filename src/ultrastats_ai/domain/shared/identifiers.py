@@ -284,8 +284,23 @@ class OddId(EntityId):
 
 
 @dataclass(frozen=True, slots=True)
+class OddsSnapshotId(EntityId):
+    """Identificador canônico de snapshot de odd."""
+
+
+@dataclass(frozen=True, slots=True)
 class BetId(EntityId):
     """Identificador canônico de aposta registrada."""
+
+
+@dataclass(frozen=True, slots=True)
+class BetLegId(EntityId):
+    """Identificador canônico de perna de aposta."""
+
+
+@dataclass(frozen=True, slots=True)
+class SettlementId(EntityId):
+    """Identificador canônico de liquidação."""
 
 
 # Statistics and prediction
@@ -309,6 +324,16 @@ class PredictionModelId(EntityId):
 @dataclass(frozen=True, slots=True)
 class PredictionId(EntityId):
     """Identificador canônico de previsão."""
+
+
+@dataclass(frozen=True, slots=True)
+class PredictionResultId(EntityId):
+    """Identificador canônico de resultado preditivo."""
+
+
+@dataclass(frozen=True, slots=True)
+class PredictionExplanationId(EntityId):
+    """Identificador canônico de explicação preditiva."""
 
 
 @dataclass(frozen=True, slots=True)
