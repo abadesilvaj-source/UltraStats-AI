@@ -119,6 +119,54 @@ class ProviderHealthRecord(CanonicalBase):
     checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class IdentityDecisionRecord(CanonicalBase):
+    __tablename__ = "identity_decisions"
+    __table_args__ = (
+        UniqueConstraint("provider", "external_id", name="uq_identity_external"),
+        Index("ix_identity_review_queue", "status", "decided_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    external_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    candidate_id: Mapped[str | None] = mapped_column(String(64))
+    score: Mapped[str | None] = mapped_column(String(32))
+    evidence: Mapped[dict[str, object] | None] = mapped_column(JSON)
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    reviewer: Mapped[str | None] = mapped_column(String(255))
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class FusionResultRecord(CanonicalBase):
+    __tablename__ = "fusion_results"
+    __table_args__ = (Index("ix_fusion_canonical", "canonical_id", "fused_at"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    canonical_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    values: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    provenance: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    conflicts: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False)
+    fused_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class DataQuarantineRecord(CanonicalBase):
+    __tablename__ = "data_quarantine"
+    __table_args__ = (
+        UniqueConstraint("payload_fingerprint", name="uq_quarantine_payload"),
+        Index("ix_quarantine_pending", "resolved_at", "quarantined_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    resource: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    quarantined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 __all__ = [
     "AggregateRecord",
     "AuditLogRecord",
@@ -127,4 +175,7 @@ __all__ = [
     "OutboxMessage",
     "ProviderHealthRecord",
     "RawProviderPayloadRecord",
+    "DataQuarantineRecord",
+    "FusionResultRecord",
+    "IdentityDecisionRecord",
 ]
