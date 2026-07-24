@@ -2479,7 +2479,7 @@ KellyFractionPolicy
 Status:
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
 
 ---
@@ -2500,7 +2500,7 @@ Escopo:
 Status:
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
 
 ---
@@ -2524,7 +2524,7 @@ Escopo:
 Status:
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
 
 ---
@@ -2550,7 +2550,7 @@ Escopo:
 Status:
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
 
 ---
@@ -2575,7 +2575,7 @@ Escopo:
 Status:
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
 
 ---
@@ -2596,7 +2596,7 @@ Escopo:
 Status:
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
 
 ---
@@ -2604,10 +2604,10 @@ PLANEJADO
 ### Status geral da G5
 
 ```text
-EM ANDAMENTO
+CONCLUÍDO
 ```
 
-A implementação do domínio canônico encontra-se em execução.
+A implementação do domínio canônico está concluída e preparada para a G6.
 
 Etapas concluídas:
 
@@ -2619,20 +2619,28 @@ G5.4 — Enums e Estados do Domínio
 G5.5 — Geography e Venue
 G5.6 — Competition
 G5.7 — People e Team
+G5.8 — Match e Tie
+G5.9 — Betting, Prediction e Bankroll
+G5.10 — Domain Services e Policies
+G5.11 — Repositories e Unit of Work
+G5.12 — Modelos SQLAlchemy e Mapeamentos
+G5.13 — Migrations e Constraints
+G5.14 — Testes e Validação Arquitetural
+G5.15 — Consolidação do Domínio Canônico
 ```
 
-Etapa atual:
+Próxima etapa:
 
 ```text
-G5.8 — Match e Tie
+G6 — Integração com Providers
 ```
 
 Último resultado validado:
 
 ```text
-G5.7 — People e Team
+G5 — Domínio Canônico
 
-2182 testes aprovados
+2439 testes aprovados
 100,00% de cobertura de linhas e branches
 0 linhas ausentes
 0 branches parcialmente cobertos
@@ -2641,8 +2649,8 @@ G5.7 — People e Team
 Próximo objetivo:
 
 ```text
-Implementar o ciclo de vida canônico de partidas, participantes, oficiais,
-escalações, eventos, estatísticas, interrupções, decisões e revisões.
+Integrar providers externos por adapters, mantendo o domínio e a persistência
+canônica independentes das APIs de terceiros.
 ```
 
 

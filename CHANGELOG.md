@@ -11,6 +11,15 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- conclusão integral da G5.10–G5.15 e, consequentemente, de toda a G5;
+- dez Domain Services e onze Domain Policies determinísticos;
+- repository SQLAlchemy genérico para snapshots de Aggregate Roots;
+- Unit of Work transacional com Outbox;
+- modelos canônicos com UUID, JSON, timezone, auditoria, soft delete e
+  optimistic locking;
+- tabelas de Outbox, Inbox e Audit Log com índices, checks, unicidade e FKs;
+- migration reversível `7a5f5c10d001`;
+- testes de concorrência, idempotência e upgrade/downgrade;
 - conclusão integral da G5.9 — Betting, Prediction e Bankroll;
 - `Bookmaker`, `BettingMarket`, `BettingSelection` e `OddsSnapshot`;
 - `Prediction`, `PredictionResult` e `PredictionExplanation` imutáveis;

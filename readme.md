@@ -313,6 +313,12 @@ A G5.9 também está concluída. Betting, Prediction, Recommendation e Bankroll
 agora possuem modelos canônicos, históricos imutáveis, precisão decimal,
 controle de ownership e liquidação financeira auditável.
 
+A G5 foi integralmente concluída. As etapas G5.10–G5.15 acrescentaram Domain
+Services e Policies, repositories, Unit of Work, persistência SQLAlchemy
+versionada, Outbox, Inbox, Audit Log, migration reversível e validação
+arquitetural. A suíte consolidada possui 2.439 testes e cobertura de 100% de
+linhas e branches. A próxima fase é a G6 — Integração com Providers.
+
 ---
 
 ## 12. Roadmap
