@@ -3046,8 +3046,26 @@ WhatsApp
 ### Status
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
+
+### Entregas concluídas
+
+- hub moderno com modos simples e avançado;
+- home e navegação para partidas, mercados, análises, sugestões, equipes e competições;
+- perfil persistente com preferências de acessibilidade;
+- favoritos idempotentes e alertas configuráveis;
+- comparação determinística de cenários;
+- linha do tempo unificada;
+- busca em linguagem natural com normalização e ranking;
+- relatórios automáticos reproduzíveis;
+- notificações internas com estado de leitura;
+- assinaturas e canal de notificações push;
+- indicador discreto de atualização dos dados;
+- migration reversível `e5c01372e228`;
+- 2.527 testes com 100% de cobertura.
+
+Próxima etapa: G13 — Motor ao Vivo.
 
 ---
 

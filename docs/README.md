@@ -635,6 +635,8 @@ Exemplo:
 [Motor de Recomendações](architecture/recommendation-engine.md)
 
 [Gestão de Risco e Portfólio](architecture/risk-and-portfolio.md)
+
+[Experiência do Usuário](architecture/user-experience.md)
 ```
 
 Exemplo dentro de uma subpasta:

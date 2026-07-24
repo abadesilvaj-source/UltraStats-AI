@@ -360,6 +360,13 @@ ROI, yield e drawdown. Perfis e snapshots são persistentes e auditáveis. A
 suíte consolidada possui 2.506 testes e 100% de cobertura. A próxima fase é a
 G12 — Experiência do Usuário.
 
+A G12 está concluída. Um hub unificado oferece modos simples e avançado,
+navegação por todo o produto, favoritos, alertas, perfil e acessibilidade,
+cenários, timeline, busca em linguagem natural, relatórios automáticos,
+notificações internas e push e indicador discreto de atualização. A suíte
+consolidada possui 2.527 testes e 100% de cobertura. A próxima fase é a G13 —
+Motor ao Vivo.
+
 ---
 
 ## 12. Roadmap

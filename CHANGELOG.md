@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- conclusão integral da G12 — Experiência do Usuário;
+- hub com modos simples e avançado e navegação unificada;
+- perfil acessível, favoritos, alertas, cenários, timeline e busca natural;
+- relatórios automáticos, notificações internas e assinaturas push;
+- indicador discreto de atualização, migration reversível e persistência;
 - conclusão integral da G11 — Gestão de Risco e Portfólio;
 - Kelly integral e fracionado com perfis conservador, moderado e agressivo;
 - limites por aposta, dia, competição, mercado e correlação;
