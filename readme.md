@@ -346,6 +346,13 @@ calibração, backtesting, Monte Carlo, explicabilidade e mudança de regime, co
 histórico imutável. A suíte consolidada possui 2.472 testes e 100% de
 cobertura. A próxima fase é a G10 — Motor de Recomendações.
 
+A G10 está concluída. O motor calcula probabilidade implícita, odd justa, EV,
+edge, confiança, risco e Opportunity Score; compara cotações, explica decisões
+e diversifica recomendações correlacionadas. Filtros bloqueiam oportunidades
+inseguras e o histórico permanece auditável. A suíte consolidada possui 2.489
+testes e 100% de cobertura. A próxima fase é a G11 — Gestão de Risco e
+Portfólio.
+
 ---
 
 ## 12. Roadmap

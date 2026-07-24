@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- conclusão integral da G10 — Motor de Recomendações;
+- cálculo de odds justas, EV, edge, confiança, risco e Opportunity Score;
+- comparação de odds, ranking e diversificação de recomendações correlacionadas;
+- filtros de segurança, explicações, histórico e auditoria persistentes;
+- migration reversível e dashboard de recomendações seguras;
 - conclusão integral da G9 — Modelos Preditivos;
 - modelos de placar e contagem para todo o catálogo inicial de mercados;
 - ensembles, calibração, backtesting, Monte Carlo e mudança de regime;

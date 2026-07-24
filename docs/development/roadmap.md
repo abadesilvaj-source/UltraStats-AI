@@ -2935,8 +2935,24 @@ Especulativo
 ### Status
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
+
+### Entregas concluídas
+
+- cálculo de probabilidade implícita, probabilidade do modelo, odd justa, EV e edge;
+- confiança combinada entre modelo e confiabilidade da amostra;
+- Opportunity Score determinístico com liquidez e penalização por odd;
+- cinco classificações de risco;
+- comparação de odds, ranking seguro e diversificação por correlação;
+- bloqueio de cotações indisponíveis, antigas, futuras, ilíquidas ou fora da política;
+- explicações e motivos de bloqueio auditáveis;
+- histórico persistente de recomendações e trilha de auditoria;
+- migration reversível `c3ae0150c006`;
+- dashboard exclusivo para recomendações seguras;
+- 2.489 testes com 100% de cobertura.
+
+Próxima etapa: G11 — Gestão de Risco e Portfólio.
 
 ---
 
