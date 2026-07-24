@@ -18,6 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from app.core.config import settings
 from app.database.base import Base
 from app.models import Team
+from ultrastats_ai.infrastructure.database.models import CanonicalBase
 
 
 # Objeto de configuração do Alembic.
@@ -30,7 +31,7 @@ if config.config_file_name is not None:
 
 
 # Informa ao Alembic quais modelos devem ser analisados.
-target_metadata = Base.metadata
+target_metadata = [Base.metadata, CanonicalBase.metadata]
 
 
 def run_migrations_offline() -> None:
