@@ -17,7 +17,10 @@ O roadmap detalhado e oficial está em
 - [x] G14 — Produção, Segurança e Escalabilidade
 - [x] G15 — Release Candidate e Validação Integrada
 
-Release candidate atual: `v0.1.0-rc.1`.
+- [x] G15.1 — Motor Multi-Provider Real
+- [x] G15.2 — Dataset, Backtesting e Calibração
 
-Próximo passo: homologação humana em staging e promoção controlada para a
+Release candidate atual: `v0.1.0-rc.2`.
+
+Próximo passo: G16, homologação humana em staging e promoção controlada para a
 primeira versão estável.

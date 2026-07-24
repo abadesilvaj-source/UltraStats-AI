@@ -11,6 +11,13 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- conclusão integral da G15.1 — Motor Multi-Provider Real;
+- adapters para API-Football, Football-Data.co.uk, StatsBomb Open Data e OpenLigaDB;
+- matriz de capacidades, fallback degradado, prioridade e snapshots temporais de odds;
+- conclusão integral da G15.2 — Dataset, Backtesting e Calibração;
+- split temporal/rolling, Brier, log loss, ECE, acurácia, ROI e gate de modelos;
+- release candidate `v0.1.0-rc.2` com 2.629 testes e 100% de cobertura;
+
 - conclusão integral da G15 — Release Candidate e Validação Integrada;
 - release gate, CI, staging, smoke test e manifesto reproduzível;
 - migration full-chain e E2E de todos os contextos G8–G14;

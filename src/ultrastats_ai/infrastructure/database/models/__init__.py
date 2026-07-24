@@ -230,6 +230,81 @@ class ModelBacktestRecord(CanonicalBase):
     evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ProviderCapabilityRecord(CanonicalBase):
+    __tablename__ = "provider_capabilities"
+    __table_args__ = (
+        UniqueConstraint("provider", "capability", name="uq_provider_capability"),
+        Index("ix_provider_capability_status", "enabled", "provider"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    capability: Mapped[str] = mapped_column(String(64), nullable=False)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    terms_reference: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class OddsSnapshotRecord(CanonicalBase):
+    __tablename__ = "odds_snapshots"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider",
+            "match_id",
+            "bookmaker",
+            "market",
+            "selection",
+            "captured_at",
+            name="uq_odds_snapshot",
+        ),
+        Index("ix_odds_snapshot_timeline", "match_id", "market", "captured_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    match_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    bookmaker: Mapped[str] = mapped_column(String(128), nullable=False)
+    market: Mapped[str] = mapped_column(String(64), nullable=False)
+    selection: Mapped[str] = mapped_column(String(128), nullable=False)
+    decimal_odds: Mapped[str] = mapped_column(String(64), nullable=False)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class TrainingDatasetRecord(CanonicalBase):
+    __tablename__ = "training_datasets"
+    __table_args__ = (UniqueConstraint("name", "version", name="uq_training_dataset"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    version: Mapped[str] = mapped_column(String(64), nullable=False)
+    cutoff_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    samples: Mapped[int] = mapped_column(Integer, nullable=False)
+    feature_schema: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    provider_coverage: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ModelValidationRecord(CanonicalBase):
+    __tablename__ = "model_validations"
+    __table_args__ = (
+        UniqueConstraint("model_name", "model_version", "dataset_id", name="uq_model_validation"),
+        Index("ix_model_validation_gate", "approved", "evaluated_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    model_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    dataset_id: Mapped[UUID] = mapped_column(
+        ForeignKey("training_datasets.id", ondelete="RESTRICT"), nullable=False
+    )
+    metrics: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    gate_failures: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    approved: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class RecommendationOpportunityRecord(CanonicalBase):
     __tablename__ = "recommendation_opportunities"
     __table_args__ = (
@@ -504,6 +579,10 @@ __all__ = [
     "IdentityDecisionRecord",
     "StatisticalSnapshotRecord",
     "ModelBacktestRecord",
+    "ProviderCapabilityRecord",
+    "OddsSnapshotRecord",
+    "TrainingDatasetRecord",
+    "ModelValidationRecord",
     "PredictiveForecastRecord",
     "PredictiveModelRecord",
     "RecommendationAuditRecord",

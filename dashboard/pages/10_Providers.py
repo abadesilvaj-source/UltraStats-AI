@@ -15,6 +15,22 @@ st.set_page_config(page_title="Providers", page_icon="🌐", layout="wide")
 st.title("🌐 Providers")
 st.caption("Disponibilidade, latência e histórico das integrações externas.")
 
+st.subheader("Matriz de capacidades")
+st.dataframe(
+    [
+        {"Provider": "Football-Data.org", "Jogos": True, "Ao vivo": False, "Estatísticas": False, "Odds": False, "xG": False},
+        {"Provider": "API-Football", "Jogos": True, "Ao vivo": True, "Estatísticas": True, "Odds": True, "xG": False},
+        {"Provider": "Football-Data.co.uk", "Jogos": True, "Ao vivo": False, "Estatísticas": False, "Odds": True, "xG": False},
+        {"Provider": "StatsBomb Open Data", "Jogos": True, "Ao vivo": False, "Estatísticas": True, "Odds": False, "xG": True},
+        {"Provider": "OpenLigaDB", "Jogos": True, "Ao vivo": False, "Estatísticas": False, "Odds": False, "xG": False},
+    ],
+    use_container_width=True,
+)
+st.caption(
+    "API-Football requer API_FOOTBALL_KEY. O motor registra proveniência e "
+    "continua em modo degradado quando uma fonte falha."
+)
+
 if st.button("Verificar Football-Data.org", type="primary"):
     try:
         provider = build_football_data_provider()

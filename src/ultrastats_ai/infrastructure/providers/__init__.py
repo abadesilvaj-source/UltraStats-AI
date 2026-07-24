@@ -23,6 +23,21 @@ from ultrastats_ai.infrastructure.providers.persistence import (
     SqlAlchemyRawPayloadStore,
     payload_fingerprint,
 )
+from ultrastats_ai.infrastructure.providers.multisource import (
+    ApiFootballSource,
+    CollectionReport,
+    DataCapability,
+    DataSource,
+    FootballDataUKSource,
+    JsonDataSource,
+    MultiSourceEngine,
+    OddsSnapshot,
+    OpenLigaDBSource,
+    SourceConfig,
+    SourceObservation,
+    StatsBombOpenDataSource,
+    build_multi_source_engine,
+)
 
 __all__ = [
     "FootballDataProvider",
@@ -44,4 +59,17 @@ __all__ = [
     "SqlAlchemyHealthStore",
     "SqlAlchemyRawPayloadStore",
     "payload_fingerprint",
+    "ApiFootballSource",
+    "CollectionReport",
+    "DataCapability",
+    "DataSource",
+    "FootballDataUKSource",
+    "JsonDataSource",
+    "MultiSourceEngine",
+    "OddsSnapshot",
+    "OpenLigaDBSource",
+    "SourceConfig",
+    "SourceObservation",
+    "StatsBombOpenDataSource",
+    "build_multi_source_engine",
 ]

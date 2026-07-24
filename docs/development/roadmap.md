@@ -3283,6 +3283,32 @@ operacional.
 
 ---
 
+## G15.1 — Motor Multi-Provider Real
+
+**Status:** concluída.
+
+- [x] API-Football para fixtures, live, estatísticas, eventos e odds;
+- [x] Football-Data.co.uk para resultados e odds históricos;
+- [x] StatsBomb Open Data para eventos e xG;
+- [x] OpenLigaDB como fonte complementar;
+- [x] matriz de capacidades, prioridade e modo degradado;
+- [x] proveniência, identidade canônica e snapshots temporais de odds;
+- [x] persistência e dashboard operacional;
+- [x] exclusão explícita de scraping sem licença.
+
+## G15.2 — Dataset, Backtesting e Calibração
+
+**Status:** concluída.
+
+- [x] datasets versionados com cobertura e checksum;
+- [x] split temporal e janelas rolling sem vazamento;
+- [x] Brier score, log loss, acurácia, calibration error e ROI;
+- [x] temperature scaling;
+- [x] gate auditável de promoção;
+- [x] persistência e painel de validação.
+
+**Próxima etapa:** G16 — homologação em staging com credenciais reais.
+
 ## 21. Atualização deste documento
 
 A atualização do roadmap faz parte do desenvolvimento do UltraStats AI e deverá

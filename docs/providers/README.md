@@ -33,3 +33,12 @@ e consultar o último estado persistido.
 O adapter somente aceita `FOOTBALL_DATA_API_TOKEN`; a variável genérica legada
 `SPORTS_API_KEY` não é reutilizada, evitando o envio de credenciais de outro
 provider. A validação live depende de uma chave real configurada localmente.
+
+## Motor multi-provider
+
+A G15.1 adiciona adapters para API-Football, Football-Data.co.uk, StatsBomb
+Open Data e OpenLigaDB. A matriz de capacidades, prioridade, continuidade
+degradada e validação preditiva estão em
+[`multi-provider-model-validation.md`](../architecture/multi-provider-model-validation.md).
+
+Fontes sem API pública ou licença explícita não são coletadas por scraping.

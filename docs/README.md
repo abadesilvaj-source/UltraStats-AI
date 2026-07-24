@@ -647,6 +647,8 @@ Exemplo:
 [Release Candidate e Validação](architecture/release-candidate-validation.md)
 
 [Release v0.1.0-rc.1](releases/v0.1.0-rc.1.md)
+
+[Release v0.1.0-rc.2](releases/v0.1.0-rc.2.md)
 ```
 
 Exemplo dentro de uma subpasta:
