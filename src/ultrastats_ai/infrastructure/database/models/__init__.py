@@ -429,6 +429,68 @@ class LivePushDeliveryRecord(CanonicalBase):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class OperationalMetricRecord(CanonicalBase):
+    __tablename__ = "operational_metrics"
+    __table_args__ = (Index("ix_operational_metric_name", "name", "recorded_at"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    value: Mapped[str] = mapped_column(String(64), nullable=False)
+    labels: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class OperationalAlertRecord(CanonicalBase):
+    __tablename__ = "operational_alerts"
+    __table_args__ = (Index("ix_operational_alert_status", "status", "created_at"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    code: Mapped[str] = mapped_column(String(128), nullable=False)
+    severity: Mapped[str] = mapped_column(String(16), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class SecurityAuditRecord(CanonicalBase):
+    __tablename__ = "security_audit"
+    __table_args__ = (UniqueConstraint("sequence", name="uq_security_audit_sequence"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    action: Mapped[str] = mapped_column(String(128), nullable=False)
+    actor: Mapped[str] = mapped_column(String(128), nullable=False)
+    previous_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    entry_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class BackupCatalogRecord(CanonicalBase):
+    __tablename__ = "backup_catalog"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    location: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class OperationalQueueRecord(CanonicalBase):
+    __tablename__ = "operational_queue"
+    __table_args__ = (
+        Index("ix_operational_queue_ready", "queue", "status", "available_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    queue: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False)
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 __all__ = [
     "AggregateRecord",
     "AuditLogRecord",
@@ -458,4 +520,9 @@ __all__ = [
     "LiveEventRecord",
     "LivePushDeliveryRecord",
     "LiveSnapshotRecord",
+    "BackupCatalogRecord",
+    "OperationalAlertRecord",
+    "OperationalMetricRecord",
+    "OperationalQueueRecord",
+    "SecurityAuditRecord",
 ]
