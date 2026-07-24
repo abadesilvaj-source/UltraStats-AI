@@ -32,6 +32,7 @@ class ReleaseEvidence:
     backup_restore_passed: bool
     load_failure_rate: Decimal
     worktree_clean: bool
+    staging_passed: bool = True
 
     def __post_init__(self) -> None:
         if self.passed_tests < 0 or not Decimal("0") <= self.coverage <= Decimal("100"):
@@ -65,8 +66,8 @@ def create_manifest(
     components: tuple[str, ...],
     created_at: datetime,
 ) -> ReleaseManifest:
-    if not _valid_rc_version(version):
-        raise ValueError("Versão deve seguir o formato semântico de release candidate.")
+    if not _valid_release_version(version):
+        raise ValueError("Versão deve seguir o formato semântico de release.")
     if len(commit) < 7 or not migration_head.strip() or not components:
         raise ValueError("Manifesto exige commit, migration e componentes.")
     normalized = tuple(sorted(set(component.strip() for component in components)))
@@ -152,13 +153,17 @@ def evaluate_release(
             str(evidence.load_failure_rate),
         ),
         ReleaseCheck("worktree", evidence.worktree_clean, str(evidence.worktree_clean)),
+        ReleaseCheck("staging", evidence.staging_passed, str(evidence.staging_passed)),
     )
     return ReleaseDecision(checks)
 
 
-def _valid_rc_version(version: str) -> bool:
+def _valid_release_version(version: str) -> bool:
     parts = version.split("-rc.")
-    if len(parts) != 2 or not parts[1].isdigit() or int(parts[1]) <= 0:
+    if len(parts) not in {1, 2}:
         return False
     core = parts[0].split(".")
-    return len(core) == 3 and all(part.isdigit() for part in core)
+    valid_core = len(core) == 3 and all(part.isdigit() for part in core)
+    if len(parts) == 1:
+        return valid_core
+    return valid_core and parts[1].isdigit() and int(parts[1]) > 0

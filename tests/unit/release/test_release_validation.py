@@ -38,6 +38,7 @@ def evidence(**changes):
         "backup_restore_passed": True,
         "load_failure_rate": D("0"),
         "worktree_clean": True,
+        "staging_passed": True,
     }
     values.update(changes)
     return ReleaseEvidence(**values)
@@ -54,11 +55,11 @@ def test_manifest_is_normalized_reproducible_and_verified() -> None:
 @pytest.mark.parametrize(
     ("version", "commit", "head", "components", "message"),
     [
-        ("0.1.0", "abcdef1", "head", ("app",), "Versão"),
         ("0.1-rc.1", "abcdef1", "head", ("app",), "Versão"),
         ("a.1.0-rc.1", "abcdef1", "head", ("app",), "Versão"),
         ("0.1.0-rc.0", "abcdef1", "head", ("app",), "Versão"),
         ("0.1.0-rc.x", "abcdef1", "head", ("app",), "Versão"),
+        ("0.1.0-rc.1-rc.2", "abcdef1", "head", ("app",), "Versão"),
         ("0.1.0-rc.1", "short", "head", ("app",), "commit"),
         ("0.1.0-rc.1", "abcdef1", "", ("app",), "migration"),
         ("0.1.0-rc.1", "abcdef1", "head", (), "componentes"),
@@ -73,7 +74,7 @@ def test_manifest_validation(version, commit, head, components, message) -> None
 def test_release_gate_approves_complete_evidence() -> None:
     decision = evaluate_release(manifest(), evidence(), minimum_tests=2585)
     assert decision.approved
-    assert len(decision.checks) == 12
+    assert len(decision.checks) == 13
     assert all(check.detail for check in decision.checks)
 
 
@@ -90,6 +91,7 @@ def test_release_gate_reports_every_failure() -> None:
         backup_restore_passed=False,
         load_failure_rate=D(".1"),
         worktree_clean=False,
+        staging_passed=False,
     )
     decision = evaluate_release(
         replace(manifest(), checksum="tampered"),
@@ -99,6 +101,10 @@ def test_release_gate_reports_every_failure() -> None:
     )
     assert not decision.approved
     assert not any(check.passed for check in decision.checks)
+
+
+def test_stable_manifest_is_supported() -> None:
+    assert create_manifest("0.1.0", "abcdef1", "head", ("app",), NOW).version == "0.1.0"
 
 
 @pytest.mark.parametrize(

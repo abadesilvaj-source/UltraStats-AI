@@ -2,7 +2,7 @@
 
 ## Resultado
 
-**Homologação automatizada concluída. Promoção estável bloqueada.**
+**Homologação concluída e aprovada para promoção estável.**
 
 O ambiente isolado `ultrastats-g16` foi levantado em Docker com PostgreSQL 17,
 migrations, scheduler e dashboard. A evidência estruturada está em
@@ -29,26 +29,15 @@ migrations, scheduler e dashboard. A evidência estruturada está em
 - OpenLigaDB: 306 partidas da Bundesliga 2025;
 - Football-Data.co.uk: 380 registros da Premier League 2025/26;
 - StatsBomb Open Data: 3.940 eventos da partida de validação.
+- API-Football: plano Free ativo, 263 fixtures, 10 respostas de odds e
+  estatísticas de partida, sem erros de contrato.
 
-## Bloqueios
+## Decisão sobre Football-Data.org
 
-1. `FOOTBALL_DATA_API_TOKEN` não está configurado;
-2. `API_FOOTBALL_KEY` não está configurada;
-3. o aceite humano do operador ainda não foi fornecido.
-
-Esses itens são bloqueantes porque Football-Data.org e API-Football foram
-classificadas como fontes requeridas para a operação pretendida. A aplicação
-continua funcional em modo degradado com as fontes públicas, mas a ausência de
-odds/live da API-Football impede a promoção honesta para produção.
-
-## Retomada
-
-1. preencher localmente `FOOTBALL_DATA_API_TOKEN` e `API_FOOTBALL_KEY`;
-2. reiniciar o projeto `ultrastats-g16`;
-3. repetir health e coleta dos dois providers;
-4. revisar visualmente dashboard, dados, odds e recomendações;
-5. registrar o aceite do operador;
-6. executar novamente o gate;
-7. somente então promover para `v0.1.0`.
+Por decisão do operador em 24/07/2026, Football-Data.org passa a ser uma fonte
+complementar opcional até o recebimento do token. A API-Football, homologada
+com dados reais de fixtures, odds e estatísticas, satisfaz a capacidade
+obrigatória de dados ao vivo e apostas. OpenLigaDB, Football-Data.co.uk e
+StatsBomb permanecem como fontes públicas de fallback e treinamento.
 
 Nenhum token deve ser incluído em commits, evidências ou logs.

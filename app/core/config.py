@@ -35,7 +35,7 @@ class Settings:
     def __init__(self) -> None:
         # Configurações gerais
         self.app_name = "UltraStats AI"
-        self.version = "0.1.0-rc.2"
+        self.version = "0.1.0"
 
         # Banco de dados
         self.database_url = os.getenv(

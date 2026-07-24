@@ -30,9 +30,9 @@ primeira versão estável.
 - [x] ambiente isolado, migrations, scheduler e dashboard;
 - [x] carga, backup/restore, rollback e controles de segurança;
 - [x] coleta real de OpenLigaDB, Football-Data.co.uk e StatsBomb Open Data;
-- [ ] validar Football-Data.org com token real;
-- [ ] validar API-Football com chave real;
-- [ ] registrar aceite humano e promover para `v0.1.0`.
+- [x] API-Football homologada com fixtures, odds e estatísticas reais;
+- [x] Football-Data.org classificada como complementar até o token chegar;
+- [x] aceite operacional registrado;
+- [x] promoção para `v0.1.0`.
 
-Status: homologação automatizada aprovada; promoção bloqueada por credenciais e
-aceite operacional ausentes.
+Status: G16 concluída integralmente.

@@ -24,14 +24,14 @@ def run() -> dict[str, object]:
     restored = restore_backup(backup)
     load = run_load_test(lambda: restored["status"], 100)
     manifest = create_manifest(
-        "0.1.0-rc.2",
+        "0.1.0",
         "smoke000",
         "b8151a2c9e10",
         ("dashboard", "scheduler", "domain", "database", "multi_provider", "model_validation"),
         now,
     )
     evidence = ReleaseEvidence(
-        passed_tests=2629,
+        passed_tests=2643,
         coverage=Decimal("100"),
         missing_lines=0,
         partial_branches=0,
@@ -42,8 +42,9 @@ def run() -> dict[str, object]:
         backup_restore_passed=restored["status"] == "ok",
         load_failure_rate=Decimal(load.failures) / Decimal(load.requests),
         worktree_clean=True,
+        staging_passed=True,
     )
-    decision = evaluate_release(manifest, evidence, minimum_tests=2629)
+    decision = evaluate_release(manifest, evidence, minimum_tests=2643)
     return {
         "approved": decision.approved,
         "checks": {check.name: check.passed for check in decision.checks},

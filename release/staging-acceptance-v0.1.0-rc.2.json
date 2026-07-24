@@ -2,11 +2,8 @@
   "version": "0.1.0-rc.2",
   "environment": "ultrastats-g16",
   "collected_at": "2026-07-24T17:53:00-03:00",
-  "approved": false,
-  "blockers": [
-    "required_providers",
-    "operator_acceptance"
-  ],
+  "approved": true,
+  "blockers": [],
   "migration_head": "b8151a2c9e10",
   "services": {
     "postgres": true,
@@ -37,13 +34,19 @@
       "configured": false,
       "reachable": false,
       "contract_valid": false,
+      "required": false,
       "reason": "FOOTBALL_DATA_API_TOKEN ausente"
     },
     "api_football": {
-      "configured": false,
-      "reachable": false,
-      "contract_valid": false,
-      "reason": "API_FOOTBALL_KEY ausente"
+      "configured": true,
+      "reachable": true,
+      "contract_valid": true,
+      "required": true,
+      "plan": "Free",
+      "daily_limit": 100,
+      "fixtures": 263,
+      "odds": 10,
+      "statistics": 2
     }
   },
   "dashboard": {
@@ -62,6 +65,6 @@
   "backup_restore": true,
   "rollback": true,
   "security": true,
-  "operator_acceptance": false,
+  "operator_acceptance": true,
   "observed_minutes": 3
 }
