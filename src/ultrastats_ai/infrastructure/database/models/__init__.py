@@ -230,6 +230,43 @@ class ModelBacktestRecord(CanonicalBase):
     evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class RecommendationOpportunityRecord(CanonicalBase):
+    __tablename__ = "recommendation_opportunities"
+    __table_args__ = (
+        UniqueConstraint("match_id", "market", "selection", "evaluated_at", name="uq_recommendation_snapshot"),
+        Index("ix_recommendation_safe_score", "safe", "score"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    match_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    market: Mapped[str] = mapped_column(String(64), nullable=False)
+    selection: Mapped[str] = mapped_column(String(128), nullable=False)
+    bookmaker: Mapped[str | None] = mapped_column(String(128))
+    offered_odds: Mapped[str | None] = mapped_column(String(64))
+    metrics: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    risk: Mapped[str] = mapped_column(String(32), nullable=False)
+    score: Mapped[str] = mapped_column(String(64), nullable=False)
+    safe: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    blocked_reasons: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    explanation: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    correlation_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class RecommendationAuditRecord(CanonicalBase):
+    __tablename__ = "recommendation_audit"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    opportunity_id: Mapped[UUID] = mapped_column(
+        ForeignKey("recommendation_opportunities.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    action: Mapped[str] = mapped_column(String(64), nullable=False)
+    actor: Mapped[str] = mapped_column(String(255), nullable=False)
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 __all__ = [
     "AggregateRecord",
     "AuditLogRecord",
@@ -245,4 +282,6 @@ __all__ = [
     "ModelBacktestRecord",
     "PredictiveForecastRecord",
     "PredictiveModelRecord",
+    "RecommendationAuditRecord",
+    "RecommendationOpportunityRecord",
 ]
