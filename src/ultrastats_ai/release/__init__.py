@@ -14,6 +14,16 @@ from ultrastats_ai.release.staging import (
     StagingEvidence,
     evaluate_staging,
 )
+from ultrastats_ai.release.launch import (
+    GateCheck,
+    GateDecision,
+    PilotEvidence,
+    ProductionEvidence,
+    PublicLaunchEvidence,
+    evaluate_pilot,
+    evaluate_production,
+    evaluate_public_launch,
+)
 
 __all__ = [
     "ReleaseCheck",
@@ -28,4 +38,12 @@ __all__ = [
     "StagingDecision",
     "StagingEvidence",
     "evaluate_staging",
+    "GateCheck",
+    "GateDecision",
+    "PilotEvidence",
+    "ProductionEvidence",
+    "PublicLaunchEvidence",
+    "evaluate_pilot",
+    "evaluate_production",
+    "evaluate_public_launch",
 ]

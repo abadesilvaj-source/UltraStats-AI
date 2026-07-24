@@ -738,7 +738,16 @@ Geography, Competition, People e Team.
 
 ---
 
-## 18. Regra final
+## 18. Lançamento
+
+- `deployment/production-launch.md` — implantação, operação, piloto e evolução;
+- `legal/PRIVACY.md` — minuta de privacidade;
+- `legal/TERMS.md` — minuta de termos;
+- `legal/RESPONSIBLE_GAMING.md` — política de jogo responsável.
+
+---
+
+## 19. Regra final
 
 A documentação deverá evoluir juntamente com o projeto.
 

@@ -11,6 +11,13 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- conclusão do pacote técnico G17–G22 para lançamento;
+- workflow de publicação de imagem versionada no GHCR;
+- stack de produção com rede interna, TLS automático e containers somente leitura;
+- gates auditáveis de produção, piloto controlado e lançamento público;
+- minutas de privacidade, termos de uso e jogo responsável;
+- ciclo operacional de dados e evolução pós-lançamento;
+
 - conclusão integral da G16 e promoção da primeira versão estável `v0.1.0`;
 - API-Football Free homologada com fixtures, odds e estatísticas reais;
 - Football-Data.org mantida como fonte complementar opcional até o token;

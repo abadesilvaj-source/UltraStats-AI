@@ -3343,6 +3343,26 @@ O roadmap não deverá indicar uma etapa como concluída enquanto ainda existire
 entregas obrigatórias de documentação, revisão ou validação associadas a ela.
 ---
 
+## G17–G22 — Lançamento e evolução
+
+| Etapa | Estado técnico | Condição operacional |
+|---|---|---|
+| G17 — Consolidação GitHub | concluída | G1–G16 publicados em `main` |
+| G18 — Produção | preparada | requer host, domínio e DNS |
+| G19 — Operação contínua | concluída | ativada na implantação |
+| G20 — Piloto controlado | preparada | requer 7–14 dias de uso real |
+| G21 — Conformidade e lançamento | preparada | requer jurisdições e aceite jurídico |
+| G22 — Evolução pós-lançamento | concluída | ciclo mensal após publicação |
+
+Entregas: Compose de produção, proxy TLS, pipeline de imagem, gates auditáveis,
+critérios do piloto, minutas legais, controles de jogo responsável, runbook e
+ciclo de evolução. Uma etapa dependente de evidência externa não será
+registrada como executada antes da implantação, observação ou aceite.
+
+Referência operacional: `docs/deployment/production-launch.md`.
+
+---
+
 ## Histórico de marcos
 
 ```text
