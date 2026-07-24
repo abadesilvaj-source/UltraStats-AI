@@ -167,6 +167,11 @@ docs/architecture/domain-aggregates-and-rules.md
 
 ---
 
+O pacote de lançamento e seus gates operacionais estão documentados em
+`docs/deployment/production-launch.md`.
+
+---
+
 ## 7. Ordem recomendada de leitura
 
 Para compreender o projeto:
