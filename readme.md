@@ -339,6 +339,13 @@ leakage. Os snapshots são persistentes e idempotentes. A suíte consolidada
 possui 2.464 testes e 100% de cobertura. A próxima fase é a G9 — Modelos
 Preditivos.
 
+A G9 está concluída. Modelos versionados por competição e mercado produzem
+probabilidades para placares, resultados, handicaps, totais, BTTS, gols,
+escanteios, cartões, jogadores e estatísticas. A plataforma inclui ensembles,
+calibração, backtesting, Monte Carlo, explicabilidade e mudança de regime, com
+histórico imutável. A suíte consolidada possui 2.472 testes e 100% de
+cobertura. A próxima fase é a G10 — Motor de Recomendações.
+
 ---
 
 ## 12. Roadmap

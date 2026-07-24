@@ -75,6 +75,7 @@ docs/architecture/canonical-domain-model.md
 docs/architecture/canonical-persistence.md
 docs/architecture/identity-resolution-data-fusion.md
 docs/architecture/statistical-engine.md
+docs/architecture/predictive-models.md
 docs/architecture/domain-aggregates-and-rules.md
 docs/architecture/package-structure.md
 docs/architecture/canonical-types.md

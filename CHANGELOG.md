@@ -11,6 +11,10 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- conclusão integral da G9 — Modelos Preditivos;
+- modelos de placar e contagem para todo o catálogo inicial de mercados;
+- ensembles, calibração, backtesting, Monte Carlo e mudança de regime;
+- registry versionado, forecasts imutáveis, comparação e dashboard de modelos;
 - conclusão integral da G8 — Motor Estatístico;
 - forma recente, splits casa/fora, xG, calendário, tendências e contextos;
 - distribuições, Poisson, peso temporal e confiabilidade de amostra;

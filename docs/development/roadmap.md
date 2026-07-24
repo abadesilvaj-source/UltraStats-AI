@@ -2875,8 +2875,28 @@ Combined Markets
 ### Status
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
+
+Entregas concluídas:
+
+- modelos versionados por competição e mercado;
+- distribuição de placares e mercados de contagem;
+- 1X2, chances duplas, DNB, handicaps, totais, BTTS e gols por equipe;
+- primeiro/último gol, intervalo e mercados estatísticos;
+- mercados de escanteios, cartões e jogadores;
+- mercados combinados por probabilidade condicional;
+- ensembles ponderados e calibração;
+- backtesting com Brier score, log loss, acurácia e erro de calibração;
+- Monte Carlo determinístico;
+- explicabilidade por contribuição das features;
+- detecção de mudança de regime;
+- registry persistente, forecasts imutáveis e comparação de modelos;
+- migration reversível `b29d9040b005`;
+- dashboard de modelos preditivos;
+- 2.472 testes com 100% de cobertura.
+
+Próxima etapa: G10 — Motor de Recomendações.
 
 ---
 
