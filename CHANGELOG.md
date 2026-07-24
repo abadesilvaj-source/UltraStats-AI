@@ -11,6 +11,11 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- entidade contextual `MatchVenue` e identificador `MatchVenueId`;
+- papéis e estados de local, superfícies, condições do gramado e clima;
+- sincronização entre o estádio atual da partida e seu local principal;
+- histórico de mudanças de estádio com encerramento temporal do local anterior;
+- contexto operacional de campo neutro, capacidades, público e ambiente;
 - ciclo de vida explícito do agregado `Match`, com transições validadas;
 - estados canônicos completos de preparação, jogo, interrupção e resultado;
 - entidade imutável `MatchScheduleChange` e seu identificador canônico;

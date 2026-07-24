@@ -2273,6 +2273,48 @@ Próxima fatia:
 G5.8.C — Match Venue
 ```
 
+#### G5.8.C — Match Venue
+
+Entregas concluídas:
+
+- [x] identificador canônico `MatchVenueId`;
+- [x] entidade interna imutável `MatchVenue`;
+- [x] enums de papel, status, superfície, condição e clima;
+- [x] referência contextual a estádio e cidade;
+- [x] sincronização controlada entre `Match.stadium_id` e o local principal;
+- [x] histórico de locais anteriores com validade temporal;
+- [x] garantia de apenas um local principal vigente;
+- [x] troca coordenada de local preservando o `MatchId`;
+- [x] contexto de campo neutro, local alternativo e temporário;
+- [x] condições ambientais, superfície, capacidades e público;
+- [x] validações de ownership, duplicidade, confirmação e consistência operacional;
+- [x] API pública e documentação arquitetural atualizadas;
+- [x] cobertura integral de linhas e branches.
+
+Resultado validado:
+
+```text
+2357 testes aprovados
+0 testes falhando
+4067 statements cobertos
+1294 branches cobertos
+0 linhas ausentes
+0 branches parcialmente cobertos
+100,00% de cobertura de linhas e branches
+```
+
+Status:
+
+```text
+CONCLUÍDO
+```
+
+Próxima fatia:
+
+```text
+G5.8.D — Match Officials
+```
+
 ---
 
 ### G5.9 — Betting, Prediction e Bankroll

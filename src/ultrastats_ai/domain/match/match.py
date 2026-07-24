@@ -5,20 +5,29 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Any
 
-from ultrastats_ai.domain.match.enums import MatchType
+from ultrastats_ai.domain.match.enums import (
+    MatchType,
+    VenueRole,
+    VenueStatus,
+)
 from ultrastats_ai.domain.match.errors import (
     DuplicateMatchParticipantError,
+    DuplicateMatchVenueError,
     DuplicateScheduleChangeError,
     InvalidMatchParticipantsError,
     InvalidMatchScheduleError,
     InvalidMatchStatusTransitionError,
+    InvalidMatchVenueError,
     MatchParticipantNotFoundError,
     MatchParticipantOwnershipError,
+    MatchVenueOwnershipError,
+    MultipleCurrentMatchVenuesError,
     ScheduleChangeOwnershipError,
 )
 from ultrastats_ai.domain.match.lifecycle import can_transition
 from ultrastats_ai.domain.match.participant import MatchParticipant
 from ultrastats_ai.domain.match.schedule_change import MatchScheduleChange
+from ultrastats_ai.domain.match.venue import MatchVenue
 from ultrastats_ai.domain.shared import (
     CompetitionId,
     DomainDate,
@@ -26,11 +35,13 @@ from ultrastats_ai.domain.shared import (
     MatchParticipantId,
     MatchScheduleChangeId,
     MatchStatus,
+    MatchVenueId,
     ParticipantRole,
     RoundId,
     SeasonId,
     StageId,
     UtcTimestamp,
+    VenueId,
 )
 
 
@@ -49,6 +60,8 @@ class Match:
     scheduled_date: DomainDate | None = None
     scheduled_start_at: UtcTimestamp | None = None
     schedule_changes: tuple[MatchScheduleChange, ...] = ()
+    stadium_id: VenueId | None = None
+    venues: tuple[MatchVenue, ...] = ()
 
     def __post_init__(self) -> None:
         self.validate()
@@ -94,6 +107,13 @@ class Match:
             raise TypeError("participants deve ser tuple.")
         if not isinstance(self.schedule_changes, tuple):
             raise TypeError("schedule_changes deve ser tuple.")
+        if self.stadium_id is not None and not isinstance(
+            self.stadium_id,
+            VenueId,
+        ):
+            raise TypeError("stadium_id deve ser VenueId ou None.")
+        if not isinstance(self.venues, tuple):
+            raise TypeError("venues deve ser tuple.")
         if len(self.participants) != 2:
             raise InvalidMatchParticipantsError(
                 "Uma partida deve possuir exatamente dois participantes."
@@ -109,6 +129,7 @@ class Match:
         self._validate_schedule()
         self._validate_participants()
         self._validate_schedule_changes()
+        self._validate_venues()
 
     def _validate_schedule(self) -> None:
         if (
@@ -180,6 +201,43 @@ class Match:
                 )
             known_ids.add(change.id)
 
+    def _validate_venues(self) -> None:
+        known_ids: set[MatchVenueId] = set()
+        current_primary: MatchVenue | None = None
+
+        for venue in self.venues:
+            if not isinstance(venue, MatchVenue):
+                raise TypeError("venues deve conter MatchVenue.")
+            if venue.match_id != self.id:
+                raise MatchVenueOwnershipError(
+                    "O local pertence a outra partida."
+                )
+            if venue.id in known_ids:
+                raise DuplicateMatchVenueError(
+                    "A identidade do local está duplicada."
+                )
+            if venue.current_primary:
+                if current_primary is not None:
+                    raise MultipleCurrentMatchVenuesError(
+                        "A partida possui mais de um local principal vigente."
+                    )
+                current_primary = venue
+            known_ids.add(venue.id)
+
+        if current_primary is None:
+            if self.stadium_id is not None:
+                raise InvalidMatchVenueError(
+                    "stadium_id exige um local principal vigente."
+                )
+            return
+        if (
+            current_primary.stadium_id is not None
+            and self.stadium_id != current_primary.stadium_id
+        ):
+            raise InvalidMatchVenueError(
+                "stadium_id diverge do local principal vigente."
+            )
+
     @property
     def home(self) -> MatchParticipant:
         """Retorna o participante mandante."""
@@ -198,6 +256,19 @@ class Match:
             participant
             for participant in self.participants
             if participant.role is ParticipantRole.AWAY
+        )
+
+    @property
+    def current_venue(self) -> MatchVenue | None:
+        """Retorna o principal local vigente, quando conhecido."""
+
+        return next(
+            (
+                venue
+                for venue in self.venues
+                if venue.current_primary
+            ),
+            None,
         )
 
     def find_participant(
@@ -292,6 +363,46 @@ class Match:
             )
 
         return replace(self, status=status)
+
+    def assign_venue(
+        self,
+        venue: MatchVenue,
+        *,
+        changed_at: UtcTimestamp,
+    ) -> Match:
+        """Define um local principal e preserva o anterior no histórico."""
+
+        if not isinstance(venue, MatchVenue):
+            raise TypeError("venue deve ser MatchVenue.")
+        if not isinstance(changed_at, UtcTimestamp):
+            raise TypeError("changed_at deve ser UtcTimestamp.")
+        if venue.match_id != self.id:
+            raise MatchVenueOwnershipError(
+                "O local pertence a outra partida."
+            )
+        if venue.role is not VenueRole.PRIMARY or (
+            venue.status is not VenueStatus.CONFIRMED
+        ):
+            raise InvalidMatchVenueError(
+                "O novo local deve ser PRIMARY e CONFIRMED."
+            )
+        if any(current.id == venue.id for current in self.venues):
+            raise DuplicateMatchVenueError(
+                "A identidade do local está duplicada."
+            )
+
+        updated_venues = tuple(
+            current.retire(changed_at)
+            if current.current_primary
+            else current
+            for current in self.venues
+        ) + (venue,)
+
+        return replace(
+            self,
+            stadium_id=venue.stadium_id,
+            venues=updated_venues,
+        )
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, Match):

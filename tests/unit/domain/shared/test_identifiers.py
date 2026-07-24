@@ -13,6 +13,7 @@ from ultrastats_ai.domain.shared.identifiers import (
     MatchId,
     MatchParticipantId,
     MatchScheduleChangeId,
+    MatchVenueId,
     PlayerId,
     PredictionId,
     TeamId,
@@ -49,6 +50,12 @@ def test_match_participant_identifier_is_canonical() -> None:
 
 def test_match_schedule_change_identifier_is_canonical() -> None:
     identifier = MatchScheduleChangeId.new()
+
+    assert isinstance(identifier.value, UUID)
+
+
+def test_match_venue_identifier_is_canonical() -> None:
+    identifier = MatchVenueId.new()
 
     assert isinstance(identifier.value, UUID)
 

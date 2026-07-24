@@ -6,10 +6,12 @@ import ultrastats_ai.domain.match as match_api
 def test_match_public_api_is_explicit() -> None:
     assert set(match_api.__all__) == {
         "DuplicateMatchParticipantError",
+        "DuplicateMatchVenueError",
         "DuplicateScheduleChangeError",
         "InvalidMatchParticipantsError",
         "InvalidMatchScheduleError",
         "InvalidMatchStatusTransitionError",
+        "InvalidMatchVenueError",
         "InvalidScheduleChangeError",
         "Match",
         "MatchDomainError",
@@ -19,7 +21,15 @@ def test_match_public_api_is_explicit() -> None:
         "MatchParticipantStatus",
         "MatchScheduleChange",
         "MatchType",
+        "MatchVenue",
+        "MatchVenueOwnershipError",
+        "MultipleCurrentMatchVenuesError",
         "ScheduleChangeOwnershipError",
+        "SurfaceCondition",
+        "SurfaceType",
+        "VenueRole",
+        "VenueStatus",
+        "WeatherCondition",
         "can_transition",
     }
 
@@ -32,4 +42,8 @@ def test_match_enums_parse_normalized_values() -> None:
     assert (
         match_api.MatchParticipantStatus.parse("confirmed")
         is match_api.MatchParticipantStatus.CONFIRMED
+    )
+    assert (
+        match_api.VenueStatus.parse("Pending Confirmation")
+        is match_api.VenueStatus.PENDING_CONFIRMATION
     )

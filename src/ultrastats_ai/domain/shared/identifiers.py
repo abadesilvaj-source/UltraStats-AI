@@ -183,6 +183,11 @@ class MatchScheduleChangeId(EntityId):
 
 
 @dataclass(frozen=True, slots=True)
+class MatchVenueId(EntityId):
+    """Identificador canônico do contexto de local de uma partida."""
+
+
+@dataclass(frozen=True, slots=True)
 class TieId(EntityId):
     """Identificador canônico de confronto agregado."""
 

@@ -3,8 +3,8 @@
 ## 1. Estado da implementação
 
 O Match Context está em desenvolvimento incremental na G5.8. As fatias G5.8.A
-e G5.8.B implementam a fundação do agregado, seu ciclo de vida e o histórico
-auditável de alterações da agenda.
+a G5.8.C implementam a fundação do agregado, seu ciclo de vida, o histórico
+auditável de alterações da agenda e o contexto operacional do local.
 
 ## 2. Agregado
 
@@ -17,6 +17,7 @@ auditável de alterações da agenda.
 - data esportiva e horário UTC;
 - transições válidas do ciclo de vida;
 - histórico imutável de reagendamentos;
+- local principal atual e histórico de locais anteriores;
 - exatamente dois `MatchParticipant`;
 - ownership e substituição imutável dos participantes.
 
@@ -59,11 +60,37 @@ terminais não aceitam novas transições.
 O método `reschedule` é a operação controlada para alterar a agenda: registra o
 histórico e devolve a partida no estado `SCHEDULED`.
 
-## 6. Limites da fatia
+## 6. Local da partida
+
+`MatchVenue` representa o uso contextual de um estádio ou cidade por uma
+partida. Ele referencia `Stadium` por `VenueId` e `City` por `CityId`, sem
+controlar o ciclo de vida dessas entidades geográficas.
+
+O contexto preserva:
+
+- papel e estado do local;
+- estádio e cidade conhecidos;
+- superfície e sua condição;
+- clima, temperatura, umidade, vento e altitude;
+- capacidade estrutural, operacional, limite e público;
+- campo neutro, ambiente coberto, teto e portões fechados;
+- uso temporário ou alternativo;
+- confirmação e intervalo de validade.
+
+O agregado aceita no máximo um `MatchVenue` principal vigente. A operação
+`assign_venue` encerra o principal anterior, mantém esse registro no histórico,
+adiciona o novo local confirmado e sincroniza `Match.stadium_id`. Identidades
+duplicadas, ownership incorreto e divergências com o atalho atual são
+rejeitados.
+
+As capacidades obedecem à hierarquia estrutural, operacional, limite e público.
+Portões fechados não aceitam público, teto fechado exige ambiente coberto e a
+confirmação deve ser coerente com o estado do local.
+
+## 7. Limites da fatia
 
 Permanecem para as próximas fatias:
 
-- `MatchVenue`;
 - `MatchOfficial`;
 - `MatchPeriod`;
 - `MatchSquad`;
@@ -72,14 +99,14 @@ Permanecem para as próximas fatias:
 - `MatchStatistic`;
 - interrupções, decisões e revisões.
 
-## 7. Dependências
+## 8. Dependências
 
 O contexto depende apenas de tipos canônicos compartilhados e identificadores
 dos contextos Competition e Team. Não depende de ORM, banco de dados ou
 providers concretos.
 
-## 8. Validação
+## 9. Validação
 
 Os testes estão em `tests/unit/domain/match`. O comando padrão do projeto cobre
-100% das linhas e branches do domínio canônico. A validação da G5.8.B concluiu
-2.296 testes.
+100% das linhas e branches do domínio canônico. A validação da G5.8.C concluiu
+2.357 testes.

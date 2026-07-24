@@ -41,3 +41,19 @@ class DuplicateScheduleChangeError(MatchDomainError):
 
 class ScheduleChangeOwnershipError(MatchDomainError):
     """Indica histórico pertencente a outra partida."""
+
+
+class InvalidMatchVenueError(MatchDomainError):
+    """Indica um contexto de local inconsistente."""
+
+
+class MatchVenueOwnershipError(MatchDomainError):
+    """Indica local pertencente a outra partida."""
+
+
+class DuplicateMatchVenueError(MatchDomainError):
+    """Indica identidade duplicada no histórico de locais."""
+
+
+class MultipleCurrentMatchVenuesError(MatchDomainError):
+    """Indica mais de um local principal vigente."""
