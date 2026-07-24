@@ -267,6 +267,34 @@ class RecommendationAuditRecord(CanonicalBase):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class RiskProfileRecord(CanonicalBase):
+    __tablename__ = "risk_profiles"
+    __table_args__ = (UniqueConstraint("user_id", name="uq_risk_profile_user"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    limits: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PortfolioSnapshotRecord(CanonicalBase):
+    __tablename__ = "portfolio_snapshots"
+    __table_args__ = (
+        UniqueConstraint("user_id", "generated_at", name="uq_portfolio_snapshot"),
+        Index("ix_portfolio_snapshot_user", "user_id", "generated_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    bankroll: Mapped[str] = mapped_column(String(64), nullable=False)
+    total_exposure: Mapped[str] = mapped_column(String(64), nullable=False)
+    positions: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False)
+    blocked: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    metrics: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 __all__ = [
     "AggregateRecord",
     "AuditLogRecord",
@@ -284,4 +312,6 @@ __all__ = [
     "PredictiveModelRecord",
     "RecommendationAuditRecord",
     "RecommendationOpportunityRecord",
+    "RiskProfileRecord",
+    "PortfolioSnapshotRecord",
 ]
