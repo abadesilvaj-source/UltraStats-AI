@@ -285,7 +285,7 @@ G5.7 — People e Team
 CONCLUÍDO
 
 G5.8 — Match e Tie
-EM ANDAMENTO
+CONCLUÍDO
 ```
 
 A arquitetura técnica da G4 está congelada e as etapas G5.1 a G5.7 do domínio
@@ -301,11 +301,10 @@ Após a consolidação da G5.7, será iniciada:
 G5.8 — Match e Tie
 ```
 
-A implementação já inclui `Match`, `MatchParticipant`, `MatchVenue`,
-identidades, enums, ownership, composição obrigatória de mandante e visitante,
-ciclo de vida validado e históricos auditáveis de agenda e local. As próximas
-fatias acrescentarão oficiais, períodos, escalações, eventos, estatísticas,
-interrupções, decisões e revisões.
+A G5.8 está concluída. O Match Context inclui participantes, agenda, local,
+oficiais, períodos, convocação, escalações, eventos, estatísticas,
+interrupções, decisões e revisões, além da integração por identidade com
+`Tie`.
 
 ---
 

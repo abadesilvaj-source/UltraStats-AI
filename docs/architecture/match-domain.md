@@ -2,9 +2,9 @@
 
 ## 1. Estado da implementação
 
-O Match Context está em desenvolvimento incremental na G5.8. As fatias G5.8.A
-a G5.8.C implementam a fundação do agregado, seu ciclo de vida, o histórico
-auditável de alterações da agenda e o contexto operacional do local.
+O Match Context foi concluído na G5.8. O agregado cobre sua fundação, ciclo de
+vida, agenda, local, oficiais, períodos, convocação, escalação, eventos,
+estatísticas, interrupções, decisões e revisões.
 
 ## 2. Agregado
 
@@ -18,6 +18,10 @@ auditável de alterações da agenda e o contexto operacional do local.
 - transições válidas do ciclo de vida;
 - histórico imutável de reagendamentos;
 - local principal atual e histórico de locais anteriores;
+- oficiais e períodos esportivos;
+- convocados, escalações e entradas;
+- eventos cronológicos e placar resumido;
+- estatísticas, interrupções, decisões e revisões;
 - exatamente dois `MatchParticipant`;
 - ownership e substituição imutável dos participantes.
 
@@ -87,26 +91,48 @@ As capacidades obedecem à hierarquia estrutural, operacional, limite e público
 Portões fechados não aceitam público, teto fechado exige ambiente coberto e a
 confirmação deve ser coerente com o estado do local.
 
-## 7. Limites da fatia
+## 7. Operação esportiva
 
-Permanecem para as próximas fatias:
+As entidades operacionais são subordinadas ao `Match` e não possuem ciclo de
+vida independente:
 
-- `MatchOfficial`;
-- `MatchPeriod`;
-- `MatchSquad`;
-- `Lineup` e `LineupEntry`;
-- `MatchEvent`;
-- `MatchStatistic`;
-- interrupções, decisões e revisões.
+- `MatchOfficial` registra a função exercida por pessoa, árbitro ou placeholder;
+- `MatchPeriod` preserva ordem, duração, acréscimos, timestamps e placar;
+- `MatchSquad` representa a lista de convocados de cada participante;
+- `Lineup` preserva versões da escalação;
+- `LineupEntry` relaciona pessoas e jogadores à escalação contextual;
+- `MatchEvent` registra acontecimentos em ordem cronológica;
+- `MatchStatistic` armazena métricas por escopo e unidade;
+- `MatchInterruption` registra paralisação e retomada;
+- `MatchDecision` preserva decisões esportivas e administrativas;
+- `MatchRevision` audita correções e alterações de versão.
 
-## 8. Dependências
+Todas as coleções são tuplas imutáveis. O agregado rejeita tipos incorretos,
+ownership divergente e identidades duplicadas. `record_event` acrescenta o
+evento e, quando houver placar posterior completo, sincroniza os placares e o
+vencedor resumido dos participantes.
+
+## 8. Integração com Tie
+
+`Tie` permanece no Competition Context e referencia partidas por
+`TieMatchReference`. A integração utiliza somente `MatchId`, preservando as
+fronteiras dos agregados e impedindo que o confronto controle o ciclo de vida
+da partida.
+
+## 9. Limites do contexto
+
+Persistência, serviços de aplicação, ingestão de providers e projeções
+analíticas pertencem às etapas posteriores. A G5.8 entrega o modelo canônico de
+domínio, sem ORM ou dependência de infraestrutura.
+
+## 10. Dependências
 
 O contexto depende apenas de tipos canônicos compartilhados e identificadores
 dos contextos Competition e Team. Não depende de ORM, banco de dados ou
 providers concretos.
 
-## 9. Validação
+## 11. Validação
 
 Os testes estão em `tests/unit/domain/match`. O comando padrão do projeto cobre
-100% das linhas e branches do domínio canônico. A validação da G5.8.C concluiu
-2.357 testes.
+100% das linhas e branches do domínio canônico. A validação final da G5.8
+concluiu 2.388 testes, 4.494 statements e 1.372 branches.

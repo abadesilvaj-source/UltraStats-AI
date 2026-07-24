@@ -2185,7 +2185,7 @@ Escopo:
 Status:
 
 ```text
-EM ANDAMENTO
+CONCLUÍDO
 ```
 
 #### G5.8.A — Match Foundation
@@ -2313,6 +2313,51 @@ Próxima fatia:
 
 ```text
 G5.8.D — Match Officials
+```
+
+#### G5.8.D–G5.8.H — Sprint de conclusão do Match Context
+
+Entregas concluídas:
+
+- [x] `MatchOfficial` com nomeações identificadas ou TBD;
+- [x] `MatchPeriod` com ordem, duração, acréscimos, placar e intervalo real;
+- [x] `MatchSquad` com limites e lista oficial por participante;
+- [x] `Lineup` versionada e `LineupEntry` contextual;
+- [x] `MatchEvent` cronológico, relacionável e com placar posterior;
+- [x] sincronização do placar resumido do agregado por eventos;
+- [x] `MatchStatistic` por escopo, unidade e valor canônico;
+- [x] `MatchInterruption` com início, retomada, período e motivo;
+- [x] `MatchDecision` esportiva ou administrativa;
+- [x] `MatchRevision` versionada, auditável e aplicável;
+- [x] identificadores canônicos para todas as entidades internas;
+- [x] ownership, identidade única e coleções imutáveis no agregado;
+- [x] integração preservada com `Tie` por `TieMatchReference` e `MatchId`;
+- [x] API pública integral do Match Context;
+- [x] documentação arquitetural e roadmap consolidados;
+- [x] cobertura integral de linhas e branches.
+
+Resultado final validado:
+
+```text
+2388 testes aprovados
+0 testes falhando
+4494 statements cobertos
+1372 branches cobertos
+0 linhas ausentes
+0 branches parcialmente cobertos
+100,00% de cobertura de linhas e branches
+```
+
+Status:
+
+```text
+CONCLUÍDO
+```
+
+Resultado da G5.8:
+
+```text
+Match e Tie concluídos
 ```
 
 ---

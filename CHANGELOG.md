@@ -11,6 +11,16 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- conclusão integral do Match Context e da etapa G5.8;
+- entidades `MatchOfficial`, `MatchPeriod`, `MatchSquad`, `Lineup`,
+  `LineupEntry`, `MatchEvent`, `MatchStatistic`, `MatchInterruption`,
+  `MatchDecision` e `MatchRevision`;
+- identificadores e enums operacionais para todas as entidades internas;
+- coleções imutáveis com ownership e identidades únicas no agregado;
+- registro de eventos com sincronização do placar resumido;
+- validações de convocação, escalação, cronologia, estatísticas, decisões e
+  revisões;
+- integração final com `Tie` por referência canônica de `MatchId`;
 - entidade contextual `MatchVenue` e identificador `MatchVenueId`;
 - papéis e estados de local, superfícies, condições do gramado e clima;
 - sincronização entre o estádio atual da partida e seu local principal;
