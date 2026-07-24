@@ -295,6 +295,79 @@ class PortfolioSnapshotRecord(CanonicalBase):
     generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class UserExperienceProfileRecord(CanonicalBase):
+    __tablename__ = "user_experience_profiles"
+
+    user_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    mode: Mapped[str] = mapped_column(String(16), nullable=False)
+    locale: Mapped[str] = mapped_column(String(16), nullable=False)
+    accessibility: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class UserFavoriteRecord(CanonicalBase):
+    __tablename__ = "user_favorites"
+    __table_args__ = (
+        UniqueConstraint("user_id", "entity_type", "entity_id", name="uq_user_favorite"),
+        Index("ix_user_favorite_user", "user_id", "entity_type"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    label: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class UserAlertRecord(CanonicalBase):
+    __tablename__ = "user_alerts"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    metric: Mapped[str] = mapped_column(String(64), nullable=False)
+    operator: Mapped[str] = mapped_column(String(4), nullable=False)
+    threshold: Mapped[str] = mapped_column(String(64), nullable=False)
+    channel: Mapped[str] = mapped_column(String(16), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class UserNotificationRecord(CanonicalBase):
+    __tablename__ = "user_notifications"
+    __table_args__ = (Index("ix_user_notification_feed", "user_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    channel: Mapped[str] = mapped_column(String(16), nullable=False)
+    read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PushSubscriptionRecord(CanonicalBase):
+    __tablename__ = "push_subscriptions"
+    __table_args__ = (UniqueConstraint("user_id", "endpoint", name="uq_push_subscription"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    endpoint: Mapped[str] = mapped_column(Text, nullable=False)
+    public_key: Mapped[str] = mapped_column(Text, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AutomaticReportRecord(CanonicalBase):
+    __tablename__ = "automatic_reports"
+    __table_args__ = (Index("ix_automatic_report_user", "user_id", "generated_at"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 __all__ = [
     "AggregateRecord",
     "AuditLogRecord",
@@ -314,4 +387,10 @@ __all__ = [
     "RecommendationOpportunityRecord",
     "RiskProfileRecord",
     "PortfolioSnapshotRecord",
+    "AutomaticReportRecord",
+    "PushSubscriptionRecord",
+    "UserAlertRecord",
+    "UserExperienceProfileRecord",
+    "UserFavoriteRecord",
+    "UserNotificationRecord",
 ]
