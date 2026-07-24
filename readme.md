@@ -374,6 +374,12 @@ notificações push. Eventos, snapshots e anomalias são auditáveis. A suíte
 consolidada possui 2.557 testes e 100% de cobertura. A próxima fase é a G14 —
 Produção, Segurança e Escalabilidade.
 
+A G14 está concluída. A plataforma dispõe de autenticação, RBAC, proteção de
+segredos e API, observabilidade, alertas, backup/restore, cache, filas,
+circuit breaker, auditoria, retenção, autoscaling, testes de carga e revisão de
+dependências. A suíte consolidada possui 2.585 testes e 100% de cobertura. Com
+isso, o roadmap principal G1–G14 está concluído.
+
 ---
 
 ## 12. Roadmap

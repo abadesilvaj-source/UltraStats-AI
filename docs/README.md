@@ -639,6 +639,10 @@ Exemplo:
 [Experiência do Usuário](architecture/user-experience.md)
 
 [Motor ao Vivo](architecture/live-engine.md)
+
+[Produção, Segurança e Escalabilidade](architecture/production-security-scalability.md)
+
+[Runbook de Produção](operations/production-runbook.md)
 ```
 
 Exemplo dentro de uma subpasta:

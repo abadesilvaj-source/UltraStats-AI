@@ -3146,8 +3146,27 @@ Preparar o sistema para uso contínuo e seguro.
 ### Status
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
+
+### Entregas concluídas
+
+- autenticação com tokens assinados e senha derivada;
+- autorização RBAC e proteção de credenciais;
+- segurança de API com HTTPS, CORS, payload e rate limiting;
+- observabilidade com counters, gauges, histogramas e alertas;
+- backups canônicos, checksum e recuperação verificada;
+- cache TTL e filas idempotentes com retries e dead-letter;
+- circuit breaker e mecanismos de resiliência;
+- cálculo de autoscaling e harness de testes de carga;
+- auditoria encadeada e política de retenção;
+- revisão determinística de dependências;
+- persistência de métricas, alertas, auditoria, backups e filas;
+- migration reversível `a7e23594a440`;
+- dashboard e runbook de produção;
+- 2.585 testes com 100% de cobertura.
+
+Roadmap principal G1–G14 concluído.
 
 ---
 
@@ -3190,27 +3209,27 @@ O desenvolvimento deverá seguir estes princípios:
 
 ```text
 Fase principal atual:
-G5 — Domínio Canônico
+Roadmap principal G1–G14 concluído
 
-Última subfase concluída:
-G5.7 — People e Team
+Última etapa concluída:
+G14 — Produção, Segurança e Escalabilidade
 
 Última entrega concluída:
-Implementação, testes e consolidação documental dos Bounded Contexts People e
-Team.
+Hardening integral de segurança, observabilidade, recuperação, resiliência e
+escala.
 
 Resultado da última entrega:
-2182 testes aprovados
+2.585 testes aprovados
 100,00% de cobertura de linhas e branches
 0 linhas ausentes
 0 branches parcialmente cobertos
 
-Subfase atual:
-G5.8 — Match e Tie
+Etapa atual:
+Operação contínua e evolução orientada por métricas
 
 Próximo objetivo:
-Implementar o Match Context sem acoplamento aos formatos específicos dos
-providers.
+Preparar releases incrementais, adapters de infraestrutura do ambiente alvo e
+validação operacional contínua.
 ```
 
 ---

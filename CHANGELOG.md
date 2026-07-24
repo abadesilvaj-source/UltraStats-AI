@@ -11,6 +11,12 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- conclusão integral da G14 — Produção, Segurança e Escalabilidade;
+- autenticação, PBKDF2, RBAC, proteção de segredos e segurança de API;
+- métricas, alertas, backup/restore, cache, filas e circuit breaker;
+- auditoria encadeada, retenção, autoscaling, carga e revisão de dependências;
+- persistência operacional, migration reversível, dashboard e runbook;
+- conclusão do roadmap principal G1–G14;
 - conclusão integral da G13 — Motor ao Vivo;
 - ingestão idempotente e snapshots revisionados de partidas;
 - placar, relógio, estatísticas, odds, probabilidades e recomendações ao vivo;
