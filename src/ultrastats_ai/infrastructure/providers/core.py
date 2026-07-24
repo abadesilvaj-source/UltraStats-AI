@@ -6,6 +6,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import StrEnum
+import os
 import time
 from typing import Any, Protocol
 
@@ -44,6 +45,21 @@ class ProviderConfig:
             raise ProviderConfigurationError("Token do provider é obrigatório.")
         if self.requests_per_minute <= 0 or self.timeout_seconds <= 0 or self.max_retries < 0:
             raise ProviderConfigurationError("Limites HTTP inválidos.")
+
+    @classmethod
+    def from_environment(cls, environment: Mapping[str, str] | None = None) -> ProviderConfig:
+        values = os.environ if environment is None else environment
+        token = values.get("FOOTBALL_DATA_API_TOKEN", "")
+        return cls(
+            api_token=token,
+            base_url=values.get(
+                "FOOTBALL_DATA_BASE_URL",
+                "https://api.football-data.org/v4",
+            ),
+            requests_per_minute=int(values.get("PROVIDER_DEFAULT_REQUESTS_PER_MINUTE", "10")),
+            timeout_seconds=float(values.get("PROVIDER_HTTP_TIMEOUT_SECONDS", "15")),
+            max_retries=int(values.get("PROVIDER_HTTP_MAX_RETRIES", "3")),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,6 +204,9 @@ class FootballDataProvider:
             datetime.now(timezone.utc),
         )
 
+    def close(self) -> None:
+        self.client.close()
+
 
 class ProviderCollector:
     def __init__(self, provider: FootballDataProvider, store: RawPayloadStore) -> None:
@@ -216,5 +235,54 @@ class ProviderCollector:
 
 
 class ProviderDashboard:
-    def snapshot(self, providers: tuple[FootballDataProvider, ...]) -> tuple[ProviderHealth, ...]:
-        return tuple(provider.health_check() for provider in providers)
+    def snapshot(
+        self,
+        providers: tuple[FootballDataProvider, ...],
+        save: Callable[[ProviderHealth], None] | None = None,
+    ) -> tuple[ProviderHealth, ...]:
+        health = tuple(provider.health_check() for provider in providers)
+        if save:
+            for item in health:
+                save(item)
+        return health
+
+
+class ProviderRegistry:
+    def __init__(self) -> None:
+        self._factories: dict[str, Callable[[], FootballDataProvider]] = {}
+
+    def register(
+        self,
+        name: str,
+        factory: Callable[[], FootballDataProvider],
+        *,
+        replace: bool = False,
+    ) -> None:
+        normalized = name.strip().casefold()
+        if not normalized:
+            raise ValueError("Nome do provider é obrigatório.")
+        if normalized in self._factories and not replace:
+            raise ValueError(f"Provider já registrado: {normalized}.")
+        self._factories[normalized] = factory
+
+    def create(self, name: str) -> FootballDataProvider:
+        normalized = name.strip().casefold()
+        try:
+            return self._factories[normalized]()
+        except KeyError as error:
+            raise LookupError(f"Provider desconhecido: {normalized}.") from error
+
+    def names(self) -> tuple[str, ...]:
+        return tuple(sorted(self._factories))
+
+
+def build_football_data_provider(
+    config: ProviderConfig | None = None,
+    *,
+    transport: httpx.BaseTransport | None = None,
+) -> FootballDataProvider:
+    resolved = config or ProviderConfig.from_environment()
+    limiter = RateLimiter(resolved.requests_per_minute)
+    return FootballDataProvider(
+        ProviderHTTPClient(resolved, transport=transport, limiter=limiter)
+    )

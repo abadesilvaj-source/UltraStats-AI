@@ -138,7 +138,12 @@ def test_migration_upgrade_and_downgrade() -> None:
         with engine.begin() as connection:
             migration.op = Operations(MigrationContext.configure(connection))
             migration.upgrade()
-            names = set(CanonicalBase.metadata.tables)
+            names = {
+                "canonical_aggregates",
+                "canonical_outbox",
+                "canonical_inbox",
+                "canonical_audit_log",
+            }
             existing = set(
                 connection.dialect.get_table_names(connection)
             )

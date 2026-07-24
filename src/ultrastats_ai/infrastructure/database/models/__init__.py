@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -91,10 +92,39 @@ class AuditLogRecord(CanonicalBase):
     aggregate: Mapped[AggregateRecord] = relationship(back_populates="audit_entries")
 
 
+class RawProviderPayloadRecord(CanonicalBase):
+    __tablename__ = "provider_raw_payloads"
+    __table_args__ = (
+        UniqueConstraint("fingerprint", name="uq_provider_payload_fingerprint"),
+        Index("ix_provider_payload_lookup", "provider", "resource", "collected_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    resource: Mapped[str] = mapped_column(String(64), nullable=False)
+    external_id: Mapped[str | None] = mapped_column(String(255))
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProviderHealthRecord(CanonicalBase):
+    __tablename__ = "provider_health_checks"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    available: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    latency_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    message: Mapped[str] = mapped_column(String(500), nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 __all__ = [
     "AggregateRecord",
     "AuditLogRecord",
     "CanonicalBase",
     "InboxMessage",
     "OutboxMessage",
+    "ProviderHealthRecord",
+    "RawProviderPayloadRecord",
 ]

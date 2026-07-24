@@ -11,10 +11,17 @@ from ultrastats_ai.infrastructure.providers.core import (
     ProviderError,
     ProviderHealth,
     ProviderHTTPClient,
+    ProviderRegistry,
     ProviderResponseError,
     RateLimiter,
     RawProviderPayload,
     RawPayloadStore,
+    build_football_data_provider,
+)
+from ultrastats_ai.infrastructure.providers.persistence import (
+    SqlAlchemyHealthStore,
+    SqlAlchemyRawPayloadStore,
+    payload_fingerprint,
 )
 
 __all__ = [
@@ -28,8 +35,13 @@ __all__ = [
     "ProviderError",
     "ProviderHealth",
     "ProviderHTTPClient",
+    "ProviderRegistry",
     "ProviderResponseError",
     "RateLimiter",
     "RawProviderPayload",
     "RawPayloadStore",
+    "build_football_data_provider",
+    "SqlAlchemyHealthStore",
+    "SqlAlchemyRawPayloadStore",
+    "payload_fingerprint",
 ]
