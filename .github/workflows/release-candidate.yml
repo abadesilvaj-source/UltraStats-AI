@@ -1,0 +1,43 @@
+name: Release Candidate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "codex/g15-release-candidate"
+    tags:
+      - "v*-rc.*"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ultrastats
+          POSTGRES_PASSWORD: staging-password
+          POSTGRES_DB: ultrastats_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ultrastats -d ultrastats_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql+psycopg://ultrastats:staging-password@localhost:5432/ultrastats_test
+      SYNC_PROVIDER: mock_provider
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements.txt
+      - run: python -m pip check
+      - run: python -m alembic upgrade head
+      - run: python -m pytest
+      - run: python -m scripts.release_smoke
+      - run: docker build -t ultrastats-ai:${{ github.sha }} .
