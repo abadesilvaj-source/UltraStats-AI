@@ -2754,10 +2754,10 @@ Canonical Domain
 ### Status
 
 ```text
-EM ANDAMENTO
+CONCLUÍDO
 ```
 
-Primeira entrega concluída:
+Entregas concluídas:
 
 - normalização Unicode determinística;
 - aliases e candidatos por entidade canônica;
@@ -2767,9 +2767,15 @@ Primeira entrega concluída:
 - observações com rastreabilidade ao payload bruto;
 - fusão por campo com prioridade de provider;
 - detecção e registro de conflitos.
+- persistência de decisões, evidências, fusões e conflitos;
+- fila ordenada de revisão manual;
+- quarentena durável e idempotente;
+- pipeline de validação, resolução e reprocessamento;
+- migration reversível `9c7b7e30f003`;
+- dashboard de revisão e auditoria;
+- 2.458 testes com 100% de cobertura.
 
-Próximo incremento: persistência das decisões, fila de revisão, quarentena
-durável e orquestração de reprocessamento.
+Próxima etapa: G8 — Motor Estatístico.
 
 ---
 

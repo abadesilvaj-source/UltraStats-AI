@@ -326,6 +326,12 @@ por ambiente e dashboard operacional. A suíte consolidada possui 2.445 testes
 e 100% de cobertura. A próxima fase é a G7 — Resolução de Identidade e Data
 Fusion.
 
+A G7 está concluída. O fluxo de payload bruto até o domínio canônico agora
+possui normalização, matching com confiança, revisão manual, quarentena,
+reprocessamento, Data Fusion por campo, prioridade de provider, conflitos e
+proveniência auditável. A suíte consolidada possui 2.458 testes e 100% de
+cobertura. A próxima fase é a G8 — Motor Estatístico.
+
 ---
 
 ## 12. Roadmap
