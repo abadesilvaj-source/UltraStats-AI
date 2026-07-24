@@ -12,6 +12,7 @@ from app.scheduler.scheduler_state import (
     scheduler_state,
 )
 from app.services import CollectorOrchestratorService
+from app.services.multi_provider_sync_service import MultiProviderSyncService
 
 from app.services import SchedulerHeartbeatService
 
@@ -140,27 +141,27 @@ def run_scheduled_sync() -> None:
                 stale_count,
             )
 
-        # Nesta etapa apenas o provedor mock é suportado.
-        if settings.sync_provider != "mock_provider":
-            raise ValueError(
-                "O provedor configurado ainda não "
-                f"é suportado: {settings.sync_provider}"
-            )
-
-        collector = MockSportsCollector(
-            "data/providers/mock_sports_data.json"
-        )
-
         sync_session = SessionLocal()
-
-        orchestrator = CollectorOrchestratorService(
-            sync_session
-        )
-
-        execution = orchestrator.run(
-            collector=collector,
-            triggered_by="scheduler",
-        )
+        if settings.sync_provider == "mock_provider":
+            collector = MockSportsCollector(
+                "data/providers/mock_sports_data.json"
+            )
+            orchestrator = CollectorOrchestratorService(
+                sync_session
+            )
+            execution = orchestrator.run(
+                collector=collector,
+                triggered_by="scheduler",
+            )
+        elif settings.sync_provider == "multi_provider":
+            execution = MultiProviderSyncService(
+                sync_session
+            ).run(triggered_by="scheduler")
+        else:
+            raise ValueError(
+                "O provedor configurado não é suportado: "
+                f"{settings.sync_provider}"
+            )
 
         scheduler_state.last_job_status = (
             execution["status"]

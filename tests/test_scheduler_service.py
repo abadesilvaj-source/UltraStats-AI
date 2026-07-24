@@ -1,6 +1,7 @@
 from app.scheduler.scheduler_service import (
     SchedulerService,
 )
+from datetime import datetime
 
 
 def test_scheduler_can_add_job() -> None:
@@ -39,3 +40,16 @@ def test_scheduler_rejects_invalid_interval() -> None:
 
     else:
         assert False
+
+
+def test_immediate_job_uses_scheduler_timezone() -> None:
+    scheduler = SchedulerService()
+    scheduler.add_seconds_job(
+        func=lambda: None,
+        seconds=60,
+        job_id="immediate",
+        run_immediately=True,
+    )
+    next_run = scheduler.get_jobs()[0]["next_run_time"]
+    assert next_run.tzinfo is not None
+    assert next_run <= datetime.now(scheduler.scheduler.timezone)

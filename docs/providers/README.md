@@ -1,5 +1,16 @@
 # Providers
 
+## Operação agendada
+
+O scheduler usa `SYNC_PROVIDER=multi_provider` para consultar API-Football,
+Football-Data.org, OpenLigaDB e Football-Data.co.uk. Cada execução registra
+health checks e payloads brutos idempotentes. Falhas parciais ativam modo
+degradado; a execução só falha quando nenhuma fonte responde.
+
+O intervalo local recomendado é de 60 minutos para respeitar a franquia gratuita
+da API-Football. StatsBomb Open Data permanece disponível para coletas de
+eventos/xG orientadas por partida, pois seu contrato exige um `match_id`.
+
 Esta seção reúne documentos relacionados às integrações com provedores externos de dados de futebol.
 
 Documentos previstos:

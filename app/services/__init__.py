@@ -23,6 +23,9 @@ from app.services.collector_orchestrator_service import (
 from app.services.scheduler_heartbeat_service import (
     SchedulerHeartbeatService,
 )
+from app.services.multi_provider_sync_service import (
+    MultiProviderSyncService,
+)
 
 __all__ = [
     "AnalysisService",
@@ -37,6 +40,7 @@ __all__ = [
     "SyncMonitorService",
     "CollectorOrchestratorService",
     "SchedulerHeartbeatService",
+    "MultiProviderSyncService",
 ]
 
 from app.services.performance_service import (

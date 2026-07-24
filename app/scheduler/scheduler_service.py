@@ -66,7 +66,7 @@ class SchedulerService:
             from datetime import datetime
 
             job_kwargs["next_run_time"] = (
-                datetime.now()
+                datetime.now(self.scheduler.timezone)
             )
 
         self.scheduler.add_job(
@@ -101,7 +101,7 @@ class SchedulerService:
             from datetime import datetime
 
             job_kwargs["next_run_time"] = (
-                datetime.now()
+                datetime.now(self.scheduler.timezone)
             )
 
         self.scheduler.add_job(
@@ -124,4 +124,4 @@ class SchedulerService:
                 ),
             }
             for job in jobs
-        ]   
+        ]

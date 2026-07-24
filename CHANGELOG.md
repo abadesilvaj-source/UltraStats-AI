@@ -11,6 +11,8 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- scheduler multi-provider real com persistência idempotente de payloads,
+  health checks por fonte, fallback degradado e auditoria de execuções;
 - conclusão do pacote técnico G17–G22 para lançamento;
 - workflow de publicação de imagem versionada no GHCR;
 - stack de produção com rede interna, TLS automático e containers somente leitura;
