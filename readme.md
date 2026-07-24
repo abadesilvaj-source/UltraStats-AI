@@ -332,6 +332,13 @@ reprocessamento, Data Fusion por campo, prioridade de provider, conflitos e
 proveniência auditável. A suíte consolidada possui 2.458 testes e 100% de
 cobertura. A próxima fase é a G8 — Motor Estatístico.
 
+A G8 está concluída. O Motor Estatístico calcula forma recente, desempenho em
+casa e fora, força do calendário, xG, distribuições, tendências, contextos,
+ausências e confiabilidade com ponderação temporal e proteção contra data
+leakage. Os snapshots são persistentes e idempotentes. A suíte consolidada
+possui 2.464 testes e 100% de cobertura. A próxima fase é a G9 — Modelos
+Preditivos.
+
 ---
 
 ## 12. Roadmap

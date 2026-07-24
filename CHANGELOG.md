@@ -11,6 +11,10 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- conclusão integral da G8 — Motor Estatístico;
+- forma recente, splits casa/fora, xG, calendário, tendências e contextos;
+- distribuições, Poisson, peso temporal e confiabilidade de amostra;
+- snapshots estatísticos idempotentes, migration e dashboard operacional;
 - conclusão integral da G7 com normalização, matching, revisão e Data Fusion;
 - decisões de identidade, quarentena reprocessável e observações rastreáveis;
 - fusão por campo com prioridade de provider e conflitos auditáveis;

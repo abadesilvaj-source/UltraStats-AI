@@ -2806,8 +2806,27 @@ indicadores úteis.
 ### Status
 
 ```text
-PLANEJADO
+CONCLUÍDO
 ```
+
+Entregas concluídas:
+
+- forma recente com peso temporal;
+- desempenho como mandante e visitante;
+- força de calendário e impacto de ausências;
+- gols e gols esperados;
+- médias, variância, mínimos e máximos;
+- tendências temporais;
+- contextos de competição, treinador e árbitro;
+- distribuição de Poisson;
+- tamanho efetivo e confiabilidade da amostra;
+- proteção contra vazamento de dados futuros;
+- snapshots SQLAlchemy idempotentes;
+- migration reversível `a18c8f40a004`;
+- dashboard do Motor Estatístico;
+- 2.464 testes com 100% de cobertura.
+
+Próxima etapa: G9 — Modelos Preditivos.
 
 ---
 
