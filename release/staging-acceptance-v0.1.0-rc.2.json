@@ -1,0 +1,67 @@
+{
+  "version": "0.1.0-rc.2",
+  "environment": "ultrastats-g16",
+  "collected_at": "2026-07-24T17:53:00-03:00",
+  "approved": false,
+  "blockers": [
+    "required_providers",
+    "operator_acceptance"
+  ],
+  "migration_head": "b8151a2c9e10",
+  "services": {
+    "postgres": true,
+    "migrations": true,
+    "scheduler": true,
+    "dashboard": true
+  },
+  "providers": {
+    "openligadb": {
+      "configured": true,
+      "reachable": true,
+      "contract_valid": true,
+      "sample_records": 306
+    },
+    "football_data_uk": {
+      "configured": true,
+      "reachable": true,
+      "contract_valid": true,
+      "sample_records": 380
+    },
+    "statsbomb_open_data": {
+      "configured": true,
+      "reachable": true,
+      "contract_valid": true,
+      "sample_records": 3940
+    },
+    "football_data": {
+      "configured": false,
+      "reachable": false,
+      "contract_valid": false,
+      "reason": "FOOTBALL_DATA_API_TOKEN ausente"
+    },
+    "api_football": {
+      "configured": false,
+      "reachable": false,
+      "contract_valid": false,
+      "reason": "API_FOOTBALL_KEY ausente"
+    }
+  },
+  "dashboard": {
+    "http_status": 200,
+    "readonly_rootfs": true,
+    "tmpfs": [
+      "/tmp"
+    ]
+  },
+  "load": {
+    "requests": 100,
+    "failures": 0,
+    "average_ms": 45.65,
+    "maximum_ms": 733.53
+  },
+  "backup_restore": true,
+  "rollback": true,
+  "security": true,
+  "operator_acceptance": false,
+  "observed_minutes": 3
+}

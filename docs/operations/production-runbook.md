@@ -1,5 +1,9 @@
 # Runbook de Produção
 
+O gate de homologação da G16 e o resultado da RC2 estão documentados em
+[`g16-staging-acceptance.md`](g16-staging-acceptance.md). Uma release somente
+pode ser promovida quando `StagingDecision.approved` for verdadeiro.
+
 ## Inicialização
 
 1. Injetar credenciais pelo ambiente; nunca salvar valores no repositório.

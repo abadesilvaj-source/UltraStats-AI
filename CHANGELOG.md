@@ -11,6 +11,12 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- gate auditável da G16 para serviços, providers, dashboard, carga, backup,
+  segurança, rollback, observação e aceite humano;
+- homologação real das fontes públicas OpenLigaDB, Football-Data.co.uk e
+  StatsBomb Open Data;
+- evidência de staging da RC2 com bloqueio explícito de promoção sem tokens;
+
 - conclusão integral da G15.1 — Motor Multi-Provider Real;
 - adapters para API-Football, Football-Data.co.uk, StatsBomb Open Data e OpenLigaDB;
 - matriz de capacidades, fallback degradado, prioridade e snapshots temporais de odds;
