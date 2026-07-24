@@ -30,6 +30,7 @@ Thumbs.db
 # Arquivos temporários
 *.tmp
 *.temp
+*-tree.txt
 
 # Relatórios e exportações
 exports/

@@ -28,3 +28,4 @@ windows
 *.xlsx
 *.xls
 *.csv
+*-tree.txt

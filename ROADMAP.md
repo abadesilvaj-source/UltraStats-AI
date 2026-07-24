@@ -20,10 +20,7 @@ O roadmap detalhado e oficial está em
 - [x] G15.1 — Motor Multi-Provider Real
 - [x] G15.2 — Dataset, Backtesting e Calibração
 
-Release candidate atual: `v0.1.0-rc.2`.
-
-Próximo passo: G16, homologação humana em staging e promoção controlada para a
-primeira versão estável.
+Versão estável atual: `v0.1.0`.
 
 ## G16 — Homologação em staging
 
@@ -36,3 +33,14 @@ primeira versão estável.
 - [x] promoção para `v0.1.0`.
 
 Status: G16 concluída integralmente.
+
+## G17–G22 — Operação e lançamento
+
+- [x] consolidação integral no `main`;
+- [x] pacote de produção com Docker Compose e HTTPS;
+- [x] operação contínua e gates auditáveis;
+- [x] preparação de piloto e conformidade;
+- [x] fundação de evolução pós-lançamento.
+
+Para o uso pessoal atualmente definido, piloto comercial e aprovação jurídica
+ficam fora do escopo. Próximo passo: implantação privada em nuvem.
