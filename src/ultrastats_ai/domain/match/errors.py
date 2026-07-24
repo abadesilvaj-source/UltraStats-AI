@@ -57,3 +57,11 @@ class DuplicateMatchVenueError(MatchDomainError):
 
 class MultipleCurrentMatchVenuesError(MatchDomainError):
     """Indica mais de um local principal vigente."""
+
+
+class MatchRecordOwnershipError(MatchDomainError):
+    """Indica registro operacional pertencente a outra partida."""
+
+
+class DuplicateMatchRecordError(MatchDomainError):
+    """Indica identidade duplicada em uma coleção operacional."""

@@ -188,6 +188,46 @@ class MatchVenueId(EntityId):
 
 
 @dataclass(frozen=True, slots=True)
+class MatchOfficialId(EntityId):
+    """Identificador canônico de oficial em uma partida."""
+
+
+@dataclass(frozen=True, slots=True)
+class MatchPeriodId(EntityId):
+    """Identificador canônico de período de uma partida."""
+
+
+@dataclass(frozen=True, slots=True)
+class MatchSquadId(EntityId):
+    """Identificador canônico de convocação de uma partida."""
+
+
+@dataclass(frozen=True, slots=True)
+class LineupId(EntityId):
+    """Identificador canônico de escalação."""
+
+
+@dataclass(frozen=True, slots=True)
+class LineupEntryId(EntityId):
+    """Identificador canônico de entrada de escalação."""
+
+
+@dataclass(frozen=True, slots=True)
+class MatchStatisticId(EntityId):
+    """Identificador canônico de estatística de partida."""
+
+
+@dataclass(frozen=True, slots=True)
+class MatchInterruptionId(EntityId):
+    """Identificador canônico de interrupção de partida."""
+
+
+@dataclass(frozen=True, slots=True)
+class MatchDecisionId(EntityId):
+    """Identificador canônico de decisão de partida."""
+
+
+@dataclass(frozen=True, slots=True)
 class TieId(EntityId):
     """Identificador canônico de confronto agregado."""
 

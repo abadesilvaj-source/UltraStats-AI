@@ -12,6 +12,7 @@ from ultrastats_ai.domain.match.enums import (
 )
 from ultrastats_ai.domain.match.errors import (
     DuplicateMatchParticipantError,
+    DuplicateMatchRecordError,
     DuplicateMatchVenueError,
     DuplicateScheduleChangeError,
     InvalidMatchParticipantsError,
@@ -20,6 +21,7 @@ from ultrastats_ai.domain.match.errors import (
     InvalidMatchVenueError,
     MatchParticipantNotFoundError,
     MatchParticipantOwnershipError,
+    MatchRecordOwnershipError,
     MatchVenueOwnershipError,
     MultipleCurrentMatchVenuesError,
     ScheduleChangeOwnershipError,
@@ -27,6 +29,18 @@ from ultrastats_ai.domain.match.errors import (
 from ultrastats_ai.domain.match.lifecycle import can_transition
 from ultrastats_ai.domain.match.participant import MatchParticipant
 from ultrastats_ai.domain.match.schedule_change import MatchScheduleChange
+from ultrastats_ai.domain.match.records import (
+    Lineup,
+    LineupEntry,
+    MatchDecision,
+    MatchEvent,
+    MatchInterruption,
+    MatchOfficial,
+    MatchPeriod,
+    MatchRevision,
+    MatchSquad,
+    MatchStatistic,
+)
 from ultrastats_ai.domain.match.venue import MatchVenue
 from ultrastats_ai.domain.shared import (
     CompetitionId,
@@ -62,6 +76,16 @@ class Match:
     schedule_changes: tuple[MatchScheduleChange, ...] = ()
     stadium_id: VenueId | None = None
     venues: tuple[MatchVenue, ...] = ()
+    officials: tuple[MatchOfficial, ...] = ()
+    periods: tuple[MatchPeriod, ...] = ()
+    squads: tuple[MatchSquad, ...] = ()
+    lineups: tuple[Lineup, ...] = ()
+    lineup_entries: tuple[LineupEntry, ...] = ()
+    events: tuple[MatchEvent, ...] = ()
+    statistics: tuple[MatchStatistic, ...] = ()
+    interruptions: tuple[MatchInterruption, ...] = ()
+    decisions: tuple[MatchDecision, ...] = ()
+    revisions: tuple[MatchRevision, ...] = ()
 
     def __post_init__(self) -> None:
         self.validate()
@@ -114,6 +138,9 @@ class Match:
             raise TypeError("stadium_id deve ser VenueId ou None.")
         if not isinstance(self.venues, tuple):
             raise TypeError("venues deve ser tuple.")
+        for field_name in _RECORD_COLLECTIONS.values():
+            if not isinstance(getattr(self, field_name), tuple):
+                raise TypeError(f"{field_name} deve ser tuple.")
         if len(self.participants) != 2:
             raise InvalidMatchParticipantsError(
                 "Uma partida deve possuir exatamente dois participantes."
@@ -130,6 +157,7 @@ class Match:
         self._validate_participants()
         self._validate_schedule_changes()
         self._validate_venues()
+        self._validate_records()
 
     def _validate_schedule(self) -> None:
         if (
@@ -237,6 +265,24 @@ class Match:
             raise InvalidMatchVenueError(
                 "stadium_id diverge do local principal vigente."
             )
+
+    def _validate_records(self) -> None:
+        for record_type, field_name in _RECORD_COLLECTIONS.items():
+            known_ids: set[object] = set()
+            for record in getattr(self, field_name):
+                if not isinstance(record, record_type):
+                    raise TypeError(
+                        f"{field_name} deve conter {record_type.__name__}."
+                    )
+                if record.match_id != self.id:
+                    raise MatchRecordOwnershipError(
+                        f"{record_type.__name__} pertence a outra partida."
+                    )
+                if record.id in known_ids:
+                    raise DuplicateMatchRecordError(
+                        f"{record_type.__name__} possui identidade duplicada."
+                    )
+                known_ids.add(record.id)
 
     @property
     def home(self) -> MatchParticipant:
@@ -404,6 +450,64 @@ class Match:
             venues=updated_venues,
         )
 
+    def add_record(self, record: object) -> Match:
+        """Adiciona uma entidade operacional à coleção correspondente."""
+
+        field_name = next(
+            (
+                name
+                for record_type, name in _RECORD_COLLECTIONS.items()
+                if isinstance(record, record_type)
+            ),
+            None,
+        )
+        if field_name is None:
+            raise TypeError("record possui tipo operacional desconhecido.")
+        if record.match_id != self.id:  # type: ignore[union-attr]
+            raise MatchRecordOwnershipError(
+                "O registro pertence a outra partida."
+            )
+        return replace(
+            self,
+            **{
+                field_name: (
+                    *getattr(self, field_name),
+                    record,
+                )
+            },
+        )
+
+    def record_event(self, event: MatchEvent) -> Match:
+        """Registra evento e sincroniza o placar resumido, quando informado."""
+
+        if not isinstance(event, MatchEvent):
+            raise TypeError("event deve ser MatchEvent.")
+        updated = self.add_record(event)
+        if (
+            event.home_score_after is None
+            or event.away_score_after is None
+        ):
+            return updated
+
+        home_score = event.home_score_after
+        away_score = event.away_score_after
+        return replace(
+            updated,
+            participants=tuple(
+                participant.record_score(
+                    home_score
+                    if participant.role is ParticipantRole.HOME
+                    else away_score,
+                    is_winner=(
+                        home_score > away_score
+                        if participant.role is ParticipantRole.HOME
+                        else away_score > home_score
+                    ),
+                )
+                for participant in updated.participants
+            ),
+        )
+
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, Match):
             return NotImplemented
@@ -412,3 +516,17 @@ class Match:
 
     def __hash__(self) -> int:
         return hash(self.id)
+
+
+_RECORD_COLLECTIONS: dict[type, str] = {
+    MatchOfficial: "officials",
+    MatchPeriod: "periods",
+    MatchSquad: "squads",
+    Lineup: "lineups",
+    LineupEntry: "lineup_entries",
+    MatchEvent: "events",
+    MatchStatistic: "statistics",
+    MatchInterruption: "interruptions",
+    MatchDecision: "decisions",
+    MatchRevision: "revisions",
+}
