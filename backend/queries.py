@@ -353,6 +353,7 @@ class ApiQueries:
                 "kickoff_at": iso_local(match.kickoff_at, self.timezone),
                 "market_id": market.id,
                 "market": market.name,
+                "market_category": market.category,
                 "selection": p.selection,
                 "probability": p.probability,
                 "implied_probability": p.implied_probability,

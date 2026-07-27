@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect } from 'react'
 import { type Match, type BetSelection, type PlacedBet, type OddsMarket, type OddsOption } from './data'
 import {
   analyzeBetSlip, createBankroll, depositBankroll, loadBankrolls, loadMatch,
-  loadBetSlips, loadMatches, loadMaturity, placeBet, withdrawBankroll,
+  loadBetSlips, loadMatches, loadMaturity, placeBet, settleBetLeg,
+  withdrawBankroll,
 } from './api'
 import {
   Home, TrendingUp, Star, Wallet, ChevronRight, ChevronLeft,
@@ -751,6 +752,34 @@ function AnalysisTab({ match, onAddBet }: { match: Match; onAddBet: (market: str
     Média: ['rgba(251,191,36,0.15)', '#fbbf24'],
     Baixa: ['rgba(255,23,68,0.15)', '#ff1744'],
   }
+  const categoryLabels: Record<string, string> = {
+    result: 'Resultados',
+    goals: 'Gols',
+    team_goals: 'Gols por equipe',
+    score: 'Placares',
+    corners: 'Escanteios',
+    team_corners: 'Escanteios por equipe',
+    cards: 'Cartões',
+    team_cards: 'Cartões por equipe',
+    manual: 'Mercados manuais',
+    other: 'Outros',
+  }
+  const grouped = match.analysis.recommendations.reduce(
+    (result, recommendation) => {
+      const category = recommendation.category || 'other'
+      result[category] = [...(result[category] || []), recommendation]
+      return result
+    },
+    {} as Record<string, typeof match.analysis.recommendations>,
+  )
+  const categories = Object.keys(grouped)
+  const best = match.analysis.recommendations.find(
+    item => item.primary && !item.noBet
+  ) || match.analysis.recommendations.find(item => !item.noBet)
+  const [selectedCategory, setSelectedCategory] = useState(
+    best?.category || categories[0] || 'other'
+  )
+  const visible = grouped[selectedCategory] || grouped[categories[0]] || []
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -794,7 +823,33 @@ function AnalysisTab({ match, onAddBet }: { match: Match; onAddBet: (market: str
       {match.analysis.recommendations.length > 0 && (
         <div>
           <SectionLabel>Análise dos Mercados</SectionLabel>
-          {match.analysis.recommendations.map((rec, i) => {
+          {best && (
+            <Card style={{ padding: '16px', marginBottom: 12, borderColor: '#00e887', background: 'rgba(0,232,135,.04)' }}>
+              <div style={{ fontSize: 10, color: '#00e887', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.12em', marginBottom: 7 }}>
+                Melhor aposta indicada pelo modelo
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                <div>
+                  <div style={{ color: '#eef0f9', fontWeight: 700 }}>{best.tip}</div>
+                  <div style={{ color: '#7a88b0', fontSize: 12 }}>{best.market} · {categoryLabels[best.category || 'other'] || best.category}</div>
+                  <div style={{ color: '#7a88b0', fontSize: 11, marginTop: 4 }}>{best.reasoning}</div>
+                </div>
+                <button onClick={() => onAddBet(best.market, best.tip, best.odds)}
+                  style={{ flexShrink: 0, padding: '9px 12px', borderRadius: 8, border: '1px solid #00e887', background: 'rgba(0,232,135,.1)', color: '#00e887', fontWeight: 700, cursor: 'pointer' }}>
+                  {best.odds.toFixed(2)}
+                </button>
+              </div>
+            </Card>
+          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 12 }}>
+            {categories.map(category => (
+              <button key={category} onClick={() => setSelectedCategory(category)}
+                style={{ padding: '8px 11px', borderRadius: 8, border: `1px solid ${selectedCategory === category ? '#00e887' : '#1e2438'}`, background: selectedCategory === category ? 'rgba(0,232,135,.1)' : '#0f1119', color: selectedCategory === category ? '#00e887' : '#7a88b0', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                {categoryLabels[category] || category} ({grouped[category].length})
+              </button>
+            ))}
+          </div>
+          {visible.map((rec, i) => {
             const [bg, color] = confStyle[rec.confidence]
             return (
               <Card key={i} style={{ padding: '16px', marginBottom: '10px' }}>
@@ -1068,14 +1123,24 @@ function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCreated, 
   const periodLost = periodBets.filter(b => b.status === 'lost').reduce((a, b) => a + b.stake, 0)
   const netPL = periodWon - periodLost
 
-  const settle = (id: string, result: 'won' | 'lost') => {
-    setBets(bets.map(b => b.id !== id ? b : { ...b, status: result, selections: b.selections.map(s => ({ ...s, status: result })) }))
+  const settle = async (
+    slipId: string, legId: string, result: 'won' | 'lost' | 'void'
+  ) => {
+    try {
+      await settleBetLeg(slipId, legId, result)
+      setBets(await loadBetSlips())
+      const active = (await loadBankrolls()).find(item => item.active)
+      if (active) onBalanceChanged(active.balance)
+    } catch (error: any) {
+      onError(error.message)
+    }
   }
 
   const stCfg: Record<string, { label: string; bg: string; color: string; icon: React.ReactNode }> = {
     pending: { label: 'Pendente', bg: 'rgba(251,191,36,0.15)', color: '#fbbf24', icon: <Clock size={13} /> },
     won: { label: 'Ganhou', bg: 'rgba(0,200,83,0.15)', color: '#00c853', icon: <CheckCircle2 size={13} /> },
     lost: { label: 'Perdeu', bg: 'rgba(255,23,68,0.15)', color: '#ff1744', icon: <XCircle size={13} /> },
+    void: { label: 'Anulada', bg: 'rgba(122,136,176,0.15)', color: '#7a88b0', icon: <Circle size={13} /> },
     partial: { label: 'Parcial', bg: 'rgba(79,142,247,0.15)', color: '#4f8ef7', icon: <AlertTriangle size={13} /> },
   }
 
@@ -1211,16 +1276,10 @@ function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCreated, 
                   <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', color: '#5a6480' }}>{bet.date}</span>
                   <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '13px', color: '#eef0f9' }}>{bet.totalOdds.toFixed(2)}x</span>
                 </div>
-                {bet.status === 'pending' && (
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button onClick={() => settle(bet.id, 'won')} style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(0,200,83,0.15)', color: '#00c853', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Ganhou</button>
-                    <button onClick={() => settle(bet.id, 'lost')} style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(255,23,68,0.15)', color: '#ff1744', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Perdeu</button>
-                  </div>
-                )}
               </div>
               <div style={{ padding: '12px 16px' }}>
                 {bet.selections.map(sel => (
-                  <div key={sel.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #1e2438', fontSize: '12px' }}>
+                  <div key={sel.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderBottom: '1px solid #1e2438', fontSize: '12px' }}>
                     <div style={{ color: '#5a6480' }}>
                       <span>{sel.matchName}</span>
                       <span style={{ margin: '0 6px', color: '#2a3150' }}>·</span>
@@ -1228,7 +1287,14 @@ function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCreated, 
                       <span style={{ margin: '0 6px', color: '#2a3150' }}>·</span>
                       <span style={{ color: '#eef0f9', fontWeight: 600 }}>{sel.option}</span>
                     </div>
-                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: '#00e887' }}>{sel.odds.toFixed(2)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: '#00e887' }}>{sel.odds.toFixed(2)}</span>
+                      {sel.status === 'pending' && <>
+                        <button title="Liquidar como ganha" onClick={() => settle(bet.id, sel.id, 'won')} style={{ fontSize: 10, padding: '4px 7px', borderRadius: 5, background: 'rgba(0,200,83,.15)', color: '#00c853', border: 0, cursor: 'pointer' }}>Ganhou</button>
+                        <button title="Liquidar como perdida" onClick={() => settle(bet.id, sel.id, 'lost')} style={{ fontSize: 10, padding: '4px 7px', borderRadius: 5, background: 'rgba(255,23,68,.15)', color: '#ff1744', border: 0, cursor: 'pointer' }}>Perdeu</button>
+                        <button title="Anular seleção" onClick={() => settle(bet.id, sel.id, 'void')} style={{ fontSize: 10, padding: '4px 7px', borderRadius: 5, background: 'rgba(122,136,176,.15)', color: '#7a88b0', border: 0, cursor: 'pointer' }}>Anular</button>
+                      </>}
+                    </div>
                   </div>
                 ))}
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '12px' }}>

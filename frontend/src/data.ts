@@ -95,6 +95,7 @@ export interface MatchAnalysis {
 }
 
 export interface Recommendation {
+  category?: string
   market: string
   tip: string
   projection?: string
@@ -115,7 +116,7 @@ export interface BetSelection {
   option: string
   odds: number
   sourceOdds?: number
-  status?: 'pending' | 'won' | 'lost' | 'cashout'
+  status?: 'pending' | 'won' | 'lost' | 'void' | 'cashout'
 }
 
 export interface PlacedBet {
@@ -125,7 +126,7 @@ export interface PlacedBet {
   potentialReturn: number
   totalOdds: number
   date: string
-  status: 'pending' | 'won' | 'lost' | 'partial'
+  status: 'pending' | 'won' | 'lost' | 'void' | 'partial'
 }
 
 const arsenal: Team = {

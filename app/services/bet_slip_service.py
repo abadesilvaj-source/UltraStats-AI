@@ -320,7 +320,35 @@ class BetSlipService:
             self._finalize(self.get(slip_id), now)
         return len(affected)
 
+    def settle_leg_manually(
+        self, slip_id: int, leg_id: int, result: str
+    ) -> BetSlip:
+        normalized = result.strip().lower()
+        if normalized not in {"won", "lost", "void"}:
+            raise ValueError(
+                "Resultado manual deve ser won, lost ou void."
+            )
+        slip = self.get(slip_id)
+        if slip.status != "pending":
+            raise ValueError("Este bilhete já foi liquidado.")
+        leg = next(
+            (item for item in slip.legs if item.id == leg_id), None
+        )
+        if leg is None:
+            raise ValueError("Seleção não pertence ao bilhete informado.")
+        if leg.status != "pending":
+            raise ValueError("Esta seleção já foi liquidada.")
+        now = datetime.now(timezone.utc)
+        leg.result = normalized
+        leg.status = "settled"
+        leg.settled_at = now
+        self._finalize(slip, now)
+        self.session.commit()
+        return self.get(slip.id)
+
     def _finalize(self, slip: BetSlip, now: datetime) -> None:
+        if slip.status != "pending":
+            return
         if any(leg.status == "pending" for leg in slip.legs):
             return
         effective = Decimal("1")

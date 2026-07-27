@@ -64,6 +64,7 @@ function adapt(item: any): Match {
     }
   }
   analysis.recommendations = Array.from(bestByMarket.values()).map(row => ({
+    category: row.market_category || 'other',
     market: row.market,
     tip: row.display_selection || row.selection,
     projection: row.selection,
@@ -147,6 +148,15 @@ export async function placeBet(payload: unknown) {
   return request('/bet-slips', { method: 'POST', body: JSON.stringify(payload) })
 }
 
+export async function settleBetLeg(
+  slipId: string, legId: string, result: 'won' | 'lost' | 'void'
+) {
+  return request(`/bet-slips/${slipId}/legs/${legId}/settle`, {
+    method: 'PATCH',
+    body: JSON.stringify({ result }),
+  })
+}
+
 export async function loadBetSlips(): Promise<PlacedBet[]> {
   const rows = await request<any[]>('/bet-slips')
   return rows.map(item => {
@@ -155,6 +165,7 @@ export async function loadBetSlips(): Promise<PlacedBet[]> {
       ? 'pending'
       : results.every((value: string) => value === 'won') ? 'won'
       : results.some((value: string) => value === 'lost') ? 'lost'
+      : results.every((value: string) => value === 'void') ? 'void'
       : 'partial'
     return {
       id: String(item.id),

@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
 
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
@@ -189,6 +190,20 @@ def test_manual_market_without_local_id_is_named_and_accepted():
         assert session.get(Market, slip.legs[0].market_id).name == (
             "Jogador para marcar a qualquer momento"
         )
+
+        settled = BetSlipService(session).settle_leg_manually(
+            slip.id, slip.legs[0].id, "won"
+        )
+
+        assert settled.status == "won"
+        assert settled.payout_amount == Decimal("28.00")
+        assert session.get(
+            Bankroll, bankroll.id
+        ).current_balance == Decimal("1018.00")
+        with pytest.raises(ValueError, match="já foi liquidado"):
+            BetSlipService(session).settle_leg_manually(
+                slip.id, slip.legs[0].id, "won"
+            )
 
 
 def test_analyzes_correlated_markets_in_same_match():

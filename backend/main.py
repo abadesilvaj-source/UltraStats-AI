@@ -240,6 +240,19 @@ async def analyze_bet_slip(request: Request):
     return BetSlipService(request.state.session).analyze(payload)
 
 
+@app.patch("/api/v1/bet-slips/{slip_id}/legs/{leg_id}/settle")
+async def settle_bet_slip_leg(
+    slip_id: int, leg_id: int, request: Request
+):
+    payload = await request.json()
+    slip = BetSlipService(
+        request.state.session
+    ).settle_leg_manually(
+        slip_id, leg_id, str(payload.get("result", ""))
+    )
+    return serialize_slip(slip, request.state.session)
+
+
 @app.get("/api/v1/favorites")
 def favorites(request: Request, user_id: str = "default"):
     return [

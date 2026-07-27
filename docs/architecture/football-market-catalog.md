@@ -39,6 +39,26 @@ dupla, empate anula, ambas marcam, clean sheet, escanteios e cartões.
 Mercados especiais manuais exigem confirmação manual caso o dado de
 liquidação não esteja disponível nos provedores.
 
+### Liquidação manual persistente
+
+Na Gestão de Banca, cada seleção pendente pode ser marcada como ganha,
+perdida ou anulada. A operação é persistida no backend. Em bilhetes
+múltiplos, o bilhete permanece pendente até que todas as seleções tenham
+resultado. O cálculo final:
+
+- encerra o bilhete como perdido se alguma seleção perder;
+- multiplica apenas as odds das seleções vencedoras;
+- considera seleções anuladas com odd efetiva igual a 1;
+- credita o retorno na banca uma única vez.
+
+## Navegação da análise
+
+As recomendações são agrupadas em oito categorias expansíveis:
+resultados, gols, gols por equipe, placares, escanteios, escanteios por
+equipe, cartões e cartões por equipe. A interface exibe somente a
+categoria selecionada e mantém, acima dos filtros, a melhor aposta
+indicada pelo modelo para a partida.
+
 ## Concorrência e desempenho
 
 A criação do catálogo é idempotente e protegida contra execuções
