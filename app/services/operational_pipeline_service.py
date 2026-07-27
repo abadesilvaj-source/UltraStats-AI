@@ -27,6 +27,7 @@ from app.utils.betting_math import (
 from ultrastats_ai.domain.prediction import ModelSpecification, PoissonScoreModel
 from ultrastats_ai.infrastructure.providers import DataCapability, SourceObservation
 from ultrastats_ai.infrastructure.database.models import RawProviderPayloadRecord
+from ultrastats_ai.infrastructure.database.models import IdentityDecisionRecord
 
 
 MARKETS = (
@@ -87,14 +88,24 @@ class OperationalPipelineService:
         markets = self._ensure_markets(counters)
         matches: dict[str, Match] = {}
         for observation in fixtures:
-            if (
-                observation.provider != "api_football"
-                or observation.capability is not DataCapability.FIXTURES
-            ):
+            if observation.capability is not DataCapability.FIXTURES:
                 continue
-            match = self._promote_fixture(observation.values, counters)
+            match = self._canonical_match(
+                observation.provider, observation.external_id
+            )
+            # Compatibilidade para bancos mínimos/legados: em produção a
+            # fusão cria a identidade canônica antes deste pipeline.
+            if (
+                match is None
+                and observation.provider == "api_football"
+            ):
+                match = self._promote_fixture(
+                    observation.values, counters
+                )
             if match is not None:
-                matches[str(match.external_id)] = match
+                matches[
+                    f"{observation.provider}:{observation.external_id}"
+                ] = match
 
         self.session.flush()
         counters["odds"] += self._promote_odds(odds, matches, markets)
@@ -103,6 +114,33 @@ class OperationalPipelineService:
             if match.status in {"scheduled", "in_progress"}:
                 counters["predictions"] += self._predict(match, markets)
         return counters
+
+    def _canonical_match(
+        self, provider: str, external_id: str
+    ) -> Match | None:
+        decision = None
+        if inspect(self.session.connection()).has_table(
+            IdentityDecisionRecord.__tablename__
+        ):
+            decision = self.session.scalar(
+                select(IdentityDecisionRecord).where(
+                    IdentityDecisionRecord.provider == provider,
+                    IdentityDecisionRecord.external_id
+                    == f"match:{external_id}",
+                    IdentityDecisionRecord.status == "matched",
+                )
+            )
+        if decision and decision.candidate_id:
+            return self.session.get(
+                Match,
+                int(decision.candidate_id.removeprefix("match:")),
+            )
+        return self.session.scalar(
+            select(Match).where(
+                Match.source == provider,
+                Match.external_id == external_id,
+            )
+        )
 
     def process_post_match_statistics(
         self,
@@ -316,7 +354,9 @@ class OperationalPipelineService:
             fixture = row.get("fixture") if isinstance(row, dict) else None
             if not isinstance(fixture, dict):
                 continue
-            match = matches.get(str(fixture.get("id")))
+            match = matches.get(
+                f"{observation.provider}:{fixture.get('id')}"
+            )
             if match is None:
                 continue
             for bookmaker in row.get("bookmakers", ()):
@@ -357,37 +397,45 @@ class OperationalPipelineService:
         markets: dict[str, Market],
     ) -> int:
         row = observation.values
+        match = self._canonical_match(
+            observation.provider, observation.external_id
+        )
         try:
             kickoff = datetime.fromisoformat(
                 str(row["commence_time"]).replace("Z", "+00:00")
             ).replace(tzinfo=None)
         except (KeyError, ValueError):
             return 0
-        candidates = self.session.scalars(
-            select(Match).where(
-                Match.kickoff_at >= kickoff - timedelta(hours=3),
-                Match.kickoff_at <= kickoff + timedelta(hours=3),
-            )
-        ).all()
         home_name, away_name = (
             str(row.get("home_team") or ""),
             str(row.get("away_team") or ""),
         )
-        match = next(
-            (
-                candidate
-                for candidate in candidates
-                if self._team_similarity(
-                    home_name,
-                    self.session.get(Team, candidate.home_team_id).name,
-                ) >= 0.78
-                and self._team_similarity(
-                    away_name,
-                    self.session.get(Team, candidate.away_team_id).name,
-                ) >= 0.78
-            ),
-            None,
-        )
+        if match is None:
+            candidates = self.session.scalars(
+                select(Match).where(
+                    Match.kickoff_at >= kickoff - timedelta(hours=3),
+                    Match.kickoff_at <= kickoff + timedelta(hours=3),
+                )
+            ).all()
+            match = next(
+                (
+                    candidate
+                    for candidate in candidates
+                    if self._team_similarity(
+                        home_name,
+                        self.session.get(
+                            Team, candidate.home_team_id
+                        ).name,
+                    ) >= 0.78
+                    and self._team_similarity(
+                        away_name,
+                        self.session.get(
+                            Team, candidate.away_team_id
+                        ).name,
+                    ) >= 0.78
+                ),
+                None,
+            )
         if match is None:
             return 0
         created = 0

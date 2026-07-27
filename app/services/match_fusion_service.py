@@ -20,16 +20,6 @@ from ultrastats_ai.infrastructure.database.models import (
 from ultrastats_ai.infrastructure.providers import SourceObservation
 
 
-SOURCE_QUALITY = {
-    "api_football": 0.96,
-    "sportmonks": 0.94,
-    "football_data": 0.92,
-    "the_odds_api": 0.80,
-    "thesportsdb": 0.82,
-    "openligadb": 0.84,
-    "football_data_uk": 0.78,
-}
-
 TERMINAL = {"finished", "cancelled", "postponed"}
 
 
@@ -138,7 +128,8 @@ class MatchFusionService:
             provenance[field] = selected.provider
             provenance_detail[field] = {
                 "provider": selected.provider,
-                "quality": SOURCE_QUALITY[selected.provider],
+                "base_weight": 1.0,
+                "decision": "field_consensus_then_recency",
                 "observed_at": selected.observed_at.isoformat(),
                 "contributors": sorted({item.provider for item, _ in candidates}),
             }
@@ -181,21 +172,14 @@ class MatchFusionService:
         field: str,
         candidates: list[tuple[MatchContribution, Any]],
     ) -> tuple[MatchContribution, Any]:
-        if field in {"home_score", "away_score", "status"}:
-            counts = Counter(self._comparable(value) for _, value in candidates)
-            most_common, votes = counts.most_common(1)[0]
-            if votes > 1:
-                agreed = [
-                    pair for pair in candidates
-                    if self._comparable(pair[1]) == most_common
-                ]
-                return max(
-                    agreed,
-                    key=lambda pair: (
-                        SOURCE_QUALITY[pair[0].provider],
-                        pair[0].observed_at,
-                    ),
-                )
+        counts = Counter(self._comparable(value) for _, value in candidates)
+        most_common, votes = counts.most_common(1)[0]
+        if votes > 1:
+            agreed = [
+                pair for pair in candidates
+                if self._comparable(pair[1]) == most_common
+            ]
+            return max(agreed, key=lambda pair: pair[0].observed_at)
         if field == "status":
             terminal = [
                 pair for pair in candidates if pair[1] in TERMINAL
@@ -204,10 +188,7 @@ class MatchFusionService:
                 candidates = terminal
         return max(
             candidates,
-            key=lambda pair: (
-                SOURCE_QUALITY[pair[0].provider],
-                pair[0].observed_at,
-            ),
+            key=lambda pair: pair[0].observed_at,
         )
 
     def _resolve(
@@ -223,12 +204,14 @@ class MatchFusionService:
         if decision and decision.candidate_id:
             match_id = int(decision.candidate_id.removeprefix("match:"))
             return self.session.get(Match, match_id), float(decision.score or 1)
-        if item.provider == "api_football":
-            exact = self.session.scalar(
-                select(Match).where(Match.external_id == item.external_id)
+        exact = self.session.scalar(
+            select(Match).where(
+                Match.source == item.provider,
+                Match.external_id == item.external_id,
             )
-            if exact:
-                return exact, 1.0
+        )
+        if exact:
+            return exact, 1.0
         candidates = self.session.scalars(
             select(Match).where(
                 Match.kickoff_at.between(

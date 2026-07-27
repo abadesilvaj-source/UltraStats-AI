@@ -58,3 +58,12 @@ ficam fora do escopo. Próximo passo: implantação privada em nuvem.
 
 Status: G23 implementada. A qualidade das recomendações continuará crescendo
 com o backfill automático e com a ampliação da amostra auditada.
+## G24 — Neutralidade total de provedores e SLA 90%–100% ✅
+
+- [x] Remover pesos e prioridades globais por provedor.
+- [x] Aplicar consenso por campo com desempate por recência.
+- [x] Tornar identidade, fixtures, odds, escalações e live multiprovedor.
+- [x] Preservar estatísticas complementares não nulas entre fontes.
+- [x] Separar SLA operacional de cobertura bruta.
+- [x] Expor capacidades, elegibilidade, atualidade e neutralidade no painel.
+- [x] Documentar a arquitetura e os critérios auditáveis.

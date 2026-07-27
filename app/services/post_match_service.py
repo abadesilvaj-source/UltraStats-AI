@@ -154,26 +154,29 @@ class PostMatchService:
                     statistics
                 )
 
-            statistics.corners_home = corners_home
-            statistics.corners_away = corners_away
-            statistics.yellow_cards_home = yellow_cards_home
-            statistics.yellow_cards_away = yellow_cards_away
-            statistics.red_cards_home = red_cards_home
-            statistics.red_cards_away = red_cards_away
-            statistics.shots_home = shots_home
-            statistics.shots_away = shots_away
-            statistics.shots_on_target_home = (
-                shots_on_target_home
-            )
-            statistics.shots_on_target_away = (
-                shots_on_target_away
-            )
-            statistics.offsides_home = offsides_home
-            statistics.offsides_away = offsides_away
-            statistics.possession_home = possession_home
-            statistics.possession_away = possession_away
-            statistics.xg_home = xg_home
-            statistics.xg_away = xg_away
+            # Provedores se complementam por campo. Uma coleta parcial nunca
+            # apaga um valor válido obtido anteriormente de outra fonte.
+            supplied = {
+                "corners_home": corners_home,
+                "corners_away": corners_away,
+                "yellow_cards_home": yellow_cards_home,
+                "yellow_cards_away": yellow_cards_away,
+                "red_cards_home": red_cards_home,
+                "red_cards_away": red_cards_away,
+                "shots_home": shots_home,
+                "shots_away": shots_away,
+                "shots_on_target_home": shots_on_target_home,
+                "shots_on_target_away": shots_on_target_away,
+                "offsides_home": offsides_home,
+                "offsides_away": offsides_away,
+                "possession_home": possession_home,
+                "possession_away": possession_away,
+                "xg_home": xg_home,
+                "xg_away": xg_away,
+            }
+            for field, value in supplied.items():
+                if value is not None:
+                    setattr(statistics, field, value)
             statistics.updated_at = datetime.now()
 
             self.statistics_repository.update(

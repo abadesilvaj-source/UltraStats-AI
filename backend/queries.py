@@ -123,7 +123,7 @@ class ApiQueries:
             item for item in self.recommendations()
             if item["match_id"] == match_id
         ]
-        base["lineups"] = self.lineups(base["external_id"])
+        base["lineups"] = self.lineups(match_id)
         fusion = self.session.scalar(
             select(FusionResultRecord)
             .where(FusionResultRecord.canonical_id == f"match:{match_id}")
@@ -140,15 +140,31 @@ class ApiQueries:
         )
         return base
 
-    def lineups(self, external_id: str | None) -> list[dict]:
-        if not external_id:
+    def lineups(self, match_id: int) -> list[dict]:
+        match = self.session.get(Match, match_id)
+        if match is None:
             return []
+        identities = {
+            item.provider: item.external_id.removeprefix("match:")
+            for item in self.session.scalars(
+                select(IdentityDecisionRecord).where(
+                    IdentityDecisionRecord.candidate_id
+                    == f"match:{match_id}",
+                    IdentityDecisionRecord.status == "matched",
+                )
+            ).all()
+        }
+        if match.source and match.external_id:
+            identities.setdefault(match.source, str(match.external_id))
+        api_id = identities.get("api_football")
         rows = self.session.scalars(
             select(RawProviderPayloadRecord)
             .where(
                 RawProviderPayloadRecord.provider == "api_football",
                 RawProviderPayloadRecord.resource == "lineups",
-                RawProviderPayloadRecord.external_id.like(f"{external_id}:%"),
+                RawProviderPayloadRecord.external_id.like(
+                    f"{api_id}:%"
+                ) if api_id else False,
             )
             .order_by(RawProviderPayloadRecord.collected_at.desc())
         ).all()
@@ -174,8 +190,71 @@ class ApiQueries:
                     ],
                     "confirmed": len(row.payload.get("startXI", [])) >= 11,
                     "collected_at": row.collected_at.isoformat(),
+                    "provider": "api_football",
                 }
             )
+        sportmonks_id = identities.get("sportmonks")
+        sportmonks = self.session.scalar(
+            select(RawProviderPayloadRecord)
+            .where(
+                RawProviderPayloadRecord.provider == "sportmonks",
+                RawProviderPayloadRecord.resource == "lineups",
+                RawProviderPayloadRecord.external_id == sportmonks_id,
+            )
+            .order_by(RawProviderPayloadRecord.collected_at.desc())
+        ) if sportmonks_id else None
+        if sportmonks:
+            result.extend(
+                self._sportmonks_lineups(sportmonks.payload)
+            )
+        return result
+
+    @staticmethod
+    def _sportmonks_lineups(payload: dict) -> list[dict]:
+        participants = {
+            str(item.get("id")): item
+            for item in payload.get("participants", ())
+            if isinstance(item, dict)
+        }
+        grouped: dict[str, list[dict]] = {}
+        for item in payload.get("lineups", ()):
+            if not isinstance(item, dict):
+                continue
+            team_id = str(
+                item.get("participant_id")
+                or item.get("team_id")
+                or ""
+            )
+            grouped.setdefault(team_id, []).append(item)
+        result = []
+        for team_id, entries in grouped.items():
+            starters, substitutes = [], []
+            for entry in entries:
+                player = entry.get("player") or {}
+                normalized = {
+                    "id": player.get("id"),
+                    "name": player.get("display_name")
+                    or player.get("name"),
+                    "number": entry.get("jersey_number"),
+                    "pos": entry.get("position")
+                    or entry.get("formation_position"),
+                }
+                target = (
+                    starters
+                    if entry.get("starter")
+                    or entry.get("type_id") in {11, 12}
+                    else substitutes
+                )
+                target.append(normalized)
+            result.append({
+                "team": participants.get(team_id, {"id": team_id}),
+                "formation": None,
+                "coach": None,
+                "start_xi": starters,
+                "substitutes": substitutes,
+                "confirmed": len(starters) >= 11,
+                "provider": "sportmonks",
+            })
         return result
 
     def match_markets(self, match_id: int) -> list[dict]:

@@ -1106,6 +1106,12 @@ function SystemView({ maturity }: { maturity: any }) {
     ['Previsões', maturity.coverage.predictions],
     ['Escalações', maturity.coverage.lineups],
   ]
+  const rawCoverages = maturity.raw_coverage ? [
+    ['Estatísticas', maturity.raw_coverage.statistics],
+    ['Odds', maturity.raw_coverage.odds],
+    ['Previsões', maturity.raw_coverage.predictions],
+    ['Escalações', maturity.raw_coverage.lineups],
+  ] : []
   return (
     <div className="animate-fade-in">
       <div style={{ padding: '24px 0 16px' }}>
@@ -1118,7 +1124,7 @@ function SystemView({ maturity }: { maturity: any }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 10 }}>
         <Card style={{ padding: 16 }}>
-          <div style={{ color: '#5a6480', fontSize: 11 }}>Qualidade geral</div>
+          <div style={{ color: '#5a6480', fontSize: 11 }}>SLA operacional</div>
           <div style={{ color: maturity.quality_score >= .7 ? '#00e887' : '#fbbf24', fontSize: 28, fontWeight: 700 }}>
             {percent(maturity.quality_score)}
           </div>
@@ -1132,6 +1138,19 @@ function SystemView({ maturity }: { maturity: any }) {
           </Card>
         ))}
       </div>
+      {rawCoverages.length > 0 && <>
+        <SectionLabel>Cobertura bruta (todos os jogos)</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 10, marginBottom: 24 }}>
+          {rawCoverages.map(([label, value]: any) => (
+            <Card key={`raw-${label}`} style={{ padding: 16 }}>
+              <div style={{ color: '#5a6480', fontSize: 11 }}>{label}</div>
+              <div style={{ color: '#7a88b0', fontSize: 22, fontWeight: 700 }}>
+                {percent(value)}
+              </div>
+            </Card>
+          ))}
+        </div>
+      </>}
       <SectionLabel>Provedores</SectionLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 8, marginBottom: 24 }}>
         {Object.entries(maturity.providers).map(([name, item]: [string, any]) => (

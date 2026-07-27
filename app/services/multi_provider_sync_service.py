@@ -289,9 +289,6 @@ class MultiProviderSyncService:
             ),
             None,
         )
-        if api_source is None:
-            return 0, 0
-
         cutoff = datetime.now(timezone.utc).replace(
             tzinfo=None
         ) - timedelta(
@@ -333,7 +330,7 @@ class MultiProviderSyncService:
             fixture_id = self._provider_match_id(
                 match, "api_football"
             )
-            if not fixture_id:
+            if not fixture_id or api_source is None:
                 continue
             attempted = self.session.scalar(
                 select(exists().where(
@@ -502,11 +499,7 @@ class MultiProviderSyncService:
         stored = settled = 0
         for observation in observations:
             match = by_provider_id.get(observation.external_id)
-            if match is None or self.session.scalar(
-                select(exists().where(
-                    MatchStatistics.match_id == match.id
-                ))
-            ):
+            if match is None:
                 continue
             self.raw_store.save(
                 RawProviderPayload(
@@ -568,16 +561,24 @@ class MultiProviderSyncService:
         captured = datetime.now(timezone.utc)
         saved = 0
         for observation in fixtures:
-            if observation.provider != "api_football":
+            live_values = _provider_live_values(observation)
+            if live_values is None:
                 continue
-            row = observation.values
-            fixture = row.get("fixture", {})
-            status = fixture.get("status", {})
-            if status.get("short") not in {
-                "1H", "HT", "2H", "ET", "BT", "P", "LIVE"
-            }:
-                continue
-            match_id = str(fixture.get("id"))
+            external_id, minute, home_goals, away_goals = live_values
+            decision = self.session.scalar(
+                select(IdentityDecisionRecord).where(
+                    IdentityDecisionRecord.provider
+                    == observation.provider,
+                    IdentityDecisionRecord.external_id
+                    == f"match:{external_id}",
+                    IdentityDecisionRecord.status == "matched",
+                )
+            )
+            match_id = (
+                decision.candidate_id.removeprefix("match:")
+                if decision and decision.candidate_id
+                else f"{observation.provider}:{external_id}"
+            )
             latest = store.latest(match_id)
             state = (
                 LiveMatchState(
@@ -622,15 +623,13 @@ class MultiProviderSyncService:
                 )
                 if latest else engine.initial(match_id)
             )
-            minute = int(status.get("elapsed") or 0)
-            goals = row.get("goals", {})
             for suffix, kind, payload in (
                 (
                     "score",
                     LiveEventType.SCORE,
                     {
-                        "home": int(goals.get("home") or 0),
-                        "away": int(goals.get("away") or 0),
+                        "home": home_goals,
+                        "away": away_goals,
                     },
                 ),
                 ("clock", LiveEventType.CLOCK, {"minute": minute}),
@@ -638,7 +637,8 @@ class MultiProviderSyncService:
                 event = LiveEvent(
                     (
                         f"{match_id}:{suffix}:{minute}:"
-                        f"{goals.get('home')}:{goals.get('away')}"
+                        f"{home_goals}:{away_goals}:"
+                        f"{observation.provider}"
                     ),
                     match_id,
                     kind,
@@ -774,6 +774,44 @@ class MultiProviderSyncService:
                 "mmz4281/2526/E0.csv",
             ),
         }
+
+
+def _provider_live_values(
+    observation: SourceObservation,
+) -> tuple[str, int, int, int] | None:
+    row = observation.values
+    if observation.provider == "api_football":
+        fixture = row.get("fixture") or {}
+        status = fixture.get("status") or {}
+        if status.get("short") not in {
+            "1H", "HT", "2H", "ET", "BT", "P", "LIVE"
+        }:
+            return None
+        goals = row.get("goals") or {}
+        return (
+            str(fixture.get("id") or observation.external_id),
+            int(status.get("elapsed") or 0),
+            int(goals.get("home") or 0),
+            int(goals.get("away") or 0),
+        )
+    if observation.provider == "sportmonks":
+        state = row.get("state") or {}
+        state_name = str(
+            state.get("short_name") or state.get("name") or ""
+        ).casefold()
+        if not any(
+            token in state_name
+            for token in ("live", "inplay", "1st", "2nd", "half")
+        ):
+            return None
+        scores = _sportmonks_scores(row)
+        return (
+            observation.external_id,
+            int(row.get("length") or row.get("minute") or 0),
+            scores.get("home", 0),
+            scores.get("away", 0),
+        )
+    return None
 
 
 def _sportmonks_match_statistics(
