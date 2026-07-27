@@ -150,6 +150,18 @@ export async function loadBankrolls(): Promise<any[]> {
   return request('/bankrolls')
 }
 
+export async function createBankroll(payload: {
+  name: string
+  initial_balance: number
+  currency: string
+  unit_percentage: number
+}): Promise<any> {
+  return request('/bankrolls', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function loadMaturity(): Promise<any> {
   return request('/maturity/status')
 }

@@ -36,6 +36,12 @@ class BankrollService:
         currency: str = "BRL",
         unit_percentage: float = 1.0,
     ) -> Bankroll:
+        name = name.strip()
+        if not name:
+            raise ValueError(
+                "O nome da banca é obrigatório."
+            )
+
         if initial_balance <= 0:
             raise ValueError(
                 "O saldo inicial deve ser maior que zero."

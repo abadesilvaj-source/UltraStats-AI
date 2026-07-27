@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.database.session import SessionLocal
-from app.services import BetSlipService
+from app.services import BankrollService, BetSlipService
 from backend.queries import ApiQueries
 from ultrastats_ai.domain.experience import Favorite
 from ultrastats_ai.infrastructure.experience import ExperienceStore
@@ -112,6 +112,31 @@ def recommendations(request: Request):
 @app.get("/api/v1/bankrolls")
 def bankrolls(request: Request):
     return queries(request).bankrolls()
+
+
+def serialize_bankroll(item) -> dict:
+    return {
+        "id": item.id,
+        "name": item.name,
+        "currency": item.currency,
+        "balance": float(item.current_balance),
+        "initial_balance": float(item.initial_balance),
+        "unit_percentage": item.unit_percentage,
+        "active": item.active,
+    }
+
+
+@app.post("/api/v1/bankrolls", status_code=201)
+async def create_bankroll(request: Request):
+    payload = await request.json()
+    return serialize_bankroll(
+        BankrollService(request.state.session).create_bankroll(
+            name=str(payload.get("name", "")).strip(),
+            initial_balance=float(payload.get("initial_balance", 0)),
+            currency=str(payload.get("currency", "BRL")).strip() or "BRL",
+            unit_percentage=float(payload.get("unit_percentage", 1)),
+        )
+    )
 
 
 def serialize_slip(slip) -> dict:

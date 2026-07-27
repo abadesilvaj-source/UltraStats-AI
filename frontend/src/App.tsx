@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { initialBankroll, type Match, type BetSelection, type PlacedBet, type OddsMarket, type OddsOption } from './data'
 import {
-  analyzeBetSlip, loadBankrolls, loadMatch, loadMatches,
+  analyzeBetSlip, createBankroll, loadBankrolls, loadMatch, loadMatches,
   loadMaturity, placeBet,
 } from './api'
 import {
@@ -23,7 +23,7 @@ export default function App() {
   const [betSlipOpen, setBetSlipOpen] = useState(false)
   const [placedBets, setPlacedBets] = useState<PlacedBet[]>(initialBankroll)
   const [favorites, setFavorites] = useState<string[]>(['m1', 'm3'])
-  const [bankrollAmount, setBankrollAmount] = useState(1000)
+  const [bankrollAmount, setBankrollAmount] = useState(0)
   const [bankrollId, setBankrollId] = useState<number | null>(null)
   const [navOpen, setNavOpen] = useState(false)
   const [maturity, setMaturity] = useState<any>(null)
@@ -90,7 +90,14 @@ export default function App() {
         )}
         {view === 'bankroll' && (
           <BankrollView bets={placedBets} setBets={setPlacedBets} bankroll={bankrollAmount}
-            setBankroll={setBankrollAmount} wonTotal={wonTotal} lostTotal={lostTotal} pending={pendingCount} />
+            setBankroll={setBankrollAmount} bankrollId={bankrollId}
+            onBankrollCreated={(item) => {
+              setBankrollId(item.id)
+              setBankrollAmount(item.balance)
+              setLoadError('')
+            }}
+            onError={setLoadError}
+            wonTotal={wonTotal} lostTotal={lostTotal} pending={pendingCount} />
         )}
         {view === 'favorites' && (
           <FavoritesView matches={matches} favorites={favorites} onMatchClick={openMatch} onToggleFavorite={toggleFavorite} />
@@ -102,8 +109,15 @@ export default function App() {
         <BetSlipDrawer selections={betSlip} onRemove={removeBet} onClose={() => setBetSlipOpen(false)}
           totalOdds={totalOdds}
           onPlace={async (stake) => {
-            if (!bankrollId || betSlip.some(item => !item.marketId)) {
-              setLoadError('Banca ou mercado real indisponível para este bilhete.')
+            if (!bankrollId) {
+              setLoadError('Crie e ative uma banca antes de confirmar o bilhete.')
+              setBetSlipOpen(false)
+              setSelectedMatch(null)
+              setView('bankroll')
+              return
+            }
+            if (betSlip.some(item => !item.marketId)) {
+              setLoadError('Um dos mercados deste bilhete não está mais disponível.')
               return
             }
             try {
@@ -124,7 +138,7 @@ export default function App() {
                 )
                 return
               }
-              await placeBet(payload)
+            await placeBet(payload)
             } catch (error: any) {
               setLoadError(error.message)
               return
@@ -137,6 +151,7 @@ export default function App() {
               date: new Date().toLocaleDateString('pt-BR'), status: 'pending',
             }
             setPlacedBets(prev => [newBet, ...prev])
+            setBankrollAmount(value => Math.max(0, value - stake))
             setBetSlip([])
             setBetSlipOpen(false)
           }}
@@ -199,7 +214,7 @@ function Nav({ view, setView, betCount, onBetSlipOpen, navOpen, setNavOpen, clea
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
-            onClick={() => window.open('http://localhost:8517', '_blank', 'noopener,noreferrer')}
+            onClick={() => { setView('bankroll'); clearMatch() }}
             title="Gestão de banca, risco, apostas, liquidação, operações e modelos"
             style={{ ...s.betBtn, background: '#1e2438', color: '#eef0f9' }}
           >
@@ -957,12 +972,17 @@ function BetSlipDrawer({ selections, onRemove, onClose, totalOdds, onPlace }: {
   )
 }
 
-function BankrollView({ bets, setBets, bankroll, setBankroll, wonTotal, lostTotal, pending }: {
+function BankrollView({ bets, setBets, bankroll, setBankroll, bankrollId, onBankrollCreated, onError, wonTotal, lostTotal, pending }: {
   bets: PlacedBet[]; setBets: (b: PlacedBet[]) => void; bankroll: number; setBankroll: (v: number) => void
+  bankrollId: number | null; onBankrollCreated: (item: any) => void; onError: (message: string) => void
   wonTotal: number; lostTotal: number; pending: number
 }) {
   const [editing, setEditing] = useState(false)
   const [editVal, setEditVal] = useState(String(bankroll))
+  const [creating, setCreating] = useState(false)
+  const [name, setName] = useState('Banca Principal')
+  const [initialBalance, setInitialBalance] = useState('1000')
+  const [unitPercentage, setUnitPercentage] = useState('1')
   const netPL = wonTotal - lostTotal
 
   const settle = (id: string, result: 'won' | 'lost') => {
@@ -982,6 +1002,52 @@ function BankrollView({ bets, setBets, bankroll, setBankroll, wonTotal, lostTota
         <h1 style={{ fontFamily: "'Russo One', sans-serif", fontSize: '24px', color: '#eef0f9', letterSpacing: '0.05em', margin: 0 }}>GESTÃO DE BANCA</h1>
         <p style={{ fontSize: '13px', color: '#5a6480', marginTop: '4px' }}>Acompanhe suas apostas e performance</p>
       </div>
+
+      {!bankrollId && (
+        <Card style={{ padding: '20px', marginBottom: '20px', borderColor: '#00e887' }}>
+          <div style={{ fontSize: '16px', color: '#eef0f9', fontWeight: 700, marginBottom: '6px' }}>
+            Crie sua primeira banca
+          </div>
+          <p style={{ fontSize: '12px', color: '#7a88b0', margin: '0 0 16px' }}>
+            A banca é necessária para controlar saldo, exposição, unidades e registrar bilhetes reais.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+            <label style={{ fontSize: '11px', color: '#7a88b0' }}>
+              Nome
+              <input value={name} onChange={event => setName(event.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, background: '#161b26', border: '1px solid #1e2438', borderRadius: 7, padding: 10, color: '#eef0f9' }} />
+            </label>
+            <label style={{ fontSize: '11px', color: '#7a88b0' }}>
+              Saldo inicial (R$)
+              <input type="number" min="0.01" step="0.01" value={initialBalance} onChange={event => setInitialBalance(event.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, background: '#161b26', border: '1px solid #1e2438', borderRadius: 7, padding: 10, color: '#eef0f9' }} />
+            </label>
+            <label style={{ fontSize: '11px', color: '#7a88b0' }}>
+              Valor da unidade (%)
+              <input type="number" min="0.1" max="100" step="0.1" value={unitPercentage} onChange={event => setUnitPercentage(event.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, background: '#161b26', border: '1px solid #1e2438', borderRadius: 7, padding: 10, color: '#eef0f9' }} />
+            </label>
+          </div>
+          <button disabled={creating} onClick={async () => {
+            setCreating(true)
+            try {
+              const item = await createBankroll({
+                name: name.trim(),
+                initial_balance: Number(initialBalance),
+                currency: 'BRL',
+                unit_percentage: Number(unitPercentage),
+              })
+              onBankrollCreated(item)
+            } catch (error: any) {
+              onError(error.message)
+            } finally {
+              setCreating(false)
+            }
+          }} style={{ marginTop: 14, padding: '11px 18px', borderRadius: 8, background: '#00e887', color: '#07080f', border: 0, fontWeight: 700, cursor: creating ? 'wait' : 'pointer' }}>
+            {creating ? 'Criando…' : 'Criar e ativar banca'}
+          </button>
+        </Card>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px', marginBottom: '20px' }}>
         {[
