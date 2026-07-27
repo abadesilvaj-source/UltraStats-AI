@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Any
 from zoneinfo import ZoneInfo
 import os
 
@@ -191,56 +192,103 @@ class MultiProviderSyncService:
             ):
                 raise RuntimeError("Nenhum provider real respondeu com sucesso.")
 
-            lineups_saved = self._collect_lineups(
-                engine, report.observations
+            # A coleta bruta é o ativo primário. Ela deve sobreviver mesmo se
+            # um estágio derivado (previsão, ML ou recomendações) degradar.
+            self.session.commit()
+
+            lineups_saved = self._run_stage(
+                "lineups",
+                lambda: self._collect_lineups(
+                    engine, report.observations
+                ),
+                failures,
+                0,
             )
             fusion_observations = (
                 report.observations + odds_report.observations
             )
-            fusion_result = MatchFusionService(self.session).fuse(
-                fusion_observations,
-                football_data_payload=football_data_payload,
+            fusion_result = self._run_stage(
+                "fusion",
+                lambda: MatchFusionService(self.session).fuse(
+                    fusion_observations,
+                    football_data_payload=football_data_payload,
+                ),
+                failures,
+                {},
             )
-            operational = OperationalPipelineService(self.session).process(
-                fixtures=report.observations,
-                odds=odds_report.observations,
+            operational = self._run_stage(
+                "operational_pipeline",
+                lambda: OperationalPipelineService(self.session).process(
+                    fixtures=report.observations,
+                    odds=odds_report.observations,
+                ),
+                failures,
+                {},
             )
             operational["fusion"] = fusion_result
-            operational["historical_enrichment"] = (
-                HistoricalEnrichmentService(self.session).process(
-                    report.observations
-                )
-            )
-            operational["fusion_predictions"] = (
-                OperationalPipelineService(
+            operational["historical_enrichment"] = self._run_stage(
+                "historical_enrichment",
+                lambda: HistoricalEnrichmentService(
                     self.session
-                ).refresh_all_predictions()
+                ).process(report.observations),
+                failures,
+                {},
             )
-            operational["live_snapshots"] = self._persist_live_snapshots(
-                report.observations
+            operational["fusion_predictions"] = self._run_stage(
+                "fusion_predictions",
+                lambda: OperationalPipelineService(
+                    self.session
+                ).refresh_all_predictions(),
+                failures,
+                0,
+            )
+            operational["live_snapshots"] = self._run_stage(
+                "live_snapshots",
+                lambda: self._persist_live_snapshots(
+                    report.observations
+                ),
+                failures,
+                0,
             )
             operational["lineups"] = lineups_saved
-            statistics_saved, settled_bets = self._collect_post_match_statistics(
-                engine,
-                report.observations,
+            statistics_saved, settled_bets = self._run_stage(
+                "post_match_statistics",
+                lambda: self._collect_post_match_statistics(
+                    engine,
+                    report.observations,
+                ),
+                failures,
+                (0, 0),
             )
             operational["statistics"] = statistics_saved
             operational["settled_bets"] = settled_bets
-            operational["post_match_predictions"] = (
-                OperationalPipelineService(
+            operational["post_match_predictions"] = self._run_stage(
+                "post_match_predictions",
+                lambda: OperationalPipelineService(
                     self.session
-                ).refresh_all_predictions()
+                ).refresh_all_predictions(),
+                failures,
+                0,
             )
-            operational["intelligence"] = (
-                OperationalIntelligenceService(
+            operational["intelligence"] = self._run_stage(
+                "intelligence",
+                lambda: OperationalIntelligenceService(
                     self.session
-                ).run()
+                ).run(),
+                failures,
+                {},
             )
-            operational["maturity"] = MaturityService(
-                self.session
-            ).run()
-            operational["stale_matches_reconciled"] = (
-                self._reconcile_stale_matches()
+            operational["maturity"] = self._run_stage(
+                "maturity",
+                lambda: MaturityService(self.session).run(),
+                failures,
+                {},
+            )
+            operational["stale_matches_reconciled"] = self._run_stage(
+                "stale_reconciliation",
+                self._reconcile_stale_matches,
+                failures,
+                0,
             )
             self.session.commit()
             completed = self.monitor.mark_success(
@@ -272,6 +320,120 @@ class MultiProviderSyncService:
             engine.close()
             if football_provider is not None:
                 football_provider.close()
+
+    def run_live(
+        self, *, triggered_by: str = "scheduler"
+    ) -> dict[str, object]:
+        """Atualiza somente placares ao vivo, preservando as cotas gratuitas."""
+        sync_run = self.monitor.start_run(
+            "multi_provider_live", triggered_by
+        )
+        engine = self.engine_factory(self.environment)
+        saved = skipped = 0
+        failures: dict[str, str] = {}
+        try:
+            report = engine.collect(
+                DataCapability.LIVE,
+                source_params={
+                    "api_football": {
+                        "live": "all",
+                        "timezone": "America/Sao_Paulo",
+                    },
+                    "sportmonks": {},
+                },
+            )
+            failures.update(report.failed_sources)
+            if not report.successful_sources:
+                raise RuntimeError(
+                    "Nenhum provider de placar ao vivo respondeu."
+                )
+            for observation in report.observations:
+                if self.raw_store.save(
+                    RawProviderPayload(
+                        provider=observation.provider,
+                        resource=observation.capability.value,
+                        external_id=observation.external_id,
+                        payload=observation.values,
+                        collected_at=observation.observed_at,
+                    )
+                ):
+                    saved += 1
+                else:
+                    skipped += 1
+
+            fusion = self._run_stage(
+                "live_fusion",
+                lambda: MatchFusionService(self.session).fuse(
+                    report.observations
+                ),
+                failures,
+                {},
+            )
+            snapshots = self._run_stage(
+                "live_snapshots",
+                lambda: self._persist_live_snapshots(
+                    report.observations
+                ),
+                failures,
+                0,
+            )
+            reconciled = self._run_stage(
+                "stale_reconciliation",
+                self._reconcile_stale_matches,
+                failures,
+                0,
+            )
+            self.session.commit()
+            completed = self.monitor.mark_success(
+                sync_run.id,
+                {
+                    "matches": {
+                        "created": saved,
+                        "updated": 0,
+                        "skipped": skipped,
+                    }
+                },
+            )
+            return {
+                "sync_run_id": completed.id,
+                "status": completed.status,
+                "duration_seconds": completed.duration_seconds,
+                "saved": saved,
+                "skipped": skipped,
+                "successful_sources": report.successful_sources,
+                "failures": failures,
+                "degraded": bool(failures),
+                "operational": {
+                    "fusion": fusion,
+                    "live_snapshots": snapshots,
+                    "stale_matches_reconciled": reconciled,
+                },
+            }
+        except Exception as error:
+            self.session.rollback()
+            self.monitor.mark_failed(sync_run.id, error)
+            raise
+        finally:
+            engine.close()
+
+    def _run_stage(
+        self,
+        name: str,
+        operation: Callable[[], object],
+        failures: dict[str, str],
+        default: Any,
+    ) -> Any:
+        """Executa um estágio derivado em savepoint independente."""
+        try:
+            with self.session.begin_nested():
+                result = operation()
+                self.session.flush()
+            return result
+        except Exception as error:
+            failures[f"stage:{name}"] = (
+                f"{type(error).__name__}: {error}"
+            )
+            return default
 
     def _collect_post_match_statistics(
         self,
@@ -518,6 +680,7 @@ class MultiProviderSyncService:
             result = PostMatchService(self.session).settle_match(
                 match_external_id=str(match.external_id),
                 source="sportmonks",
+                commit=False,
                 **parsed,
             )
             stored += 1

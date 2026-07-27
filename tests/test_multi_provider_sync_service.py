@@ -83,6 +83,42 @@ class FakeEngine:
             source.close()
 
 
+class FakeLiveEngine(FakeEngine):
+    def collect(self, capability, **params):
+        assert capability is DataCapability.LIVE
+        assert params["source_params"]["api_football"]["live"] == "all"
+        observation = SourceObservation(
+            "api_football",
+            capability,
+            "42",
+            {
+                "fixture": {
+                    "id": 42,
+                    "date": "2026-07-27T16:00:00+00:00",
+                    "status": {"short": "1H", "elapsed": 20},
+                },
+                "league": {
+                    "id": 10,
+                    "name": "Live League",
+                    "country": "Brazil",
+                },
+                "teams": {
+                    "home": {"id": 1, "name": "Home"},
+                    "away": {"id": 2, "name": "Away"},
+                },
+                "goals": {"home": 1, "away": 0},
+            },
+            NOW,
+        )
+        return CollectionReport(
+            capability,
+            (observation,),
+            ("api_football", "sportmonks"),
+            {},
+            False,
+        )
+
+
 class FakeFootball:
     def __init__(self, available=True):
         self.available = available
@@ -170,6 +206,23 @@ def test_real_sync_records_total_failure():
         raise AssertionError("Falha total deveria bloquear a sincronização.")
     run = session.scalar(select(SyncRun))
     assert run.status == "failed"
+
+
+def test_live_sync_persists_and_promotes_current_score():
+    session = database_session()
+    result = MultiProviderSyncService(
+        session,
+        environment={},
+        engine_factory=lambda _: FakeLiveEngine(),
+    ).run_live()
+
+    assert result["status"] == "success"
+    assert result["saved"] == 1
+    assert result["successful_sources"] == (
+        "api_football", "sportmonks"
+    )
+    payload = session.scalar(select(RawProviderPayloadRecord))
+    assert payload.resource == "live"
 
 
 def test_normalizes_sportmonks_complementary_statistics():

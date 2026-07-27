@@ -142,7 +142,26 @@ class ApiFootballSource(JsonDataSource):
         )
 
     def _health_request(self) -> None:
-        self._get("/status")
+        self._raise_api_errors(self._get("/status"))
+
+    @staticmethod
+    def _raise_api_errors(payload: Any) -> None:
+        if not isinstance(payload, dict):
+            return
+        errors = payload.get("errors")
+        if not errors:
+            return
+        if isinstance(errors, dict):
+            message = "; ".join(
+                f"{key}: {value}" for key, value in errors.items()
+            )
+        elif isinstance(errors, list):
+            message = "; ".join(str(value) for value in errors)
+        else:
+            message = str(errors)
+        raise ProviderResponseError(
+            f"api_football: resposta rejeitada ({message})."
+        )
 
     def collect(self, capability: DataCapability, **params: Any) -> tuple[SourceObservation, ...]:
         endpoints = {
@@ -159,6 +178,7 @@ class ApiFootballSource(JsonDataSource):
         if capability is DataCapability.LIVE:
             query["live"] = query.get("live", "all")
         payload = self._get(endpoints[capability], query)
+        self._raise_api_errors(payload)
         rows = payload.get("response", []) if isinstance(payload, dict) else []
         return tuple(
             _observation(self.name, capability, _external_id(row, index), row)
@@ -292,6 +312,7 @@ class SportmonksSource(JsonDataSource):
     capabilities = frozenset(
         {
             DataCapability.FIXTURES,
+            DataCapability.LIVE,
             DataCapability.EVENTS,
             DataCapability.LINEUPS,
             DataCapability.STATISTICS,
@@ -322,16 +343,24 @@ class SportmonksSource(JsonDataSource):
     ) -> tuple[SourceObservation, ...]:
         if capability not in self.capabilities:
             raise ValueError(f"Capacidade não suportada: {capability}.")
-        date = str(params["date"])
         includes = {
             DataCapability.FIXTURES: "participants;league;venue;state;scores",
+            DataCapability.LIVE: (
+                "participants;league;venue;state;scores;"
+                "events;statistics.type"
+            ),
             DataCapability.EVENTS: "events",
             DataCapability.LINEUPS: "lineups.player",
             DataCapability.STATISTICS: "statistics.type",
             DataCapability.XG: "xGFixture",
         }
+        endpoint = (
+            "/livescores/inplay"
+            if capability is DataCapability.LIVE
+            else f"/fixtures/date/{str(params['date'])}"
+        )
         payload = self._get(
-            f"/fixtures/date/{date}",
+            endpoint,
             self._parameters({"include": includes[capability]}),
         )
         rows = payload.get("data") or [] if isinstance(payload, dict) else []

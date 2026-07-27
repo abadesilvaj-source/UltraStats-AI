@@ -231,6 +231,9 @@ def test_sportmonks_uses_token_and_includes_by_capability() -> None:
         assert request.url.params["api_token"] == "token"
         if request.url.path.endswith("/leagues"):
             return httpx.Response(200, json={"data": []})
+        if request.url.path.endswith("/livescores/inplay"):
+            assert "statistics.type" in request.url.params["include"]
+            return httpx.Response(200, json={"data": [{"id": 88}]})
         assert "participants" in request.url.params["include"]
         return httpx.Response(200, json={"data": [{"id": 77}]})
 
@@ -240,11 +243,33 @@ def test_sportmonks_uses_token_and_includes_by_capability() -> None:
     assert source.health_check().available
     rows = source.collect(DataCapability.FIXTURES, date="2026-07-27")
     assert rows[0].external_id == "77"
+    live = source.collect(DataCapability.LIVE)
+    assert live[0].external_id == "88"
     with pytest.raises(ValueError):
         source.collect(DataCapability.ODDS, date="2026-07-27")
     source.close()
     with pytest.raises(ProviderConfigurationError):
         SportmonksSource(config())
+
+
+def test_api_football_rejects_http_200_provider_errors() -> None:
+    source = ApiFootballSource(
+        config(key="token"),
+        transport=transport(
+            lambda _: httpx.Response(
+                200,
+                json={
+                    "errors": {"requests": "daily quota reached"},
+                    "response": [],
+                },
+            )
+        ),
+    )
+
+    assert not source.health_check().available
+    with pytest.raises(ProviderResponseError):
+        source.collect(DataCapability.LIVE)
+    source.close()
 
 
 def test_the_odds_api_collects_configured_sports() -> None:

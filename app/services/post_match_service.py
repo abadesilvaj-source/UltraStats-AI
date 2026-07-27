@@ -67,6 +67,8 @@ class PostMatchService:
         possession_away: float | None = None,
         xg_home: float | None = None,
         xg_away: float | None = None,
+        *,
+        commit: bool = True,
     ) -> dict:
         """
         Fecha uma partida em uma única transação.
@@ -327,7 +329,10 @@ class PostMatchService:
             # 6. SALVAR TUDO
             # ======================================
 
-            self.session.commit()
+            if commit:
+                self.session.commit()
+            else:
+                self.session.flush()
 
             self.session.refresh(match)
             self.session.refresh(statistics)
@@ -350,7 +355,8 @@ class PostMatchService:
             }
 
         except Exception:
-            self.session.rollback()
+            if commit:
+                self.session.rollback()
             raise
 
     @staticmethod

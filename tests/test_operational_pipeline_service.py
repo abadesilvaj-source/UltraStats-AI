@@ -161,6 +161,18 @@ def test_pipeline_promotes_fixture_odds_markets_and_predictions():
     assert prediction.expected_value is not None
 
 
+def test_pipeline_normalizes_mixed_timezone_datetimes():
+    service = OperationalPipelineService(session())
+    aware = datetime(2026, 7, 27, 12, tzinfo=timezone.utc)
+    naive = datetime(2026, 7, 27, 9)
+
+    assert service._naive_utc(aware) == datetime(2026, 7, 27, 12)
+    assert service._naive_utc(naive) == naive
+    assert (
+        service._naive_utc(aware) - service._naive_utc(naive)
+    ).total_seconds() == 10800
+
+
 def test_pipeline_is_idempotent_and_ignores_non_api_fixtures():
     db = session()
     service = OperationalPipelineService(db)

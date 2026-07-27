@@ -1,5 +1,6 @@
 from app.scheduler.jobs import (
     mark_stale_runs,
+    run_scheduled_live_sync,
     run_scheduled_sync,
     update_scheduler_heartbeat,
 )
@@ -14,6 +15,7 @@ from app.scheduler.scheduler_state import (
 __all__ = [
     "SchedulerService",
     "mark_stale_runs",
+    "run_scheduled_live_sync",
     "run_scheduled_sync",
     "scheduler_state",
     "update_scheduler_heartbeat",

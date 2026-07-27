@@ -192,6 +192,7 @@ class OperationalPipelineService:
             possession_away=_percentage_stat(away_stats, "Ball Possession"),
             xg_home=_float_stat(home_stats, "expected_goals"),
             xg_away=_float_stat(away_stats, "expected_goals"),
+            commit=False,
         )
         return {
             "statistics": 1,
@@ -903,9 +904,11 @@ class OperationalPipelineService:
                 last_at = last_at or row.kickoff_at
             if not weights:
                 return 1.0, 1.0, 7.0
+            match_at = self._naive_utc(match.kickoff_at)
+            previous_at = self._naive_utc(last_at)
             rest = max(
                 2.0,
-                (match.kickoff_at - last_at).total_seconds() / 86400,
+                (match_at - previous_at).total_seconds() / 86400,
             )
             return (
                 max(.65, min(1.45, scored / weights / 1.35)),
@@ -929,6 +932,13 @@ class OperationalPipelineService:
                 .85, min(1.20, 1 + abs(home_attack - away_attack) * .15)
             ),
         }
+
+    @staticmethod
+    def _naive_utc(value: datetime) -> datetime:
+        """Normaliza timestamps mistos antes de calcular intervalos."""
+        if value.tzinfo is None:
+            return value
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
 
     @staticmethod
     def _poisson_over(line: int, expected: float) -> float:

@@ -10,6 +10,7 @@ from app.core.logging_config import (
 from app.database.session import SessionLocal
 from app.scheduler import (
     SchedulerService,
+    run_scheduled_live_sync,
     run_scheduled_sync,
     update_scheduler_heartbeat,
 )
@@ -97,17 +98,26 @@ def main() -> None:
         run_immediately=True,
     )
 
+    # Coleta leve e independente para API-Football/Sportmonks.
+    scheduler.add_interval_job(
+        func=run_scheduled_live_sync,
+        minutes=settings.live_sync_interval_minutes,
+        job_id="live_scores_sync",
+        run_immediately=False,
+    )
+
     scheduler.start()
 
     logger.info(
         "Scheduler iniciado | "
         "instância=%s | "
         "provedor=%s | "
-        "intervalo_sync=%s minuto(s) | "
+        "intervalo_sync=%s minuto(s) | intervalo_live=%s minuto(s) | "
         "intervalo_heartbeat=%s segundo(s)",
         settings.scheduler_instance_name,
         settings.sync_provider,
         settings.sync_interval_minutes,
+        settings.live_sync_interval_minutes,
         settings.scheduler_heartbeat_seconds,
     )
 

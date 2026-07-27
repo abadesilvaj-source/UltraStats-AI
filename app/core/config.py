@@ -56,6 +56,13 @@ class Settings:
             )
         )
 
+        self.live_sync_interval_minutes = int(
+            os.getenv(
+                "LIVE_SYNC_INTERVAL_MINUTES",
+                "30",
+            )
+        )
+
         self.sync_provider = os.getenv(
             "SYNC_PROVIDER",
             "mock_provider",
@@ -91,6 +98,11 @@ class Settings:
         if self.sync_interval_minutes <= 0:
             raise ValueError(
                 "SYNC_INTERVAL_MINUTES deve ser maior que zero."
+            )
+
+        if self.live_sync_interval_minutes <= 0:
+            raise ValueError(
+                "LIVE_SYNC_INTERVAL_MINUTES deve ser maior que zero."
             )
 
         if self.sync_max_runtime_minutes <= 0:

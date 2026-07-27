@@ -245,6 +245,41 @@ def run_scheduled_sync() -> None:
         )
 
         scheduler_lock.release()
+
+
+def run_scheduled_live_sync() -> None:
+    """Executa o coletor leve de placares sem bloquear o pipeline completo."""
+    lock_acquired = scheduler_lock.acquire(blocking=False)
+    if not lock_acquired:
+        logger.info(
+            "Atualização ao vivo adiada: outra sincronização está ativa."
+        )
+        return
+
+    session = None
+    try:
+        if settings.sync_provider != "multi_provider":
+            return
+        session = SessionLocal()
+        execution = MultiProviderSyncService(session).run_live(
+            triggered_by="scheduler"
+        )
+        logger.info(
+            "Atualização ao vivo concluída. Execução ID: %s | "
+            "fontes=%s | salvos=%s | degradada=%s",
+            execution["sync_run_id"],
+            ",".join(execution["successful_sources"]),
+            execution["saved"],
+            execution["degraded"],
+        )
+    except Exception as error:
+        logger.exception(
+            "Erro na atualização leve ao vivo: %s", error
+        )
+    finally:
+        if session is not None:
+            session.close()
+        scheduler_lock.release()
         
 def update_scheduler_heartbeat() -> None:
     """
