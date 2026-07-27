@@ -413,10 +413,9 @@ class ApiQueries:
             )
             result.append({
                 **row,
-                "display_selection": (
-                    "Sem aposta" if no_bet else row["selection"]
-                ),
+                "display_selection": row["selection"],
                 "no_bet": no_bet,
+                "is_primary_recommendation": actionable,
                 "probability_margin": probability_margin,
                 "actionable": actionable,
                 "recommendation_type": (
@@ -480,11 +479,37 @@ class ApiQueries:
                 if item is keep:
                     continue
                 item["actionable"] = False
+                item["no_bet"] = True
+                item["is_primary_recommendation"] = False
                 item["recommendation_type"] = "model_lead"
                 item["blocked_reasons"] = [
                     *item["blocked_reasons"],
                     "correlated_market_exposure",
                 ]
+        all_by_match: dict[int, list[dict]] = {}
+        for item in result:
+            all_by_match.setdefault(item["match_id"], []).append(item)
+        evidence_weight = {"high": 3, "medium": 2, "low": 1}
+        for items in all_by_match.values():
+            if any(item["actionable"] for item in items):
+                continue
+            primary = max(
+                items,
+                key=lambda item: (
+                    item["recommendation_score"] or -1,
+                    evidence_weight.get(item["evidence"], 0),
+                    item["confidence"] or 0,
+                    item["probability_margin"],
+                    item["probability"],
+                ),
+            )
+            primary["no_bet"] = False
+            primary["is_primary_recommendation"] = True
+            primary["recommendation_type"] = "model_pick"
+            primary["warnings"] = [
+                *primary["warnings"],
+                "model_pick_without_confirmed_value",
+            ]
         return result
 
     def markets(self) -> list[dict]:

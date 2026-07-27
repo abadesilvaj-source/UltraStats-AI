@@ -99,6 +99,8 @@ export interface Recommendation {
   tip: string
   projection?: string
   noBet?: boolean
+  primary?: boolean
+  recommendationType?: string
   confidence: 'Alta' | 'Média' | 'Baixa'
   odds: number
   reasoning: string

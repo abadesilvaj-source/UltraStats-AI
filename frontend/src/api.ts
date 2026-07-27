@@ -68,12 +68,16 @@ function adapt(item: any): Match {
     tip: row.display_selection || row.selection,
     projection: row.selection,
     noBet: Boolean(row.no_bet),
+    primary: Boolean(row.is_primary_recommendation),
+    recommendationType: row.recommendation_type,
     confidence: row.confidence >= .75 ? 'Alta' : row.confidence >= .55 ? 'Média' : 'Baixa',
     odds: row.implied_probability
       ? 1 / row.implied_probability
       : 1 / Math.max(row.probability, .01),
     reasoning: row.no_bet
-      ? `Sem vantagem estatística segura · margem entre cenários ${((row.probability_margin || 0) * 100).toFixed(1)}%`
+      ? `Aposta não recomendada · margem entre cenários ${((row.probability_margin || 0) * 100).toFixed(1)}%`
+      : row.recommendation_type === 'model_pick'
+      ? `Melhor projeção disponível para a partida · ainda sem valor estatístico confirmado`
       : row.conservative_expected_value != null
       ? `EV conservador ${(row.conservative_expected_value * 100).toFixed(1)}% · ${row.actionable ? 'acionável' : 'bloqueada'}`
       : row.expected_value != null

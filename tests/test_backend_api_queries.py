@@ -54,3 +54,68 @@ def test_api_returns_only_active_matches_in_user_timezone():
         assert len(result) == 1
         assert result[0]["kickoff_at"].endswith("-03:00")
         assert queries.recommendations()[0]["match"] == "Casa x Fora"
+
+
+def test_recommendations_always_select_one_model_pick_per_match():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        competition = Competition(
+            name="Liga", country="Brasil", season="2026", sport="football"
+        )
+        home = Team(name="Casa", source="multi_provider")
+        away = Team(name="Fora", source="multi_provider")
+        session.add_all((competition, home, away))
+        session.flush()
+        match = Match(
+            competition_id=competition.id,
+            home_team_id=home.id,
+            away_team_id=away.id,
+            kickoff_at=datetime.now(timezone.utc) + timedelta(hours=2),
+            status="scheduled",
+            external_id="consensus-1",
+        )
+        winner = Market(
+            code="match_winner", name="Resultado", category="result"
+        )
+        goals = Market(
+            code="over_2_5_goals", name="Mais de 2.5", category="goals"
+        )
+        session.add_all((match, winner, goals))
+        session.flush()
+        session.add_all((
+            Prediction(
+                match_id=match.id,
+                market_id=winner.id,
+                selection="Home",
+                model_version="v1",
+                probability=.54,
+                confidence=.52,
+                evidence_level="low",
+            ),
+            Prediction(
+                match_id=match.id,
+                market_id=goals.id,
+                selection="Over 2.5",
+                model_version="v1",
+                probability=.62,
+                confidence=.61,
+                evidence_level="medium",
+            ),
+        ))
+        session.commit()
+
+        rows = ApiQueries(
+            session, "America/Sao_Paulo"
+        ).recommendations()
+
+        primary = [
+            row for row in rows
+            if row["is_primary_recommendation"]
+        ]
+        assert len(primary) == 1
+        assert primary[0]["selection"] == "Over 2.5"
+        assert primary[0]["display_selection"] == "Over 2.5"
+        assert primary[0]["recommendation_type"] == "model_pick"
+        assert not primary[0]["no_bet"]
+        assert sum(not row["no_bet"] for row in rows) == 1
