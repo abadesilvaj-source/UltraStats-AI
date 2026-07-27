@@ -8,7 +8,7 @@ import re
 from typing import Any
 import unicodedata
 
-from sqlalchemy import inspect, or_, select
+from sqlalchemy import func, inspect, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,7 @@ from app.models import (
     Competition,
     Market,
     Match,
+    MatchStatistics,
     Odd,
     Prediction,
     Team,
@@ -67,6 +68,7 @@ class OperationalPipelineService:
         self._calibration_history: list[
             tuple[str, float, int, int]
         ] | None = None
+        self._market_sample_cache: dict[int, int] = {}
 
     def process(
         self,
@@ -530,6 +532,7 @@ class OperationalPipelineService:
             / Decimal(str(context["home_defense"])),
         )
         lineup = self._lineup_context(match)
+        evidence_base = self._evidence_base(match, lineup)
         home_xg = max(
             Decimal("0.2"),
             home_xg + Decimal(
@@ -772,30 +775,40 @@ class OperationalPipelineService:
                 selection: value / total
                 for selection, value in blended.items()
             }
+        existing_predictions = {
+            (item.market_id, item.selection): item
+            for item in self.session.scalars(
+                select(Prediction).where(
+                    Prediction.match_id == match.id,
+                    Prediction.model_version == self.model_version,
+                )
+            ).all()
+        }
+        latest_odds: dict[tuple[int, str], Odd] = {}
+        for item in self.session.scalars(
+            select(Odd)
+            .where(Odd.match_id == match.id)
+            .order_by(Odd.collected_at.desc())
+        ).all():
+            latest_odds.setdefault(
+                (item.market_id, item.selection), item
+            )
         created = 0
         for code, selections in forecasts.items():
             market = markets[code]
+            evidence = self._market_evidence(
+                match,
+                market,
+                evidence_base,
+            )
             for selection, probability in selections.items():
                 calibrated_probability = self._calibrate_probability(
                     float(probability), market.id, match.competition_id
                 )
-                existing = self.session.scalar(
-                    select(Prediction).where(
-                        Prediction.match_id == match.id,
-                        Prediction.market_id == market.id,
-                        Prediction.selection == selection,
-                        Prediction.model_version == self.model_version,
-                    )
+                existing = existing_predictions.get(
+                    (market.id, selection)
                 )
-                latest_odd = self.session.scalar(
-                    select(Odd)
-                    .where(
-                        Odd.match_id == match.id,
-                        Odd.market_id == market.id,
-                        Odd.selection == selection,
-                    )
-                    .order_by(Odd.collected_at.desc())
-                )
+                latest_odd = latest_odds.get((market.id, selection))
                 implied = (
                     calculate_implied_probability(float(latest_odd.odd_value))
                     if latest_odd is not None
@@ -815,6 +828,7 @@ class OperationalPipelineService:
                     lineup["home_continuity"]
                     + lineup["away_continuity"]
                 ) / 2
+                evidence_ratio = float(evidence["score"]) / 10
                 prediction = existing or Prediction(
                         match_id=match.id,
                         market_id=market.id,
@@ -825,39 +839,133 @@ class OperationalPipelineService:
                 prediction.implied_probability = implied
                 prediction.expected_value = expected
                 prediction.confidence = min(
-                    0.82,
-                    0.50
-                    + (0.06 * lineup_coverage)
+                    0.90,
+                    0.42
+                    + (0.30 * evidence_ratio)
                     + (0.04 * confirmed_lineups)
-                    + (0.05 * continuity),
+                    + (0.04 * continuity),
                 )
                 prediction.uqs = min(
-                    0.80,
-                    0.48 + (0.08 * lineup_coverage)
+                    0.88,
+                    0.40 + (0.36 * evidence_ratio)
                     + (0.04 * confirmed_lineups),
                 )
                 prediction.use_score = min(
-                    0.80, 0.45 + 0.10 * lineup_coverage
+                    0.88, 0.40 + (0.40 * evidence_ratio)
                 )
                 prediction.confluence = min(
-                    0.82,
-                    0.48 + (0.07 * lineup_coverage)
-                    + (0.05 * continuity),
+                    0.90,
+                    0.40 + (0.34 * evidence_ratio)
+                    + (0.04 * lineup_coverage)
+                    + (0.04 * continuity),
                 )
-                prediction.evidence_level = (
-                    "high" if confirmed_lineups == 2
-                    else "medium" if lineup_coverage == 2
-                    else "low"
-                )
+                prediction.evidence_level = str(evidence["level"])
                 prediction.risk_level = (
-                    "low" if confirmed_lineups == 2
-                    else "moderate" if lineup_coverage == 2
+                    "low" if evidence["level"] == "high"
+                    else "moderate" if evidence["level"] == "medium"
                     else "high"
                 )
                 if existing is None:
                     self.session.add(prediction)
+                    existing_predictions[
+                        (market.id, selection)
+                    ] = prediction
                     created += 1
         return created
+
+    def _evidence_base(
+        self,
+        match: Match,
+        lineup: dict[str, float | int],
+    ) -> dict[str, int]:
+        """Mede evidência observável sem privilegiar um provedor."""
+        histories = []
+        for team_id in (match.home_team_id, match.away_team_id):
+            histories.append(int(self.session.scalar(
+                select(func.count())
+                .select_from(Match)
+                .where(
+                    Match.status == "finished",
+                    Match.kickoff_at < match.kickoff_at,
+                    or_(
+                        Match.home_team_id == team_id,
+                        Match.away_team_id == team_id,
+                    ),
+                    Match.home_score.is_not(None),
+                    Match.away_score.is_not(None),
+                )
+            ) or 0))
+        detailed = int(self.session.scalar(
+            select(func.count())
+            .select_from(MatchStatistics)
+            .join(Match, Match.id == MatchStatistics.match_id)
+            .where(
+                Match.kickoff_at < match.kickoff_at,
+                or_(
+                    Match.home_team_id.in_(
+                        (match.home_team_id, match.away_team_id)
+                    ),
+                    Match.away_team_id.in_(
+                        (match.home_team_id, match.away_team_id)
+                    ),
+                ),
+            )
+        ) or 0)
+        bookmakers = int(self.session.scalar(
+            select(func.count(func.distinct(Odd.bookmaker)))
+            .where(Odd.match_id == match.id)
+        ) or 0)
+        return {
+            "team_history": min(histories) if histories else 0,
+            "detailed_history": detailed,
+            "bookmakers": bookmakers,
+            "lineups": int(lineup["coverage"]),
+            "confirmed_lineups": int(lineup["confirmed"]),
+        }
+
+    def _market_evidence(
+        self,
+        match: Match,
+        market: Market,
+        base: dict[str, int],
+    ) -> dict[str, int | str]:
+        if market.id not in self._market_sample_cache:
+            self._market_sample_cache[market.id] = int(
+                self.session.scalar(
+                    select(func.count(Audit.id))
+                    .join(
+                        Prediction,
+                        Prediction.id == Audit.prediction_id,
+                    )
+                    .where(
+                        Prediction.market_id == market.id,
+                        Audit.result_status.in_(("won", "lost")),
+                    )
+                ) or 0
+            )
+        samples = self._market_sample_cache[market.id]
+        sample_points = 3 if samples >= 100 else 2 if samples >= 50 else 1 if samples >= 20 else 0
+        history = base["team_history"]
+        history_points = 2 if history >= 10 else 1 if history >= 5 else 0
+        details = base["detailed_history"]
+        detail_points = 2 if details >= 10 else 1 if details >= 3 else 0
+        price_points = 2 if base["bookmakers"] >= 3 else 1 if base["bookmakers"] else 0
+        lineup_points = (
+            2 if base["confirmed_lineups"] == 2
+            else 1 if base["lineups"] == 2
+            else 0
+        )
+        score = min(
+            10,
+            sample_points + history_points + detail_points
+            + price_points + lineup_points,
+        )
+        level = "high" if score >= 8 else "medium" if score >= 4 else "low"
+        return {
+            "level": level,
+            "score": score,
+            "market_samples": samples,
+        }
 
     def _match_context(self, match: Match) -> dict[str, float]:
         rows = self.session.scalars(
@@ -1044,65 +1152,76 @@ class OperationalPipelineService:
         return int(self._lineup_context(match)["coverage"])
 
     def _lineup_context(self, match: Match) -> dict[str, float | int]:
-        if not match.external_id:
-            return self._empty_lineup_context()
         connection = self.session.connection()
         if not inspect(connection).has_table(
             RawProviderPayloadRecord.__tablename__
         ):
             return self._empty_lineup_context()
-        rows = self.session.scalars(
-            select(RawProviderPayloadRecord)
-            .where(
-                RawProviderPayloadRecord.provider == "api_football",
-                RawProviderPayloadRecord.resource == "lineups",
-                RawProviderPayloadRecord.external_id.like(
-                    f"{match.external_id}:%"
-                ),
+        provider_ids: dict[str, str] = {}
+        if match.source and match.external_id:
+            external_id = str(match.external_id)
+            if match.source == "data_fusion" and ":" in external_id:
+                provider, external_id = external_id.split(":", 1)
+                provider_ids[provider] = external_id
+            else:
+                provider_ids[str(match.source)] = external_id
+        for decision in self.session.scalars(
+            select(IdentityDecisionRecord).where(
+                IdentityDecisionRecord.candidate_id == f"match:{match.id}",
+                IdentityDecisionRecord.status == "matched",
             )
-            .order_by(RawProviderPayloadRecord.collected_at.desc())
-        ).all()
-        current: dict[str, tuple[set[str], bool]] = {}
+        ).all():
+            provider_ids[decision.provider] = (
+                decision.external_id.removeprefix("match:")
+            )
+        rows: list[RawProviderPayloadRecord] = []
+        for provider, external_id in provider_ids.items():
+            rows.extend(self.session.scalars(
+                select(RawProviderPayloadRecord)
+                .where(
+                    RawProviderPayloadRecord.provider == provider,
+                    RawProviderPayloadRecord.resource == "lineups",
+                    RawProviderPayloadRecord.external_id.like(
+                        f"{external_id}%"
+                    ),
+                )
+                .order_by(RawProviderPayloadRecord.collected_at.desc())
+            ).all())
+        current: dict[
+            tuple[str, str],
+            tuple[set[str], bool],
+        ] = {}
         for row in rows:
-            team_id = str(row.payload.get("team", {}).get("id") or "")
-            if not team_id or team_id in current:
-                continue
-            starters = {
-                str(item.get("player", {}).get("id"))
-                for item in row.payload.get("startXI", ())
-                if item.get("player", {}).get("id") is not None
-            }
-            current[team_id] = (starters, len(starters) >= 11)
+            for team_id, starters in self._lineup_teams(
+                row.provider, row.payload
+            ).items():
+                key = (row.provider, team_id)
+                if key not in current:
+                    current[key] = (starters, len(starters) >= 11)
         continuities: list[float] = []
-        for team_id, (starters, _) in current.items():
+        for (provider, team_id), (starters, _) in current.items():
             history = self.session.scalars(
                 select(RawProviderPayloadRecord)
                 .where(
-                    RawProviderPayloadRecord.provider == "api_football",
+                    RawProviderPayloadRecord.provider == provider,
                     RawProviderPayloadRecord.resource == "lineups",
-                    RawProviderPayloadRecord.external_id.not_like(
-                        f"{match.external_id}:%"
-                    ),
                 )
                 .order_by(RawProviderPayloadRecord.collected_at.desc())
                 .limit(200)
             ).all()
-            previous = next(
+            previous_starters = next(
                 (
-                    item for item in history
-                    if str(
-                        item.payload.get("team", {}).get("id") or ""
-                    ) == team_id
+                    teams[team_id]
+                    for item in history
+                    if (
+                        teams := self._lineup_teams(
+                            item.provider, item.payload
+                        )
+                    )
+                    and team_id in teams
+                    and teams[team_id] != starters
                 ),
-                None,
-            )
-            previous_starters = (
-                {
-                    str(item.get("player", {}).get("id"))
-                    for item in previous.payload.get("startXI", ())
-                    if item.get("player", {}).get("id") is not None
-                }
-                if previous else set()
+                set(),
             )
             continuities.append(
                 len(starters.intersection(previous_starters))
@@ -1113,10 +1232,46 @@ class OperationalPipelineService:
             continuities.append(0.70)
         return {
             "coverage": min(2, len(current)),
-            "confirmed": sum(item[1] for item in current.values()),
+            "confirmed": min(
+                2, sum(item[1] for item in current.values())
+            ),
             "home_continuity": continuities[0],
             "away_continuity": continuities[1],
         }
+
+    @staticmethod
+    def _lineup_teams(
+        provider: str,
+        payload: dict[str, Any],
+    ) -> dict[str, set[str]]:
+        if provider == "api_football":
+            team_id = str(payload.get("team", {}).get("id") or "")
+            starters = {
+                str(item.get("player", {}).get("id"))
+                for item in payload.get("startXI", ())
+                if item.get("player", {}).get("id") is not None
+            }
+            return {team_id: starters} if team_id and starters else {}
+        grouped: dict[str, set[str]] = {}
+        for item in payload.get("lineups", ()) or ():
+            if not isinstance(item, dict):
+                continue
+            team = item.get("team") or {}
+            player = item.get("player") or {}
+            team_id = str(
+                item.get("team_id")
+                or item.get("participant_id")
+                or (team.get("id") if isinstance(team, dict) else "")
+                or ""
+            )
+            player_id = str(
+                item.get("player_id")
+                or (player.get("id") if isinstance(player, dict) else "")
+                or ""
+            )
+            if team_id and player_id:
+                grouped.setdefault(team_id, set()).add(player_id)
+        return grouped
 
     @staticmethod
     def _empty_lineup_context() -> dict[str, float | int]:

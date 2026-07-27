@@ -88,8 +88,29 @@ def test_materializes_model_lifecycle_and_recommendations():
     )
     assert not opportunity.safe
     assert "model_validation_failed" in opportunity.blocked_reasons
+    assert "market_validation_failed" in opportunity.blocked_reasons
     assert "insufficient_conservative_edge" in opportunity.blocked_reasons
     assert opportunity.metrics["warnings"] == [
         "low_evidence",
         "limited_market_sample",
     ]
+
+
+def test_market_gate_requires_sample_quality_and_calibration():
+    service = OperationalIntelligenceService
+
+    assert service._market_is_approved({
+        "samples": 50,
+        "brier_score": .20,
+        "calibration_error": .08,
+    })
+    assert not service._market_is_approved({
+        "samples": 3,
+        "brier_score": .05,
+        "calibration_error": .01,
+    })
+    assert not service._market_is_approved({
+        "samples": 50,
+        "brier_score": .40,
+        "calibration_error": .08,
+    })

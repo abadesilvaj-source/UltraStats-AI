@@ -22,6 +22,7 @@ from ultrastats_ai.infrastructure.database.models import (
     PredictiveModelRecord,
     RecommendationOpportunityRecord,
     TrainingDatasetRecord,
+    RawProviderPayloadRecord,
 )
 
 
@@ -149,7 +150,7 @@ class OperationalIntelligenceService:
                     os.getenv("MODEL_DRIFT_BRIER_DELTA", "0.08")
                 )
             )
-            minimum = 20
+            minimum = int(os.getenv("MODEL_MIN_GLOBAL_SAMPLES", "100"))
             failures = []
             if len(audits) < minimum:
                 failures.append("insufficient_samples")
@@ -157,6 +158,13 @@ class OperationalIntelligenceService:
                 failures.append("brier_score")
             if calibration_error is not None and calibration_error > 0.20:
                 failures.append("calibration_error")
+            if (
+                walk_forward["recent_brier"] is not None
+                and walk_forward["recent_brier"] > float(
+                    os.getenv("MODEL_MAX_RECENT_BRIER", "0.26")
+                )
+            ):
+                failures.append("recent_brier_score")
             if drift:
                 failures.append("model_drift")
             metrics = {
@@ -208,6 +216,18 @@ class OperationalIntelligenceService:
         self, *, model_approved: bool
     ) -> int:
         now = datetime.now(timezone.utc)
+        validation = self.session.scalar(
+            select(ModelValidationRecord)
+            .where(
+                ModelValidationRecord.model_name == self.model_name,
+                ModelValidationRecord.model_version == self.model_version,
+            )
+            .order_by(ModelValidationRecord.evaluated_at.desc())
+        )
+        per_market = (
+            validation.metrics.get("per_market", {})
+            if validation else {}
+        )
         matches = self.session.scalars(
             select(Match).where(
                 Match.status.in_(("scheduled", "in_progress")),
@@ -268,6 +288,10 @@ class OperationalIntelligenceService:
                 sample_size = self._market_sample_size(
                     prediction.market_id
                 )
+                market_metrics = per_market.get(market.code, {})
+                market_approved = self._market_is_approved(
+                    market_metrics
+                )
                 margin = 1.96 * sqrt(
                     prediction.probability
                     * (1 - prediction.probability)
@@ -301,6 +325,8 @@ class OperationalIntelligenceService:
                     warnings.append("limited_market_sample")
                 if not model_approved:
                     reasons.append("model_validation_failed")
+                if not market_approved:
+                    reasons.append("market_validation_failed")
                 safe = not reasons
                 kelly = (
                     max(
@@ -339,6 +365,10 @@ class OperationalIntelligenceService:
                                 ),
                             },
                             "market_samples": sample_size,
+                            "market_validation": {
+                                **market_metrics,
+                                "approved": market_approved,
+                            },
                             "odds_age_hours": odd_age_hours,
                             "fractional_kelly": kelly * 0.25,
                         },
@@ -386,12 +416,43 @@ class OperationalIntelligenceService:
                 created += 1
         return created
 
+    @staticmethod
+    def _market_is_approved(
+        metrics: dict[str, object],
+    ) -> bool:
+        samples = int(metrics.get("samples") or 0)
+        brier = metrics.get("brier_score")
+        calibration = metrics.get("calibration_error")
+        return (
+            samples >= int(
+                os.getenv("MODEL_MIN_MARKET_SAMPLES", "20")
+            )
+            and brier is not None
+            and float(brier) <= float(
+                os.getenv("MODEL_MAX_MARKET_BRIER", "0.30")
+            )
+            and calibration is not None
+            and float(calibration) <= float(
+                os.getenv("MODEL_MAX_MARKET_CALIBRATION_ERROR", "0.25")
+            )
+        )
+
     def _provider_coverage(self) -> dict[str, object]:
+        rows = self.session.execute(
+            select(
+                RawProviderPayloadRecord.provider,
+                RawProviderPayloadRecord.resource,
+            ).distinct()
+        ).all()
+        coverage: dict[str, set[str]] = {}
+        for provider, resource in rows:
+            coverage.setdefault(provider, set()).add(resource)
         return {
-            "football_data_uk": "historical_ratings",
-            "api_football": "results_and_statistics",
-            "sportmonks": "complementary",
-            "the_odds_api": "market_prices",
+            provider: {
+                "role": "equal_contributor",
+                "resources": sorted(resources),
+            }
+            for provider, resources in sorted(coverage.items())
         }
 
     def _market_sample_size(self, market_id: int) -> int:
@@ -475,12 +536,30 @@ class OperationalIntelligenceService:
     def _calibration_error(audits: list[Audit]) -> float | None:
         if not audits:
             return None
-        predicted = mean(
-            float(item.predicted_probability or 0)
-            for item in audits
-        )
-        observed = mean(
-            1.0 if item.result_status == "won" else 0.0
-            for item in audits
-        )
-        return abs(predicted - observed)
+        # Expected Calibration Error por faixas evita que erros opostos se
+        # anulem, como ocorria com a média global anterior.
+        total = len(audits)
+        error = 0.0
+        for index in range(10):
+            lower, upper = index / 10, (index + 1) / 10
+            bucket = [
+                item for item in audits
+                if lower <= float(item.predicted_probability or 0)
+                < upper
+                or (
+                    index == 9
+                    and float(item.predicted_probability or 0) == 1
+                )
+            ]
+            if not bucket:
+                continue
+            predicted = mean(
+                float(item.predicted_probability or 0)
+                for item in bucket
+            )
+            observed = mean(
+                1.0 if item.result_status == "won" else 0.0
+                for item in bucket
+            )
+            error += len(bucket) / total * abs(predicted - observed)
+        return error

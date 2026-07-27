@@ -15,15 +15,27 @@ class LearningPipelineService:
         self.session = session
         self.markets = MarketRepository(session)
 
-    def process(self, match: Match, statistics: MatchStatistics) -> dict:
+    def process(
+        self,
+        match: Match,
+        statistics: MatchStatistics | None,
+    ) -> dict:
+        """Aprende com tudo que estiver comprovadamente disponível.
+
+        O placar final já permite auditar resultado e mercados de gols. As
+        estatísticas detalhadas são opcionais e habilitam cartões, escanteios
+        e a atualização dos perfis especializados.
+        """
         audited = self._audit_predictions(match, statistics)
-        self._update_team(match.home_team_id, match, statistics, home=True)
-        self._update_team(match.away_team_id, match, statistics, home=False)
+        if statistics is not None:
+            self._update_team(match.home_team_id, match, statistics, home=True)
+            self._update_team(match.away_team_id, match, statistics, home=False)
         self._update_contextual_elo(match)
         return {
             "audited_predictions": audited,
-            "ratings_updated": 2,
+            "ratings_updated": 2 if statistics is not None else 0,
             "contextual_elo_updated": True,
+            "detailed_statistics": statistics is not None,
         }
 
     def _update_contextual_elo(self, match: Match) -> None:
@@ -55,17 +67,20 @@ class LearningPipelineService:
         )
 
     def _audit_predictions(
-        self, match: Match, statistics: MatchStatistics
+        self, match: Match, statistics: MatchStatistics | None
     ) -> int:
         created = 0
         predictions = self.session.scalars(
             select(Prediction).where(Prediction.match_id == match.id)
         ).all()
-        for prediction in predictions:
-            exists = self.session.scalar(
-                select(Audit.id).where(Audit.prediction_id == prediction.id)
+        audited_prediction_ids = set(self.session.scalars(
+            select(Audit.prediction_id).where(
+                Audit.match_id == match.id,
+                Audit.prediction_id.is_not(None),
             )
-            if exists is not None:
+        ).all())
+        for prediction in predictions:
+            if prediction.id in audited_prediction_ids:
                 continue
             market = self.markets.find_by_id(prediction.market_id)
             try:
@@ -74,16 +89,16 @@ class LearningPipelineService:
                     prediction.selection,
                     int(match.home_score or 0),
                     int(match.away_score or 0),
-                    statistics.corners_home,
-                    statistics.corners_away,
-                    statistics.yellow_cards_home,
-                    statistics.yellow_cards_away,
-                    statistics.red_cards_home,
-                    statistics.red_cards_away,
+                    statistics.corners_home if statistics else None,
+                    statistics.corners_away if statistics else None,
+                    statistics.yellow_cards_home if statistics else None,
+                    statistics.yellow_cards_away if statistics else None,
+                    statistics.red_cards_home if statistics else None,
+                    statistics.red_cards_away if statistics else None,
                 )
             except ValueError:
                 result = "insufficient_data"
-            if result == "unsupported":
+            if result in {"unsupported", "insufficient_data"}:
                 continue
             observed = 1.0 if result == "won" else 0.0
             brier = (prediction.probability - observed) ** 2

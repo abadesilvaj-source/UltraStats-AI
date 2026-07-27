@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database.base import Base
 from app.models import (
+    Audit,
     Competition,
     Market,
     Match,
@@ -14,6 +15,7 @@ from app.models import (
     Prediction,
     Team,
 )
+from app.services.learning_pipeline_service import LearningPipelineService
 from app.services.operational_pipeline_service import OperationalPipelineService
 from ultrastats_ai.infrastructure.providers import (
     DataCapability,
@@ -302,3 +304,56 @@ def test_pipeline_persists_final_statistics_automatically():
     assert stored.offsides_home == 2
     assert stored.possession_home == 55
     assert stored.xg_away == .8
+
+
+def test_learning_uses_final_score_without_inventing_detailed_statistics():
+    db = session()
+    pipeline = OperationalPipelineService(db)
+    pipeline.process(fixtures=(fixture(),), odds=(odds(),))
+    match = db.scalar(select(Match))
+    match.status = "finished"
+    match.home_score = 2
+    match.away_score = 1
+    db.flush()
+
+    result = LearningPipelineService(db).process(match, None)
+    audited_codes = set(db.scalars(
+        select(Market.code)
+        .join(Prediction, Prediction.market_id == Market.id)
+        .join(Audit, Audit.prediction_id == Prediction.id)
+    ).all())
+
+    assert result["detailed_statistics"] is False
+    assert result["audited_predictions"] > 0
+    assert "match_winner" in audited_codes
+    assert "over_2_5_goals" in audited_codes
+    assert "over_4_5_cards" not in audited_codes
+    assert not db.scalars(
+        select(Audit).where(
+            Audit.result_status == "insufficient_data"
+        )
+    ).all()
+
+
+def test_lineup_parser_accepts_each_supported_provider_shape():
+    api = OperationalPipelineService._lineup_teams(
+        "api_football",
+        {
+            "team": {"id": 10},
+            "startXI": [
+                {"player": {"id": value}} for value in range(1, 12)
+            ],
+        },
+    )
+    sportmonks = OperationalPipelineService._lineup_teams(
+        "sportmonks",
+        {
+            "lineups": [
+                {"participant_id": 20, "player_id": value}
+                for value in range(21, 32)
+            ],
+        },
+    )
+
+    assert len(api["10"]) == 11
+    assert len(sportmonks["20"]) == 11

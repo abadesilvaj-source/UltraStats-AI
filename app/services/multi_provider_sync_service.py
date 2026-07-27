@@ -10,7 +10,7 @@ import os
 from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
-from app.models import Bet, Match, MatchStatistics
+from app.models import Audit, Bet, Match, MatchStatistics, Prediction
 from app.services.sync_monitor_service import SyncMonitorService
 from ultrastats_ai.infrastructure.providers import (
     DataCapability,
@@ -37,6 +37,7 @@ from app.services.operational_intelligence_service import (
 )
 from app.services.maturity_service import MaturityService
 from app.services.post_match_service import PostMatchService
+from app.services.learning_pipeline_service import LearningPipelineService
 from ultrastats_ai.domain.live import (
     LiveEngine,
     LiveEvent,
@@ -256,12 +257,22 @@ class MultiProviderSyncService:
                 lambda: self._collect_post_match_statistics(
                     engine,
                     report.observations,
+                    unavailable_sources=frozenset(failures),
                 ),
                 failures,
                 (0, 0),
             )
             operational["statistics"] = statistics_saved
             operational["settled_bets"] = settled_bets
+            operational["score_learning"] = self._run_stage(
+                "score_learning",
+                self._learn_from_finished_scores,
+                failures,
+                {
+                    "matches_processed": 0,
+                    "predictions_audited": 0,
+                },
+            )
             operational["post_match_predictions"] = self._run_stage(
                 "post_match_predictions",
                 lambda: OperationalPipelineService(
@@ -439,6 +450,8 @@ class MultiProviderSyncService:
         self,
         engine: MultiSourceEngine,
         fixtures: tuple[SourceObservation, ...],
+        *,
+        unavailable_sources: frozenset[str] = frozenset(),
     ) -> tuple[int, int]:
         """Coleta somente partidas encerradas ainda sem estatísticas."""
         api_source = next(
@@ -446,6 +459,7 @@ class MultiProviderSyncService:
                 source
                 for source in engine.sources
                 if source.name == "api_football"
+                and source.name not in unavailable_sources
                 and DataCapability.STATISTICS
                 in getattr(source, "capabilities", ())
             ),
@@ -607,21 +621,69 @@ class MultiProviderSyncService:
             stored += result["statistics"]
             settled += result["settled_bets"]
         complementary = self._collect_sportmonks_statistics(
-            engine, matches
+            engine,
+            matches,
+            unavailable_sources=unavailable_sources,
         )
         stored += complementary[0]
         settled += complementary[1]
         return stored, settled
 
+    def _learn_from_finished_scores(self) -> dict[str, int]:
+        """Audita mercados resolvíveis por placar, mesmo sem ficha detalhada.
+
+        A rotina é incremental: partidas que já possuem qualquer auditoria do
+        pipeline são reconsideradas com segurança, pois cada previsão é
+        idempotente na camada de aprendizado.
+        """
+        limit = max(
+            0,
+            int(self.environment.get("AUTO_SCORE_LEARNING_MAX_PER_SYNC", "250")),
+        )
+        matches = self.session.scalars(
+            select(Match)
+            .where(
+                Match.status == "finished",
+                Match.home_score.is_not(None),
+                Match.away_score.is_not(None),
+                exists().where(
+                    Prediction.match_id == Match.id,
+                    ~exists().where(
+                        Audit.prediction_id == Prediction.id,
+                    ),
+                ),
+            )
+            .order_by(Match.kickoff_at.desc())
+            .limit(limit)
+        ).all()
+        service = LearningPipelineService(self.session)
+        processed = audited = 0
+        for match in matches:
+            statistics = self.session.scalar(
+                select(MatchStatistics).where(
+                    MatchStatistics.match_id == match.id
+                )
+            )
+            result = service.process(match, statistics)
+            processed += 1
+            audited += int(result["audited_predictions"])
+        return {
+            "matches_processed": processed,
+            "predictions_audited": audited,
+        }
+
     def _collect_sportmonks_statistics(
         self,
         engine: MultiSourceEngine,
         matches: list[Match],
+        *,
+        unavailable_sources: frozenset[str] = frozenset(),
     ) -> tuple[int, int]:
         source = next(
             (
                 item for item in engine.sources
                 if item.name == "sportmonks"
+                and item.name not in unavailable_sources
                 and DataCapability.STATISTICS
                 in getattr(item, "capabilities", ())
             ),
