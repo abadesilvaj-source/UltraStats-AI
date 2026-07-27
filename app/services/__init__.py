@@ -33,6 +33,9 @@ from app.services.multi_provider_sync_service import (
 from app.services.operational_pipeline_service import (
     OperationalPipelineService,
 )
+from app.services.operational_intelligence_service import (
+    OperationalIntelligenceService,
+)
 
 __all__ = [
     "AnalysisService",
@@ -53,6 +56,7 @@ __all__ = [
     "SchedulerHeartbeatService",
     "MultiProviderSyncService",
     "OperationalPipelineService",
+    "OperationalIntelligenceService",
 ]
 
 from app.services.performance_service import (

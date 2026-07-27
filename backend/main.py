@@ -64,6 +64,11 @@ def provider_contributions(request: Request):
     return queries(request).fusion_contributions()
 
 
+@app.get("/api/v1/intelligence/status")
+def intelligence_status(request: Request):
+    return queries(request).intelligence_status()
+
+
 @app.get("/api/v1/matches")
 def matches(
     request: Request,

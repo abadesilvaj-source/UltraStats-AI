@@ -1,10 +1,11 @@
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, inspect, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from app.models import (
+    Audit,
     Bankroll,
     BetSlip,
     Competition,
@@ -20,8 +21,12 @@ from backend.serializers import iso_local
 from ultrastats_ai.infrastructure.database.models import (
     FusionResultRecord,
     IdentityDecisionRecord,
+    ModelValidationRecord,
+    PredictiveModelRecord,
     ProviderHealthRecord,
     RawProviderPayloadRecord,
+    RecommendationOpportunityRecord,
+    TrainingDatasetRecord,
 )
 
 
@@ -215,7 +220,7 @@ class ApiQueries:
             .where(
                 Match.kickoff_at
                 >= datetime.now(timezone.utc).replace(tzinfo=None)
-                - timedelta(hours=6)
+                - timedelta(hours=2)
             )
             .order_by(Match.kickoff_at, Prediction.expected_value.desc())
         )
@@ -244,28 +249,84 @@ class ApiQueries:
         ]
 
     def recommendations(self) -> list[dict]:
+        has_opportunities = inspect(
+            self.session.connection()
+        ).has_table(
+            RecommendationOpportunityRecord.__tablename__
+        )
+        latest_evaluation = (
+            self.session.scalar(
+                select(
+                    func.max(
+                        RecommendationOpportunityRecord.evaluated_at
+                    )
+                )
+            )
+            if has_opportunities else None
+        )
+        opportunities = (
+            self.session.scalars(
+                select(RecommendationOpportunityRecord).where(
+                    RecommendationOpportunityRecord.evaluated_at
+                    == latest_evaluation
+                )
+            ).all()
+            if latest_evaluation else []
+        )
+        opportunity_map = {
+            (
+                int(item.match_id),
+                item.market,
+                item.selection,
+            ): item
+            for item in opportunities
+        }
+        market_codes = {
+            item.id: item.code
+            for item in self.session.scalars(select(Market)).all()
+        }
         best: dict[tuple[int, int], dict] = {}
         for row in self.predictions():
             key = (row["match_id"], row["market_id"])
             current = best.get(key)
             if current is None or row["probability"] > current["probability"]:
                 best[key] = row
-        return [
-            {
-                **row,
-                "actionable": (
+        result = []
+        for row in best.values():
+            opportunity = opportunity_map.get(
+                (
+                    row["match_id"],
+                    market_codes[row["market_id"]],
+                    row["selection"],
+                )
+            )
+            actionable = bool(
+                opportunity.safe if opportunity else (
                     row["expected_value"] is not None
                     and row["expected_value"] > 0
-                ),
+                    and row["evidence"] != "low"
+                )
+            )
+            result.append({
+                **row,
+                "actionable": actionable,
                 "recommendation_type": (
-                    "value_bet"
-                    if row["expected_value"] is not None
-                    and row["expected_value"] > 0
-                    else "model_lead"
+                    "value_bet" if actionable else "model_lead"
                 ),
-            }
-            for row in best.values()
-        ]
+                "blocked_reasons": (
+                    opportunity.blocked_reasons
+                    if opportunity else []
+                ),
+                "warnings": (
+                    opportunity.metrics.get("warnings", [])
+                    if opportunity else []
+                ),
+                "recommendation_score": (
+                    float(opportunity.score)
+                    if opportunity else None
+                ),
+            })
+        return result
 
     def markets(self) -> list[dict]:
         return [
@@ -366,6 +427,89 @@ class ApiQueries:
             ),
             "providers": providers,
             "data_fusion": self.fusion_contributions(),
+            "intelligence": self.intelligence_status(),
+        }
+
+    def intelligence_status(self) -> dict:
+        latest_validation = self.session.scalar(
+            select(ModelValidationRecord)
+            .order_by(ModelValidationRecord.evaluated_at.desc())
+        )
+        statistics_updated_at = self.session.scalar(
+            select(func.max(MatchStatistics.updated_at))
+        )
+        latest_recommendation_evaluation = self.session.scalar(
+            select(
+                func.max(RecommendationOpportunityRecord.evaluated_at)
+            )
+        )
+        current_recommendations = (
+            RecommendationOpportunityRecord.evaluated_at
+            == latest_recommendation_evaluation
+        )
+        return {
+            "statistics": {
+                "matches_with_statistics": self.session.scalar(
+                    select(func.count()).select_from(MatchStatistics)
+                ) or 0,
+                "last_update": (
+                    statistics_updated_at.isoformat()
+                    if statistics_updated_at
+                    else None
+                ),
+                "recent_attempts": self.session.scalar(
+                    select(func.count())
+                    .select_from(RawProviderPayloadRecord)
+                    .where(
+                        RawProviderPayloadRecord.resource
+                        == "statistics_attempt",
+                        RawProviderPayloadRecord.collected_at
+                        >= datetime.now(timezone.utc)
+                        - timedelta(hours=24),
+                    )
+                ) or 0,
+            },
+            "learning": {
+                "audited_predictions": self.session.scalar(
+                    select(func.count()).select_from(Audit)
+                ) if inspect(self.session.connection()).has_table(
+                    Audit.__tablename__
+                ) else 0,
+                "registered_models": self.session.scalar(
+                    select(func.count()).select_from(PredictiveModelRecord)
+                ) or 0,
+                "training_datasets": self.session.scalar(
+                    select(func.count()).select_from(TrainingDatasetRecord)
+                ) or 0,
+                "latest_validation": (
+                    {
+                        "approved": latest_validation.approved,
+                        "metrics": latest_validation.metrics,
+                        "gate_failures":
+                            latest_validation.gate_failures,
+                        "evaluated_at":
+                            latest_validation.evaluated_at.isoformat(),
+                    }
+                    if latest_validation else None
+                ),
+            },
+            "recommendations": {
+                "persisted": self.session.scalar(
+                    select(func.count())
+                    .select_from(RecommendationOpportunityRecord)
+                    .where(
+                        current_recommendations
+                    )
+                ) or 0,
+                "safe": self.session.scalar(
+                    select(func.count())
+                    .select_from(RecommendationOpportunityRecord)
+                    .where(
+                        current_recommendations,
+                        RecommendationOpportunityRecord.safe.is_(True),
+                    )
+                ) or 0,
+            },
         }
 
     def fusion_contributions(self) -> dict:

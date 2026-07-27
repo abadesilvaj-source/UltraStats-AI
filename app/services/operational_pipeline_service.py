@@ -10,7 +10,15 @@ import unicodedata
 from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
 
-from app.models import Competition, Market, Match, Odd, Prediction, Team
+from app.models import (
+    Audit,
+    Competition,
+    Market,
+    Match,
+    Odd,
+    Prediction,
+    Team,
+)
 from app.services.post_match_service import PostMatchService
 from app.utils.betting_math import (
     calculate_expected_value,
@@ -58,6 +66,9 @@ class OperationalPipelineService:
 
     def __init__(self, session: Session) -> None:
         self.session = session
+        self._calibration_history: list[
+            tuple[str, float]
+        ] | None = None
 
     def process(
         self,
@@ -508,6 +519,9 @@ class OperationalPipelineService:
         for code, selections in forecasts.items():
             market = markets[code]
             for selection, probability in selections.items():
+                calibrated_probability = self._calibrate_probability(
+                    float(probability)
+                )
                 existing = self.session.scalar(
                     select(Prediction).where(
                         Prediction.match_id == match.id,
@@ -532,7 +546,7 @@ class OperationalPipelineService:
                 )
                 expected = (
                     calculate_expected_value(
-                        float(probability),
+                        calibrated_probability,
                         float(latest_odd.odd_value),
                     )
                     if latest_odd is not None
@@ -545,7 +559,7 @@ class OperationalPipelineService:
                         selection=selection,
                         model_version=self.model_version,
                     )
-                prediction.probability = float(probability)
+                prediction.probability = calibrated_probability
                 prediction.implied_probability = implied
                 prediction.expected_value = expected
                 prediction.confidence = 0.55 + (0.05 * lineup_coverage)
@@ -562,6 +576,42 @@ class OperationalPipelineService:
                     self.session.add(prediction)
                     created += 1
         return created
+
+    def _calibrate_probability(self, probability: float) -> float:
+        if self._calibration_history is None:
+            self._calibration_history = [
+                (status, float(predicted or 0))
+                for status, predicted in self.session.execute(
+                    select(
+                        Audit.result_status,
+                        Audit.predicted_probability,
+                    )
+                    .join(
+                        Prediction,
+                        Prediction.id == Audit.prediction_id,
+                    )
+                    .where(
+                        Prediction.model_version
+                        == self.model_version,
+                        Audit.result_status.in_(("won", "lost")),
+                    )
+                    .order_by(Audit.audited_at.desc())
+                    .limit(1000)
+                ).all()
+            ]
+        nearby = [
+            status
+            for status, predicted in self._calibration_history
+            if abs(predicted - probability) <= 0.10
+        ]
+        if len(nearby) < 20:
+            return probability
+        observed = sum(
+            status == "won" for status in nearby
+        ) / len(nearby)
+        return (
+            observed * len(nearby) + probability * 20
+        ) / (len(nearby) + 20)
 
     def _lineup_coverage(self, match: Match) -> int:
         if not match.external_id:

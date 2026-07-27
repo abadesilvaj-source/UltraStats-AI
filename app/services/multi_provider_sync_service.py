@@ -14,6 +14,7 @@ from ultrastats_ai.infrastructure.providers import (
     DataCapability,
     MultiSourceEngine,
     RawProviderPayload,
+    SourceObservation,
     build_football_data_provider,
     build_multi_source_engine,
 )
@@ -22,11 +23,15 @@ from ultrastats_ai.infrastructure.providers.persistence import (
     SqlAlchemyRawPayloadStore,
 )
 from ultrastats_ai.infrastructure.database.models import (
+    IdentityDecisionRecord,
     RawProviderPayloadRecord,
 )
 from app.services.operational_pipeline_service import OperationalPipelineService
 from app.services.match_fusion_service import MatchFusionService
 from app.services.historical_enrichment_service import HistoricalEnrichmentService
+from app.services.operational_intelligence_service import (
+    OperationalIntelligenceService,
+)
 from ultrastats_ai.domain.live import LiveEngine, LiveEvent, LiveEventType
 from ultrastats_ai.infrastructure.live import LiveStore
 
@@ -209,6 +214,16 @@ class MultiProviderSyncService:
             )
             operational["statistics"] = statistics_saved
             operational["settled_bets"] = settled_bets
+            operational["post_match_predictions"] = (
+                OperationalPipelineService(
+                    self.session
+                ).refresh_all_predictions()
+            )
+            operational["intelligence"] = (
+                OperationalIntelligenceService(
+                    self.session
+                ).run()
+            )
             operational["stale_matches_reconciled"] = (
                 self._reconcile_stale_matches()
             )
@@ -262,51 +277,142 @@ class MultiProviderSyncService:
         if api_source is None:
             return 0, 0
 
+        cutoff = datetime.now(timezone.utc).replace(
+            tzinfo=None
+        ) - timedelta(
+            days=max(
+                1,
+                int(self.environment.get(
+                    "AUTO_STATS_LOOKBACK_DAYS", "14"
+                )),
+            )
+        )
+        matches = self.session.scalars(
+            select(Match)
+            .outerjoin(
+                MatchStatistics,
+                MatchStatistics.match_id == Match.id,
+            )
+            .where(
+                Match.status == "finished",
+                Match.kickoff_at >= cutoff,
+                MatchStatistics.id.is_(None),
+            )
+            .order_by(Match.kickoff_at.desc())
+        ).all()
+        fixture_rows = {
+            observation.external_id: observation
+            for observation in fixtures
+            if observation.provider == "api_football"
+        }
+        retry_cutoff = datetime.now(timezone.utc) - timedelta(
+            hours=max(
+                1,
+                int(self.environment.get(
+                    "AUTO_STATS_RETRY_HOURS", "12"
+                )),
+            )
+        )
         candidates = []
-        for observation in fixtures:
-            if observation.provider != "api_football":
-                continue
-            fixture = observation.values.get("fixture", {})
-            status = fixture.get("status", {})
-            external_id = str(fixture.get("id", "")).strip()
-            if status.get("short") not in {"FT", "AET", "PEN"} or not external_id:
-                continue
-            match = self.session.scalar(
-                select(Match).where(Match.external_id == external_id)
+        for match in matches:
+            fixture_id = self._provider_match_id(
+                match, "api_football"
             )
-            if match is None:
+            if not fixture_id:
                 continue
-            already_stored = self.session.scalar(
-                select(
-                    exists().where(MatchStatistics.match_id == match.id)
-                )
+            attempted = self.session.scalar(
+                select(exists().where(
+                    RawProviderPayloadRecord.provider
+                    == "api_football",
+                    RawProviderPayloadRecord.resource
+                    == "statistics_attempt",
+                    RawProviderPayloadRecord.external_id == fixture_id,
+                    RawProviderPayloadRecord.collected_at
+                    >= retry_cutoff,
+                ))
             )
-            if already_stored:
+            if attempted:
                 continue
-            has_pending_bet = self.session.scalar(
-                select(
-                    exists().where(
-                        Bet.match_id == match.id,
-                        Bet.status == "pending",
+            fixture_observation = fixture_rows.get(fixture_id)
+            if fixture_observation is None:
+                raw = self.session.scalar(
+                    select(RawProviderPayloadRecord)
+                    .where(
+                        RawProviderPayloadRecord.provider
+                        == "api_football",
+                        RawProviderPayloadRecord.resource == "fixtures",
+                        RawProviderPayloadRecord.external_id
+                        == fixture_id,
+                    )
+                    .order_by(
+                        RawProviderPayloadRecord.collected_at.desc()
                     )
                 )
+                if raw is None:
+                    continue
+                fixture_observation = SourceObservation(
+                    "api_football",
+                    DataCapability.FIXTURES,
+                    fixture_id,
+                    raw.payload,
+                    raw.collected_at,
+                )
+            has_pending_bet = self.session.scalar(
+                select(exists().where(
+                    Bet.match_id == match.id,
+                    Bet.status == "pending",
+                ))
             )
-            candidates.append((not bool(has_pending_bet), observation))
+            candidates.append(
+                (
+                    not bool(has_pending_bet),
+                    match,
+                    fixture_id,
+                    fixture_observation,
+                )
+            )
 
-        candidates.sort(key=lambda item: item[0])
+        candidates.sort(
+            key=lambda item: (
+                item[0],
+                -item[1].kickoff_at.timestamp(),
+            )
+        )
         limit = max(
             0,
-            int(self.environment.get("AUTO_STATS_MAX_PER_SYNC", "1")),
+            int(self.environment.get("AUTO_STATS_MAX_PER_SYNC", "5")),
         )
         pipeline = OperationalPipelineService(self.session)
         stored = settled = 0
-        for _, fixture_observation in candidates[:limit]:
-            fixture_id = str(
-                fixture_observation.values["fixture"]["id"]
-            )
-            observations = api_source.collect(
-                DataCapability.STATISTICS,
-                fixture=fixture_id,
+        for _, _, fixture_id, fixture_observation in (
+            candidates[:limit]
+        ):
+            try:
+                observations = api_source.collect(
+                    DataCapability.STATISTICS,
+                    fixture=fixture_id,
+                )
+                attempt_status = (
+                    "received" if observations else "empty"
+                )
+            except Exception as error:
+                observations = ()
+                attempt_status = (
+                    f"failed:{type(error).__name__}"
+                )
+            attempted_at = datetime.now(timezone.utc)
+            self.raw_store.save(
+                RawProviderPayload(
+                    provider="api_football",
+                    resource="statistics_attempt",
+                    external_id=fixture_id,
+                    payload={
+                        "fixture_id": fixture_id,
+                        "status": attempt_status,
+                        "attempted_at": attempted_at.isoformat(),
+                    },
+                    collected_at=attempted_at,
+                )
             )
             for observation in observations:
                 self.raw_store.save(
@@ -327,6 +433,34 @@ class MultiProviderSyncService:
             stored += result["statistics"]
             settled += result["settled_bets"]
         return stored, settled
+
+    def _provider_match_id(
+        self,
+        match: Match,
+        provider: str,
+    ) -> str | None:
+        if match.source == provider and match.external_id:
+            return str(match.external_id)
+        decision = self.session.scalar(
+            select(IdentityDecisionRecord)
+            .where(
+                IdentityDecisionRecord.provider == provider,
+                IdentityDecisionRecord.candidate_id
+                == f"match:{match.id}",
+                IdentityDecisionRecord.status == "matched",
+            )
+            .order_by(
+                IdentityDecisionRecord.decided_at.desc()
+            )
+        )
+        if decision is None:
+            return None
+        prefix = "match:"
+        return (
+            decision.external_id[len(prefix):]
+            if decision.external_id.startswith(prefix)
+            else decision.external_id
+        )
 
     def _persist_live_snapshots(
         self,
