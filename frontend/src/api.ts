@@ -66,6 +66,8 @@ function adapt(item: any): Match {
   analysis.recommendations = Array.from(bestByMarket.values()).map(row => ({
     market: row.market,
     tip: row.display_selection || row.selection,
+    projection: row.selection,
+    noBet: Boolean(row.no_bet),
     confidence: row.confidence >= .75 ? 'Alta' : row.confidence >= .55 ? 'Média' : 'Baixa',
     odds: row.implied_probability
       ? 1 / row.implied_probability

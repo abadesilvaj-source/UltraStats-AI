@@ -785,29 +785,40 @@ function AnalysisTab({ match, onAddBet }: { match: Match; onAddBet: (market: str
 
       {match.analysis.recommendations.length > 0 && (
         <div>
-          <SectionLabel>Recomendações de Apostas</SectionLabel>
+          <SectionLabel>Análise dos Mercados</SectionLabel>
           {match.analysis.recommendations.map((rec, i) => {
             const [bg, color] = confStyle[rec.confidence]
             return (
               <Card key={i} style={{ padding: '16px', marginBottom: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '14px', color: '#eef0f9' }}>{rec.tip}</div>
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: rec.noBet ? '#fbbf24' : '#eef0f9' }}>
+                      {rec.noBet ? 'Sem aposta recomendada' : rec.tip}
+                    </div>
                     <div style={{ fontSize: '12px', color: '#5a6480' }}>{rec.market}</div>
+                    {rec.noBet && rec.projection && (
+                      <div style={{ fontSize: '11px', color: '#7a88b0', marginTop: 4 }}>
+                        Projeção do modelo: {rec.projection}
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: bg, color, fontWeight: 600 }}>{rec.confidence}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '18px', color: '#00e887' }}>{rec.odds.toFixed(2)}</span>
+                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: rec.noBet ? 'rgba(251,191,36,.12)' : bg, color: rec.noBet ? '#fbbf24' : color, fontWeight: 600 }}>
+                      {rec.noBet ? 'Não acionável' : rec.confidence}
+                    </span>
+                    {!rec.noBet && (
+                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '18px', color: '#00e887' }}>{rec.odds.toFixed(2)}</span>
+                    )}
                   </div>
                 </div>
                 <p style={{ fontSize: '12px', color: '#7a88b0', marginBottom: '12px' }}>{rec.reasoning}</p>
-                <button onClick={() => onAddBet(rec.market, rec.tip, rec.odds)}
+                {!rec.noBet && <button onClick={() => onAddBet(rec.market, rec.tip, rec.odds)}
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(0,232,135,0.08)', border: '1px solid #00e887', color: '#00e887', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,232,135,0.16)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,232,135,0.08)' }}
                 >
                   + Adicionar ao Bilhete ({rec.odds.toFixed(2)})
-                </button>
+                </button>}
               </Card>
             )
           })}

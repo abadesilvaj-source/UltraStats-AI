@@ -97,6 +97,8 @@ export interface MatchAnalysis {
 export interface Recommendation {
   market: string
   tip: string
+  projection?: string
+  noBet?: boolean
   confidence: 'Alta' | 'Média' | 'Baixa'
   odds: number
   reasoning: string
