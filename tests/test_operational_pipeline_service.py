@@ -98,6 +98,42 @@ def odds():
     )
 
 
+def external_odds():
+    return SourceObservation(
+        "the_odds_api",
+        DataCapability.ODDS,
+        "external-100",
+        {
+            "id": "external-100",
+            "commence_time": "2026-07-24T20:00:00Z",
+            "home_team": "Home FC",
+            "away_team": "Away FC",
+            "bookmakers": [{
+                "key": "testbook",
+                "title": "Test Book",
+                "markets": [
+                    {
+                        "key": "h2h",
+                        "outcomes": [
+                            {"name": "Home FC", "price": 2.1},
+                            {"name": "Draw", "price": 3.2},
+                            {"name": "Away FC", "price": 3.4},
+                        ],
+                    },
+                    {
+                        "key": "totals",
+                        "outcomes": [
+                            {"name": "Over", "point": 2.5, "price": 1.9},
+                            {"name": "Under", "point": 2.5, "price": 1.95},
+                        ],
+                    },
+                ],
+            }],
+        },
+        NOW,
+    )
+
+
 def test_pipeline_promotes_fixture_odds_markets_and_predictions():
     db = session()
     service = OperationalPipelineService(db)
@@ -147,6 +183,28 @@ def test_pipeline_is_idempotent_and_ignores_non_api_fixtures():
     assert second["matches"] == 0
     assert second["odds"] == 0
     assert second["predictions"] == 0
+
+
+def test_pipeline_associates_external_odds_by_teams_and_kickoff():
+    db = session()
+    service = OperationalPipelineService(db)
+    result = service.process(
+        fixtures=(fixture(),),
+        odds=(external_odds(),),
+    )
+    db.commit()
+
+    assert result["odds"] == 5
+    assert {
+        (item.selection, float(item.odd_value))
+        for item in db.scalars(select(Odd)).all()
+    } >= {
+        ("Home", 2.1),
+        ("Draw", 3.2),
+        ("Away", 3.4),
+        ("Over 2.5", 1.9),
+        ("Under 2.5", 1.95),
+    }
 
 
 def test_pipeline_persists_final_statistics_automatically():

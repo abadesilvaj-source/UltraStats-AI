@@ -83,6 +83,12 @@ class MultiProviderSyncService:
                     "football_data_uk": {
                         "path": parameters["path"],
                     },
+                    "thesportsdb": {
+                        "date": parameters["date"],
+                    },
+                    "sportmonks": {
+                        "date": parameters["date"],
+                    },
                 },
             )
             failures.update(report.failed_sources)
@@ -104,7 +110,24 @@ class MultiProviderSyncService:
                 source_params={
                     "api_football": {
                         "date": parameters["date"],
-                    }
+                    },
+                    "the_odds_api": {
+                        "sport_keys": tuple(
+                            key.strip()
+                            for key in self.environment.get(
+                                "THE_ODDS_API_SPORT_KEYS",
+                                "soccer_brazil_campeonato,"
+                                "soccer_epl,soccer_uefa_champs_league",
+                            ).split(",")
+                            if key.strip()
+                        ),
+                        "regions": self.environment.get(
+                            "THE_ODDS_API_REGIONS", "eu"
+                        ),
+                        "markets": self.environment.get(
+                            "THE_ODDS_API_MARKETS", "h2h,totals"
+                        ),
+                    },
                 },
             )
             failures.update(odds_report.failed_sources)

@@ -22,7 +22,9 @@ from ultrastats_ai.infrastructure.providers import SourceObservation
 
 SOURCE_QUALITY = {
     "api_football": 0.96,
+    "sportmonks": 0.94,
     "football_data": 0.92,
+    "thesportsdb": 0.82,
     "openligadb": 0.84,
     "football_data_uk": 0.78,
 }
@@ -338,6 +340,10 @@ class MatchFusionService:
                 return self._openligadb(observation)
             if observation.provider == "football_data_uk":
                 return self._football_data_uk(observation)
+            if observation.provider == "thesportsdb":
+                return self._thesportsdb(observation)
+            if observation.provider == "sportmonks":
+                return self._sportmonks(observation)
         except (KeyError, TypeError, ValueError):
             return None
         return None
@@ -366,6 +372,106 @@ class MatchFusionService:
             str(row.get("league", {}).get("name") or ""),
             status_map.get(str(fixture.get("status", {}).get("short"))),
             self._int(goals.get("home")), self._int(goals.get("away")),
+            str(venue.get("name") or "") or None,
+            observation.observed_at,
+        )
+
+    def _thesportsdb(
+        self, observation: SourceObservation
+    ) -> MatchContribution | None:
+        row = observation.values
+        if not row.get("strHomeTeam") or not row.get("strAwayTeam"):
+            return None
+        raw_status = str(row.get("strStatus") or "").casefold()
+        if raw_status in {"match finished", "finished", "ft"}:
+            status = "finished"
+        elif raw_status in {"postponed", "cancelled", "canceled"}:
+            status = "postponed" if raw_status == "postponed" else "cancelled"
+        elif raw_status in {"in progress", "live"}:
+            status = "in_progress"
+        else:
+            status = "scheduled"
+        kickoff = (
+            row.get("strTimestamp")
+            or "T".join(
+                (
+                    str(row.get("dateEvent") or ""),
+                    str(row.get("strTime") or "00:00:00"),
+                )
+            )
+        )
+        return MatchContribution(
+            "thesportsdb",
+            str(row.get("idEvent") or observation.external_id),
+            self._datetime(kickoff),
+            str(row["strHomeTeam"]),
+            str(row["strAwayTeam"]),
+            str(row.get("strLeague") or "TheSportsDB"),
+            status,
+            self._int(row.get("intHomeScore")),
+            self._int(row.get("intAwayScore")),
+            str(row.get("strVenue") or "") or None,
+            observation.observed_at,
+        )
+
+    def _sportmonks(
+        self, observation: SourceObservation
+    ) -> MatchContribution | None:
+        row = observation.values
+        participants = [
+            item for item in (row.get("participants") or [])
+            if isinstance(item, dict)
+        ]
+        home = next(
+            (
+                item for item in participants
+                if (item.get("meta") or {}).get("location") == "home"
+            ),
+            participants[0] if participants else None,
+        )
+        away = next(
+            (
+                item for item in participants
+                if (item.get("meta") or {}).get("location") == "away"
+            ),
+            participants[1] if len(participants) > 1 else None,
+        )
+        if not home or not away:
+            return None
+        state = row.get("state") or {}
+        state_name = str(
+            state.get("short_name") or state.get("name") or ""
+        ).casefold()
+        if any(token in state_name for token in ("finished", "ft")):
+            status = "finished"
+        elif any(token in state_name for token in ("live", "inplay")):
+            status = "in_progress"
+        elif "postpon" in state_name:
+            status = "postponed"
+        elif "cancel" in state_name:
+            status = "cancelled"
+        else:
+            status = "scheduled"
+        scores: dict[int, int] = {}
+        for score in row.get("scores") or []:
+            if not isinstance(score, dict):
+                continue
+            participant_id = self._int(score.get("participant_id"))
+            goals = self._int((score.get("score") or {}).get("goals"))
+            if participant_id is not None and goals is not None:
+                scores[participant_id] = goals
+        league = row.get("league") or {}
+        venue = row.get("venue") or {}
+        return MatchContribution(
+            "sportmonks",
+            str(row.get("id") or observation.external_id),
+            self._datetime(row.get("starting_at")),
+            str(home.get("name") or ""),
+            str(away.get("name") or ""),
+            str(league.get("name") or "Sportmonks"),
+            status,
+            scores.get(self._int(home.get("id"))),
+            scores.get(self._int(away.get("id"))),
             str(venue.get("name") or "") or None,
             observation.observed_at,
         )

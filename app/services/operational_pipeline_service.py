@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from difflib import SequenceMatcher
+import re
 from typing import Any
+import unicodedata
 
 from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
@@ -291,6 +294,11 @@ class OperationalPipelineService:
     ) -> int:
         created = 0
         for observation in observations:
+            if observation.provider == "the_odds_api":
+                created += self._promote_the_odds_api(
+                    observation, markets
+                )
+                continue
             if observation.provider != "api_football":
                 continue
             row = observation.values
@@ -331,6 +339,96 @@ class OperationalPipelineService:
                             )
                             created += 1
         return created
+
+    def _promote_the_odds_api(
+        self,
+        observation: SourceObservation,
+        markets: dict[str, Market],
+    ) -> int:
+        row = observation.values
+        try:
+            kickoff = datetime.fromisoformat(
+                str(row["commence_time"]).replace("Z", "+00:00")
+            ).replace(tzinfo=None)
+        except (KeyError, ValueError):
+            return 0
+        candidates = self.session.scalars(
+            select(Match).where(
+                Match.kickoff_at >= kickoff - timedelta(hours=3),
+                Match.kickoff_at <= kickoff + timedelta(hours=3),
+            )
+        ).all()
+        home_name, away_name = (
+            str(row.get("home_team") or ""),
+            str(row.get("away_team") or ""),
+        )
+        match = next(
+            (
+                candidate
+                for candidate in candidates
+                if self._team_similarity(
+                    home_name,
+                    self.session.get(Team, candidate.home_team_id).name,
+                ) >= 0.78
+                and self._team_similarity(
+                    away_name,
+                    self.session.get(Team, candidate.away_team_id).name,
+                ) >= 0.78
+            ),
+            None,
+        )
+        if match is None:
+            return 0
+        created = 0
+        for bookmaker in row.get("bookmakers") or []:
+            if not isinstance(bookmaker, dict):
+                continue
+            bookmaker_name = str(
+                bookmaker.get("title") or bookmaker.get("key") or "unknown"
+            )
+            for market_payload in bookmaker.get("markets") or []:
+                for code, selection, value in _mapped_external_odds(
+                    market_payload, home_name, away_name
+                ):
+                    market = markets[code]
+                    exists = self.session.scalar(
+                        select(Odd.id).where(
+                            Odd.match_id == match.id,
+                            Odd.market_id == market.id,
+                            Odd.bookmaker == bookmaker_name,
+                            Odd.selection == selection,
+                            Odd.odd_value == value,
+                        )
+                    )
+                    if exists is None:
+                        self.session.add(
+                            Odd(
+                                match_id=match.id,
+                                market_id=market.id,
+                                bookmaker=bookmaker_name,
+                                selection=selection,
+                                odd_value=value,
+                                is_closing=False,
+                            )
+                        )
+                        created += 1
+        return created
+
+    @staticmethod
+    def _team_similarity(left: str, right: str) -> float:
+        def normalize(value: str) -> str:
+            plain = unicodedata.normalize("NFKD", value).encode(
+                "ascii", "ignore"
+            ).decode().casefold()
+            return re.sub(
+                r"\b(fc|cf|sc|ac|club|de|the)\b|[^a-z0-9]",
+                "",
+                plain,
+            )
+
+        return SequenceMatcher(
+            None, normalize(left), normalize(right)
+        ).ratio()
 
     def _predict(self, match: Match, markets: dict[str, Market]) -> int:
         home = self.session.get(Team, match.home_team_id)
@@ -551,4 +649,41 @@ def _mapped_odds(bet: dict[str, Any]) -> tuple[tuple[str, str, Decimal], ...]:
             result.append(("over_9_5_corners", label, odd))
         elif "cards" in name and label == "Over 4.5":
             result.append(("over_4_5_cards", label, odd))
+    return tuple(result)
+
+
+def _mapped_external_odds(
+    market: dict[str, Any],
+    home_name: str,
+    away_name: str,
+) -> tuple[tuple[str, str, Decimal], ...]:
+    key = str(market.get("key") or "")
+    result: list[tuple[str, str, Decimal]] = []
+    for outcome in market.get("outcomes") or []:
+        if not isinstance(outcome, dict):
+            continue
+        try:
+            odd = Decimal(str(outcome["price"]))
+        except (KeyError, ArithmeticError):
+            continue
+        name = str(outcome.get("name") or "")
+        point = outcome.get("point")
+        if key == "h2h":
+            selection = (
+                "Home" if name == home_name
+                else "Away" if name == away_name
+                else "Draw" if name.casefold() == "draw"
+                else None
+            )
+            if selection:
+                result.append(("match_winner", selection, odd))
+        elif key == "totals" and point in (2.5, 3.5):
+            label = f"{name.title()} {point}"
+            mapping = {
+                "Over 2.5": "over_2_5_goals",
+                "Under 2.5": "under_2_5_goals",
+                "Under 3.5": "under_3_5_goals",
+            }
+            if label in mapping:
+                result.append((mapping[label], label, odd))
     return tuple(result)

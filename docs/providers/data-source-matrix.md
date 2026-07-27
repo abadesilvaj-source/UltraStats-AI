@@ -14,6 +14,9 @@ partidas apenas por semelhança de nomes.
 | Football-Data.co.uk | resultados e odds históricas atualizam ratings e priors do modelo | não é uma fonte ao vivo |
 | OpenLigaDB | agenda e placares entram no consenso e cobrem lacunas | cobertura concentrada em ligas específicas |
 | StatsBomb Open Data | eventos, escalações históricas e xG validam/treinam modelos offline | conjunto histórico selecionado, não agenda mundial ao vivo |
+| TheSportsDB | agenda, resultados, equipes, estádios e metadados entram na fusão canônica | API v1 gratuita; livescore e alguns métodos são premium |
+| Sportmonks | agenda, eventos, estatísticas, escalações e xG entram na fusão/enriquecimento | sem token fica desativada; plano gratuito cobre Superliga Dinamarquesa e Premiership Escocesa |
+| The Odds API | odds 1X2 e totais de múltiplas casas são associadas às partidas canônicas | sem chave fica desativada; consumo depende de mercados e regiões consultados |
 
 O endpoint `GET /api/v1/health` expõe disponibilidade, latência, última
 verificação e capacidades de cada conector.
@@ -55,13 +58,23 @@ antes e duas horas depois do início. Para proteger a cota gratuita:
 Escalações podem ser publicadas somente perto do início e, em algumas
 competições, apenas depois da partida.
 
-## Fonte gratuita complementar
+## Novas fontes complementares
 
-TheSportsDB é o próximo conector recomendado para redundância de metadados,
-elencos, agenda e escalações quando disponíveis. A API gratuita informa limite
-de 30 requisições por minuto, mas livescore completo e parte dos recursos são
-restritos. Ela deve entrar como fonte complementar, nunca substituir a
-API-Football para estatísticas detalhadas.
+TheSportsDB está habilitada por padrão com a chave pública gratuita `123`.
+Sportmonks e The Odds API são habilitadas somente quando
+`SPORTMONKS_API_TOKEN` e `THE_ODDS_API_KEY` estão preenchidas. A ausência de uma
+credencial não interrompe as demais fontes.
+
+As odds externas são conciliadas por horário (tolerância de três horas) e
+similaridade dos dois clubes. Nenhuma odd é associada apenas pela posição do
+registro ou pelo nome de uma liga.
+
+Variáveis operacionais:
+
+- `THESPORTSDB_API_KEY` e `THESPORTSDB_BASE_URL`;
+- `SPORTMONKS_API_TOKEN` e `SPORTMONKS_BASE_URL`;
+- `THE_ODDS_API_KEY`, `THE_ODDS_API_SPORT_KEYS`,
+  `THE_ODDS_API_REGIONS` e `THE_ODDS_API_MARKETS`.
 
 Não é recomendado automatizar scraping de páginas de SofaScore, FBref ou
 Understat sem API/licença explícita: além da instabilidade técnica, isso cria

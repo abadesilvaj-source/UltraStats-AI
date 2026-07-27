@@ -254,6 +254,156 @@ class FootballDataUKSource(JsonDataSource):
         return tuple(result)
 
 
+class TheSportsDBSource(JsonDataSource):
+    """Fonte gratuita de agenda, resultados, clubes e metadados."""
+
+    name = "thesportsdb"
+    capabilities = frozenset({DataCapability.FIXTURES})
+
+    def _health_request(self) -> None:
+        self._get("/all_sports.php")
+
+    def collect(
+        self, capability: DataCapability, **params: Any
+    ) -> tuple[SourceObservation, ...]:
+        if capability is not DataCapability.FIXTURES:
+            raise ValueError(f"Capacidade não suportada: {capability}.")
+        payload = self._get(
+            "/eventsday.php",
+            {"d": str(params["date"]), "s": "Soccer"},
+        )
+        rows = payload.get("events") or [] if isinstance(payload, dict) else []
+        return tuple(
+            _observation(
+                self.name,
+                capability,
+                str(row.get("idEvent") or index),
+                row,
+            )
+            for index, row in enumerate(rows)
+            if isinstance(row, dict)
+        )
+
+
+class SportmonksSource(JsonDataSource):
+    """Dados profundos das competições liberadas no plano Sportmonks."""
+
+    name = "sportmonks"
+    capabilities = frozenset(
+        {
+            DataCapability.FIXTURES,
+            DataCapability.EVENTS,
+            DataCapability.LINEUPS,
+            DataCapability.STATISTICS,
+            DataCapability.XG,
+        }
+    )
+
+    def __init__(
+        self,
+        config: SourceConfig,
+        *,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        if not config.api_key:
+            raise ProviderConfigurationError("SPORTMONKS_API_TOKEN é obrigatório.")
+        super().__init__(config, transport=transport)
+
+    def _parameters(self, params: Mapping[str, Any]) -> dict[str, Any]:
+        result = dict(params)
+        result["api_token"] = self.config.api_key
+        return result
+
+    def _health_request(self) -> None:
+        self._get("/leagues", self._parameters({"per_page": 1}))
+
+    def collect(
+        self, capability: DataCapability, **params: Any
+    ) -> tuple[SourceObservation, ...]:
+        if capability not in self.capabilities:
+            raise ValueError(f"Capacidade não suportada: {capability}.")
+        date = str(params["date"])
+        includes = {
+            DataCapability.FIXTURES: "participants;league;venue;state;scores",
+            DataCapability.EVENTS: "events",
+            DataCapability.LINEUPS: "lineups.player",
+            DataCapability.STATISTICS: "statistics.type",
+            DataCapability.XG: "xGFixture",
+        }
+        payload = self._get(
+            f"/fixtures/date/{date}",
+            self._parameters({"include": includes[capability]}),
+        )
+        rows = payload.get("data") or [] if isinstance(payload, dict) else []
+        return tuple(
+            _observation(
+                self.name,
+                capability,
+                str(row.get("id") or index),
+                row,
+            )
+            for index, row in enumerate(rows)
+            if isinstance(row, dict)
+        )
+
+
+class TheOddsApiSource(JsonDataSource):
+    """Odds atuais de múltiplas casas, independentes do feed esportivo."""
+
+    name = "the_odds_api"
+    capabilities = frozenset({DataCapability.ODDS})
+
+    def __init__(
+        self,
+        config: SourceConfig,
+        *,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        if not config.api_key:
+            raise ProviderConfigurationError("THE_ODDS_API_KEY é obrigatória.")
+        super().__init__(config, transport=transport)
+
+    def _parameters(self, params: Mapping[str, Any]) -> dict[str, Any]:
+        result = dict(params)
+        result["apiKey"] = self.config.api_key
+        return result
+
+    def _health_request(self) -> None:
+        self._get("/sports", self._parameters({}))
+
+    def collect(
+        self, capability: DataCapability, **params: Any
+    ) -> tuple[SourceObservation, ...]:
+        if capability is not DataCapability.ODDS:
+            raise ValueError(f"Capacidade não suportada: {capability}.")
+        sport_keys = params.get("sport_keys") or ("upcoming",)
+        observations: list[SourceObservation] = []
+        for sport_key in sport_keys:
+            payload = self._get(
+                f"/sports/{sport_key}/odds",
+                self._parameters(
+                    {
+                        "regions": params.get("regions", "eu"),
+                        "markets": params.get("markets", "h2h,totals"),
+                        "oddsFormat": "decimal",
+                        "dateFormat": "iso",
+                    }
+                ),
+            )
+            rows = payload if isinstance(payload, list) else []
+            observations.extend(
+                _observation(
+                    self.name,
+                    capability,
+                    str(row.get("id") or index),
+                    row,
+                )
+                for index, row in enumerate(rows)
+                if isinstance(row, dict)
+            )
+        return tuple(observations)
+
+
 @dataclass(frozen=True, slots=True)
 class CollectionReport:
     capability: DataCapability
@@ -320,6 +470,50 @@ def build_multi_source_engine(
                 transport=injected.get("api_football"),
             )
         )
+    sportsdb_key = values.get("THESPORTSDB_API_KEY", "123").strip() or "123"
+    sources.append(
+        TheSportsDBSource(
+            SourceConfig(
+                "thesportsdb",
+                values.get(
+                    "THESPORTSDB_BASE_URL",
+                    f"https://www.thesportsdb.com/api/v1/json/{sportsdb_key}",
+                ),
+                sportsdb_key,
+            ),
+            transport=injected.get("thesportsdb"),
+        )
+    )
+    sportmonks_key = values.get("SPORTMONKS_API_TOKEN", "").strip()
+    if sportmonks_key:
+        sources.append(
+            SportmonksSource(
+                SourceConfig(
+                    "sportmonks",
+                    values.get(
+                        "SPORTMONKS_BASE_URL",
+                        "https://api.sportmonks.com/v3/football",
+                    ),
+                    sportmonks_key,
+                ),
+                transport=injected.get("sportmonks"),
+            )
+        )
+    odds_key = values.get("THE_ODDS_API_KEY", "").strip()
+    if odds_key:
+        sources.append(
+            TheOddsApiSource(
+                SourceConfig(
+                    "the_odds_api",
+                    values.get(
+                        "THE_ODDS_API_BASE_URL",
+                        "https://api.the-odds-api.com/v4",
+                    ),
+                    odds_key,
+                ),
+                transport=injected.get("the_odds_api"),
+            )
+        )
     sources.extend(
         (
             OpenLigaDBSource(
@@ -353,7 +547,8 @@ def build_multi_source_engine(
     )
     configured = values.get(
         "PROVIDER_PRIORITY",
-        "api_football,football_data,statsbomb_open_data,football_data_uk,openligadb",
+        "api_football,sportmonks,football_data,the_odds_api,thesportsdb,"
+        "statsbomb_open_data,football_data_uk,openligadb",
     )
     priority = {
         name.strip(): index for index, name in enumerate(configured.split(",")) if name.strip()

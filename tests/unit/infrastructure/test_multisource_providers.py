@@ -16,7 +16,10 @@ from ultrastats_ai.infrastructure.providers import (
     ProviderConfigurationError,
     ProviderResponseError,
     SourceConfig,
+    SportmonksSource,
     StatsBombOpenDataSource,
+    TheOddsApiSource,
+    TheSportsDBSource,
     build_multi_source_engine,
 )
 
@@ -204,6 +207,69 @@ def test_football_data_uk_parses_csv_health_and_errors() -> None:
     empty.close()
 
 
+def test_thesportsdb_collects_daily_soccer_events() -> None:
+    def handler(request):
+        if request.url.path.endswith("/all_sports.php"):
+            return httpx.Response(200, json={"sports": []})
+        assert request.url.params["d"] == "2026-07-27"
+        return httpx.Response(
+            200,
+            json={"events": [{"idEvent": "55"}, "ignored"]},
+        )
+
+    source = TheSportsDBSource(config(), transport=transport(handler))
+    assert source.health_check().available
+    rows = source.collect(DataCapability.FIXTURES, date="2026-07-27")
+    assert len(rows) == 1 and rows[0].external_id == "55"
+    with pytest.raises(ValueError):
+        source.collect(DataCapability.ODDS, date="2026-07-27")
+    source.close()
+
+
+def test_sportmonks_uses_token_and_includes_by_capability() -> None:
+    def handler(request):
+        assert request.url.params["api_token"] == "token"
+        if request.url.path.endswith("/leagues"):
+            return httpx.Response(200, json={"data": []})
+        assert "participants" in request.url.params["include"]
+        return httpx.Response(200, json={"data": [{"id": 77}]})
+
+    source = SportmonksSource(
+        config(key="token"), transport=transport(handler)
+    )
+    assert source.health_check().available
+    rows = source.collect(DataCapability.FIXTURES, date="2026-07-27")
+    assert rows[0].external_id == "77"
+    with pytest.raises(ValueError):
+        source.collect(DataCapability.ODDS, date="2026-07-27")
+    source.close()
+    with pytest.raises(ProviderConfigurationError):
+        SportmonksSource(config())
+
+
+def test_the_odds_api_collects_configured_sports() -> None:
+    def handler(request):
+        assert request.url.params["apiKey"] == "odds-key"
+        if request.url.path == "/sports":
+            return httpx.Response(200, json=[])
+        return httpx.Response(200, json=[{"id": request.url.path}])
+
+    source = TheOddsApiSource(
+        config(key="odds-key"), transport=transport(handler)
+    )
+    assert source.health_check().available
+    rows = source.collect(
+        DataCapability.ODDS,
+        sport_keys=("soccer_epl", "soccer_brazil_campeonato"),
+    )
+    assert len(rows) == 2
+    with pytest.raises(ValueError):
+        source.collect(DataCapability.FIXTURES)
+    source.close()
+    with pytest.raises(ProviderConfigurationError):
+        TheOddsApiSource(config())
+
+
 def test_multisource_engine_aggregates_and_degrades() -> None:
     healthy = OpenLigaDBSource(
         config(), transport=transport(lambda _: httpx.Response(200, json=[{"id": 1}]))
@@ -245,6 +311,9 @@ def test_factory_enables_paid_source_only_with_key(monkeypatch) -> None:
             "openligadb",
             "football_data_uk",
             "statsbomb_open_data",
+            "thesportsdb",
+            "sportmonks",
+            "the_odds_api",
         )
     }
     without_key = build_multi_source_engine({}, transports=responses)
@@ -252,10 +321,16 @@ def test_factory_enables_paid_source_only_with_key(monkeypatch) -> None:
         "openligadb",
         "football_data_uk",
         "statsbomb_open_data",
+        "thesportsdb",
     }
     without_key.close()
     with_key = build_multi_source_engine(
-        {"API_FOOTBALL_KEY": "key", "PROVIDER_PRIORITY": "openligadb,api_football"},
+        {
+            "API_FOOTBALL_KEY": "key",
+            "SPORTMONKS_API_TOKEN": "token",
+            "THE_ODDS_API_KEY": "odds",
+            "PROVIDER_PRIORITY": "openligadb,api_football",
+        },
         transports=responses,
     )
     assert {source.name for source in with_key.sources} == {
@@ -263,9 +338,12 @@ def test_factory_enables_paid_source_only_with_key(monkeypatch) -> None:
         "openligadb",
         "football_data_uk",
         "statsbomb_open_data",
+        "thesportsdb",
+        "sportmonks",
+        "the_odds_api",
     }
     with_key.close()
     monkeypatch.setenv("API_FOOTBALL_KEY", "")
     environment_engine = build_multi_source_engine(transports=responses)
-    assert len(environment_engine.sources) == 3
+    assert len(environment_engine.sources) == 4
     environment_engine.close()

@@ -141,3 +141,86 @@ def test_openligadb_adapter_accepts_null_location():
     assert result["created"] == 1
     match = session.scalar(select(Match))
     assert match.venue is None
+
+
+def test_thesportsdb_complements_existing_match():
+    session = database()
+    kickoff = datetime.now(timezone.utc) + timedelta(hours=2)
+    competition = Competition(name="Liga complementar", sport="football")
+    home, away = Team(name="Clube Azul"), Team(name="Clube Verde")
+    session.add_all((competition, home, away))
+    session.flush()
+    match = Match(
+        competition_id=competition.id,
+        home_team_id=home.id,
+        away_team_id=away.id,
+        kickoff_at=kickoff,
+        status="scheduled",
+        external_id="api-1",
+    )
+    session.add(match)
+    session.flush()
+    observation = SourceObservation(
+        "thesportsdb",
+        DataCapability.FIXTURES,
+        "sportsdb-1",
+        {
+            "idEvent": "sportsdb-1",
+            "strTimestamp": kickoff.isoformat(),
+            "strHomeTeam": "Clube Azul FC",
+            "strAwayTeam": "Clube Verde",
+            "strLeague": "Liga complementar",
+            "strStatus": "Not Started",
+            "intHomeScore": None,
+            "intAwayScore": None,
+            "strVenue": "Arena complementar",
+        },
+        datetime.now(timezone.utc),
+    )
+
+    result = MatchFusionService(session).fuse((observation,))
+    session.commit()
+
+    assert result["matched"] == 1
+    assert session.get(Match, match.id).venue == "Arena complementar"
+    identity = session.scalar(select(IdentityDecisionRecord))
+    assert identity.provider == "thesportsdb"
+
+
+def test_sportmonks_fixture_is_normalized_for_fusion():
+    session = database()
+    kickoff = datetime.now(timezone.utc) + timedelta(days=1)
+    observation = SourceObservation(
+        "sportmonks",
+        DataCapability.FIXTURES,
+        "909",
+        {
+            "id": 909,
+            "starting_at": kickoff.isoformat(),
+            "state": {"name": "Not Started"},
+            "league": {"name": "Scottish Premiership"},
+            "venue": {"name": "Fusion Park"},
+            "participants": [
+                {
+                    "id": 1,
+                    "name": "Home United",
+                    "meta": {"location": "home"},
+                },
+                {
+                    "id": 2,
+                    "name": "Away United",
+                    "meta": {"location": "away"},
+                },
+            ],
+            "scores": [],
+        },
+        datetime.now(timezone.utc),
+    )
+
+    result = MatchFusionService(session).fuse((observation,))
+    session.commit()
+
+    assert result["created"] == 1
+    match = session.scalar(select(Match))
+    assert match.source == "data_fusion"
+    assert match.venue == "Fusion Park"

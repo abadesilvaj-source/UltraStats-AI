@@ -313,6 +313,14 @@ class ApiQueries:
             "football_data_uk": ["historical_results", "historical_odds"],
             "openligadb": ["fixtures", "scores"],
             "statsbomb_open_data": ["historical_events", "xg"],
+            "thesportsdb": [
+                "fixtures", "scores", "teams", "venues", "metadata"
+            ],
+            "sportmonks": [
+                "fixtures", "scores", "statistics", "events", "lineups",
+                "injuries", "xg",
+            ],
+            "the_odds_api": ["odds", "scores"],
         }
         for row in health_rows:
             if row.provider in seen:

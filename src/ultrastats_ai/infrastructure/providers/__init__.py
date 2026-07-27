@@ -35,7 +35,10 @@ from ultrastats_ai.infrastructure.providers.multisource import (
     OpenLigaDBSource,
     SourceConfig,
     SourceObservation,
+    SportmonksSource,
     StatsBombOpenDataSource,
+    TheOddsApiSource,
+    TheSportsDBSource,
     build_multi_source_engine,
 )
 
@@ -70,6 +73,9 @@ __all__ = [
     "OpenLigaDBSource",
     "SourceConfig",
     "SourceObservation",
+    "SportmonksSource",
     "StatsBombOpenDataSource",
+    "TheOddsApiSource",
+    "TheSportsDBSource",
     "build_multi_source_engine",
 ]
