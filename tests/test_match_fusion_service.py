@@ -224,3 +224,30 @@ def test_sportmonks_fixture_is_normalized_for_fusion():
     match = session.scalar(select(Match))
     assert match.source == "data_fusion"
     assert match.venue == "Fusion Park"
+
+
+def test_the_odds_api_can_seed_a_future_canonical_match():
+    session = database()
+    kickoff = datetime.now(timezone.utc) + timedelta(days=2)
+    observation = SourceObservation(
+        "the_odds_api",
+        DataCapability.ODDS,
+        "odds-101",
+        {
+            "id": "odds-101",
+            "commence_time": kickoff.isoformat(),
+            "sport_title": "Brazil Série A",
+            "home_team": "São Paulo",
+            "away_team": "Santos",
+            "bookmakers": [],
+        },
+        datetime.now(timezone.utc),
+    )
+
+    result = MatchFusionService(session).fuse((observation,))
+    session.commit()
+
+    assert result["created"] == 1
+    match = session.scalar(select(Match))
+    assert match.status == "scheduled"
+    assert match.source == "data_fusion"

@@ -67,7 +67,10 @@ credencial não interrompe as demais fontes.
 
 As odds externas são conciliadas por horário (tolerância de três horas) e
 similaridade dos dois clubes. Nenhuma odd é associada apenas pela posição do
-registro ou pelo nome de uma liga.
+registro ou pelo nome de uma liga. Quando a casa oferece uma partida futura que
+ainda não existe na agenda canônica, o evento cria uma partida mínima e
+auditável antes da gravação das odds; outras fontes poderão enriquecê-la nos
+ciclos seguintes.
 
 Variáveis operacionais:
 

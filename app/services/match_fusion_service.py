@@ -24,6 +24,7 @@ SOURCE_QUALITY = {
     "api_football": 0.96,
     "sportmonks": 0.94,
     "football_data": 0.92,
+    "the_odds_api": 0.80,
     "thesportsdb": 0.82,
     "openligadb": 0.84,
     "football_data_uk": 0.78,
@@ -344,6 +345,8 @@ class MatchFusionService:
                 return self._thesportsdb(observation)
             if observation.provider == "sportmonks":
                 return self._sportmonks(observation)
+            if observation.provider == "the_odds_api":
+                return self._the_odds_api(observation)
         except (KeyError, TypeError, ValueError):
             return None
         return None
@@ -473,6 +476,26 @@ class MatchFusionService:
             scores.get(self._int(home.get("id"))),
             scores.get(self._int(away.get("id"))),
             str(venue.get("name") or "") or None,
+            observation.observed_at,
+        )
+
+    def _the_odds_api(
+        self, observation: SourceObservation
+    ) -> MatchContribution | None:
+        row = observation.values
+        if not row.get("home_team") or not row.get("away_team"):
+            return None
+        return MatchContribution(
+            "the_odds_api",
+            str(row.get("id") or observation.external_id),
+            self._datetime(row.get("commence_time")),
+            str(row["home_team"]),
+            str(row["away_team"]),
+            str(row.get("sport_title") or "The Odds API"),
+            "scheduled",
+            None,
+            None,
+            None,
             observation.observed_at,
         )
 

@@ -177,14 +177,18 @@ class MultiProviderSyncService:
             lineups_saved = self._collect_lineups(
                 engine, report.observations
             )
+            fusion_observations = (
+                report.observations + odds_report.observations
+            )
+            fusion_result = MatchFusionService(self.session).fuse(
+                fusion_observations,
+                football_data_payload=football_data_payload,
+            )
             operational = OperationalPipelineService(self.session).process(
                 fixtures=report.observations,
                 odds=odds_report.observations,
             )
-            operational["fusion"] = MatchFusionService(self.session).fuse(
-                report.observations,
-                football_data_payload=football_data_payload,
-            )
+            operational["fusion"] = fusion_result
             operational["historical_enrichment"] = (
                 HistoricalEnrichmentService(self.session).process(
                     report.observations
