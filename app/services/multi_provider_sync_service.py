@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import os
 
 from sqlalchemy import exists, select
@@ -19,6 +20,9 @@ from ultrastats_ai.infrastructure.providers import (
 from ultrastats_ai.infrastructure.providers.persistence import (
     SqlAlchemyHealthStore,
     SqlAlchemyRawPayloadStore,
+)
+from ultrastats_ai.infrastructure.database.models import (
+    RawProviderPayloadRecord,
 )
 from app.services.operational_pipeline_service import OperationalPipelineService
 from ultrastats_ai.domain.live import LiveEngine, LiveEvent, LiveEventType
@@ -143,6 +147,9 @@ class MultiProviderSyncService:
             ):
                 raise RuntimeError("Nenhum provider real respondeu com sucesso.")
 
+            lineups_saved = self._collect_lineups(
+                engine, report.observations
+            )
             operational = OperationalPipelineService(self.session).process(
                 fixtures=report.observations,
                 odds=odds_report.observations,
@@ -150,12 +157,16 @@ class MultiProviderSyncService:
             operational["live_snapshots"] = self._persist_live_snapshots(
                 report.observations
             )
+            operational["lineups"] = lineups_saved
             statistics_saved, settled_bets = self._collect_post_match_statistics(
                 engine,
                 report.observations,
             )
             operational["statistics"] = statistics_saved
             operational["settled_bets"] = settled_bets
+            operational["stale_matches_reconciled"] = (
+                self._reconcile_stale_matches()
+            )
             self.session.commit()
             completed = self.monitor.mark_success(
                 sync_run.id,
@@ -319,8 +330,88 @@ class MultiProviderSyncService:
             saved += 1
         return saved
 
-    def _fixture_parameters(self) -> dict[str, str]:
+    def _collect_lineups(
+        self,
+        engine: MultiSourceEngine,
+        fixtures: tuple[SourceObservation, ...],
+    ) -> int:
+        api_source = next(
+            (
+                source for source in engine.sources
+                if source.name == "api_football"
+                and DataCapability.LINEUPS in getattr(source, "capabilities", ())
+            ),
+            None,
+        )
+        if api_source is None:
+            return 0
         now = datetime.now(timezone.utc)
+        candidates: list[tuple[datetime, str]] = []
+        for observation in fixtures:
+            if observation.provider != "api_football":
+                continue
+            fixture = observation.values.get("fixture", {})
+            status = fixture.get("status", {})
+            if status.get("short") not in {
+                "NS", "TBD", "1H", "HT", "2H", "ET", "BT", "P", "LIVE"
+            }:
+                continue
+            fixture_id = str(fixture.get("id") or "")
+            try:
+                kickoff = datetime.fromisoformat(
+                    str(fixture.get("date")).replace("Z", "+00:00")
+                )
+            except (TypeError, ValueError):
+                continue
+            if fixture_id and now - timedelta(hours=1) <= kickoff <= now + timedelta(hours=2):
+                already_collected = self.session.scalar(
+                    select(
+                        exists().where(
+                            RawProviderPayloadRecord.provider == "api_football",
+                            RawProviderPayloadRecord.resource == "lineups",
+                            RawProviderPayloadRecord.external_id.like(
+                                f"{fixture_id}:%"
+                            ),
+                        )
+                    )
+                )
+                if already_collected:
+                    continue
+                candidates.append((kickoff, fixture_id))
+        saved = 0
+        limit = max(0, int(self.environment.get("AUTO_LINEUPS_MAX_PER_SYNC", "3")))
+        for _, fixture_id in sorted(candidates)[:limit]:
+            for observation in api_source.collect(
+                DataCapability.LINEUPS, fixture=fixture_id
+            ):
+                if self.raw_store.save(
+                    RawProviderPayload(
+                        provider=observation.provider,
+                        resource=observation.capability.value,
+                        external_id=f"{fixture_id}:{observation.external_id}",
+                        payload=observation.values,
+                        collected_at=observation.observed_at,
+                    )
+                ):
+                    saved += 1
+        return saved
+
+    def _reconcile_stale_matches(self) -> int:
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=6)
+        stale = self.session.scalars(
+            select(Match).where(
+                Match.status == "in_progress",
+                Match.kickoff_at < cutoff,
+            )
+        ).all()
+        for match in stale:
+            match.status = "finished" if (
+                match.home_score is not None and match.away_score is not None
+            ) else "cancelled"
+        return len(stale)
+
+    def _fixture_parameters(self) -> dict[str, str]:
+        now = datetime.now(ZoneInfo("America/Sao_Paulo"))
         return {
             "date": now.date().isoformat(),
             "league": self.environment.get("OPENLIGADB_LEAGUE", "bl1"),

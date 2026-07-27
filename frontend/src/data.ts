@@ -63,6 +63,7 @@ export interface Match {
   status: MatchStatus
   minute?: number
   startTime: string
+  kickoffAt?: string
   homeTeam: Team
   awayTeam: Team
   homeScore?: number

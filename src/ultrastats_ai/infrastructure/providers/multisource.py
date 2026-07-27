@@ -28,6 +28,7 @@ class DataCapability(StrEnum):
     HISTORICAL_ODDS = "historical_odds"
     EVENTS = "events"
     XG = "xg"
+    LINEUPS = "lineups"
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,6 +128,7 @@ class ApiFootballSource(JsonDataSource):
             DataCapability.STATISTICS,
             DataCapability.ODDS,
             DataCapability.EVENTS,
+            DataCapability.LINEUPS,
         }
     )
 
@@ -149,6 +151,7 @@ class ApiFootballSource(JsonDataSource):
             DataCapability.STATISTICS: "/fixtures/statistics",
             DataCapability.ODDS: "/odds",
             DataCapability.EVENTS: "/fixtures/events",
+            DataCapability.LINEUPS: "/fixtures/lineups",
         }
         if capability not in self.capabilities:
             raise ValueError(f"Capacidade não suportada: {capability}.")

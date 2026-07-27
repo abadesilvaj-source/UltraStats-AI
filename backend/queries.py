@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from app.models import (
@@ -16,6 +16,10 @@ from app.models import (
 )
 from app.models.sync_run import SyncRun
 from backend.serializers import iso_local
+from ultrastats_ai.infrastructure.database.models import (
+    ProviderHealthRecord,
+    RawProviderPayloadRecord,
+)
 
 
 class ApiQueries:
@@ -40,6 +44,20 @@ class ApiQueries:
             .order_by(Match.kickoff_at)
             .offset(offset)
         )
+        if set(statuses).issubset({"scheduled", "not_started", "in_progress"}):
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            statement = statement.where(
+                or_(
+                    and_(
+                        Match.status.in_(("scheduled", "not_started")),
+                        Match.kickoff_at >= now - timedelta(minutes=45),
+                    ),
+                    and_(
+                        Match.status == "in_progress",
+                        Match.kickoff_at >= now - timedelta(hours=6),
+                    ),
+                )
+            )
         if limit is not None:
             statement = statement.limit(limit)
         rows = self.session.execute(statement).all()
@@ -92,7 +110,46 @@ class ApiQueries:
         )
         base["markets"] = self.match_markets(match_id)
         base["analysis"] = self.predictions(match_id=match_id)
+        base["lineups"] = self.lineups(base["external_id"])
         return base
+
+    def lineups(self, external_id: str | None) -> list[dict]:
+        if not external_id:
+            return []
+        rows = self.session.scalars(
+            select(RawProviderPayloadRecord)
+            .where(
+                RawProviderPayloadRecord.provider == "api_football",
+                RawProviderPayloadRecord.resource == "lineups",
+                RawProviderPayloadRecord.external_id.like(f"{external_id}:%"),
+            )
+            .order_by(RawProviderPayloadRecord.collected_at.desc())
+        ).all()
+        result, seen = [], set()
+        for row in rows:
+            team = row.payload.get("team", {})
+            team_id = str(team.get("id") or "")
+            if not team_id or team_id in seen:
+                continue
+            seen.add(team_id)
+            result.append(
+                {
+                    "team": team,
+                    "formation": row.payload.get("formation"),
+                    "coach": row.payload.get("coach"),
+                    "start_xi": [
+                        item.get("player", {})
+                        for item in row.payload.get("startXI", [])
+                    ],
+                    "substitutes": [
+                        item.get("player", {})
+                        for item in row.payload.get("substitutes", [])
+                    ],
+                    "confirmed": len(row.payload.get("startXI", [])) >= 11,
+                    "collected_at": row.collected_at.isoformat(),
+                }
+            )
+        return result
 
     def match_markets(self, match_id: int) -> list[dict]:
         rows = self.session.execute(
@@ -138,6 +195,11 @@ class ApiQueries:
             .join(away, away.id == Match.away_team_id)
             .join(Competition, Competition.id == Match.competition_id)
             .where(Match.status.in_(("scheduled", "in_progress")))
+            .where(
+                Match.kickoff_at
+                >= datetime.now(timezone.utc).replace(tzinfo=None)
+                - timedelta(hours=6)
+            )
             .order_by(Match.kickoff_at, Prediction.expected_value.desc())
         )
         if match_id is not None:
@@ -165,9 +227,27 @@ class ApiQueries:
         ]
 
     def recommendations(self) -> list[dict]:
+        best: dict[tuple[int, int], dict] = {}
+        for row in self.predictions():
+            key = (row["match_id"], row["market_id"])
+            current = best.get(key)
+            if current is None or row["probability"] > current["probability"]:
+                best[key] = row
         return [
-            row for row in self.predictions()
-            if row["expected_value"] is not None and row["expected_value"] > 0
+            {
+                **row,
+                "actionable": (
+                    row["expected_value"] is not None
+                    and row["expected_value"] > 0
+                ),
+                "recommendation_type": (
+                    "value_bet"
+                    if row["expected_value"] is not None
+                    and row["expected_value"] > 0
+                    else "model_lead"
+                ),
+            }
+            for row in best.values()
         ]
 
     def markets(self) -> list[dict]:
@@ -202,6 +282,33 @@ class ApiQueries:
         latest = self.session.scalar(
             select(SyncRun).order_by(SyncRun.started_at.desc())
         )
+        health_rows = self.session.scalars(
+            select(ProviderHealthRecord).order_by(
+                ProviderHealthRecord.checked_at.desc()
+            )
+        ).all()
+        providers, seen = [], set()
+        capability_map = {
+            "api_football": [
+                "fixtures", "live", "statistics", "odds", "events", "lineups"
+            ],
+            "football_data": ["competitions", "fixtures", "scores"],
+            "football_data_uk": ["historical_results", "historical_odds"],
+            "openligadb": ["fixtures", "scores"],
+            "statsbomb_open_data": ["historical_events", "xg"],
+        }
+        for row in health_rows:
+            if row.provider in seen:
+                continue
+            seen.add(row.provider)
+            providers.append({
+                "name": row.provider,
+                "available": row.available,
+                "message": row.message,
+                "latency_ms": row.latency_ms,
+                "checked_at": row.checked_at.isoformat(),
+                "capabilities": capability_map.get(row.provider, []),
+            })
         return {
             "status": "healthy",
             "server_time": datetime.now(timezone.utc).isoformat(),
@@ -232,4 +339,5 @@ class ApiQueries:
                 }
                 if latest else None
             ),
+            "providers": providers,
         }

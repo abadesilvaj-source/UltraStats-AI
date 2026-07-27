@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
 
 from app.models import Competition, Market, Match, Odd, Prediction, Team
@@ -15,6 +15,7 @@ from app.utils.betting_math import (
 )
 from ultrastats_ai.domain.prediction import ModelSpecification, PoissonScoreModel
 from ultrastats_ai.infrastructure.providers import DataCapability, SourceObservation
+from ultrastats_ai.infrastructure.database.models import RawProviderPayloadRecord
 
 
 MARKETS = (
@@ -391,16 +392,14 @@ class OperationalPipelineService:
         for code, selections in forecasts.items():
             market = markets[code]
             for selection, probability in selections.items():
-                exists = self.session.scalar(
-                    select(Prediction.id).where(
+                existing = self.session.scalar(
+                    select(Prediction).where(
                         Prediction.match_id == match.id,
                         Prediction.market_id == market.id,
                         Prediction.selection == selection,
                         Prediction.model_version == self.model_version,
                     )
                 )
-                if exists is not None:
-                    continue
                 latest_odd = self.session.scalar(
                     select(Odd)
                     .where(
@@ -423,25 +422,51 @@ class OperationalPipelineService:
                     if latest_odd is not None
                     else None
                 )
-                self.session.add(
-                    Prediction(
+                lineup_coverage = self._lineup_coverage(match)
+                prediction = existing or Prediction(
                         match_id=match.id,
                         market_id=market.id,
                         selection=selection,
                         model_version=self.model_version,
-                        probability=float(probability),
-                        implied_probability=implied,
-                        expected_value=expected,
-                        confidence=0.55,
-                        uqs=0.5,
-                        use_score=0.5,
-                        confluence=0.5,
-                        evidence_level="low",
-                        risk_level="moderate",
                     )
+                prediction.probability = float(probability)
+                prediction.implied_probability = implied
+                prediction.expected_value = expected
+                prediction.confidence = 0.55 + (0.05 * lineup_coverage)
+                prediction.uqs = 0.5 + (0.05 * lineup_coverage)
+                prediction.use_score = 0.5
+                prediction.confluence = 0.5 + (0.05 * lineup_coverage)
+                prediction.evidence_level = (
+                    "medium" if lineup_coverage == 2 else "low"
                 )
-                created += 1
+                prediction.risk_level = (
+                    "moderate" if lineup_coverage == 2 else "high"
+                )
+                if existing is None:
+                    self.session.add(prediction)
+                    created += 1
         return created
+
+    def _lineup_coverage(self, match: Match) -> int:
+        if not match.external_id:
+            return 0
+        connection = self.session.connection()
+        if not inspect(connection).has_table(
+            RawProviderPayloadRecord.__tablename__
+        ):
+            return 0
+        team_ids = self.session.scalars(
+            select(RawProviderPayloadRecord.external_id)
+            .where(
+                RawProviderPayloadRecord.provider == "api_football",
+                RawProviderPayloadRecord.resource == "lineups",
+                RawProviderPayloadRecord.external_id.like(
+                    f"{match.external_id}:%"
+                ),
+            )
+            .distinct()
+        ).all()
+        return min(2, len(team_ids))
 
 
 def _optional_int(value: Any) -> int | None:

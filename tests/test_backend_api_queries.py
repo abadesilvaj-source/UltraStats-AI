@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy import create_engine
@@ -24,7 +24,7 @@ def test_api_returns_only_active_matches_in_user_timezone():
             competition_id=competition.id,
             home_team_id=home.id,
             away_team_id=away.id,
-            kickoff_at=datetime(2026, 7, 26, 20, tzinfo=timezone.utc),
+            kickoff_at=datetime.now(timezone.utc) + timedelta(hours=2),
             status="scheduled",
             external_id="api-1",
         )

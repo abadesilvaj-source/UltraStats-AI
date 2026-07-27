@@ -10,7 +10,7 @@ const emptyStats = (): MatchStats => ({
   passAccuracy: [0, 0], xG: [0, 0],
 })
 const emptyAnalysis = (): MatchAnalysis => ({
-  summary: 'Análise em processamento pelo motor estatístico.',
+  summary: 'Análise processada pelo motor estatístico multifuente.',
   homeForm: [], awayForm: [], keyFactors: [], recommendations: [],
 })
 
@@ -31,23 +31,50 @@ function team(item: any, home: boolean) {
     id: String(item.id),
     name: item.name,
     shortName: item.name.slice(0, 3).toUpperCase(),
-    logo: home ? '🔵' : '🟠',
+    logo: item.name.slice(0, 2).toUpperCase(),
     color: home ? '#4f8ef7' : '#ff7c3a',
+  }
+}
+
+function lineup(rows: any[], teamName: string): Lineup {
+  const row = rows.find(entry =>
+    entry.team?.name?.localeCompare(teamName, undefined, { sensitivity: 'base' }) === 0
+  )
+  if (!row) return emptyLineup()
+  const players = (items: any[]) => items.map(player => ({
+    number: Number(player.number || 0),
+    name: player.name || 'Jogador não informado',
+    position: player.pos || '—',
+  }))
+  return {
+    formation: row.formation || '—',
+    players: players(row.start_xi || []),
+    bench: players(row.substitutes || []),
   }
 }
 
 function adapt(item: any): Match {
   const stats = item.statistics
   const analysis = emptyAnalysis()
-  analysis.recommendations = (item.analysis || [])
-    .filter((row: any) => row.expected_value != null && row.expected_value > 0)
-    .map((row: any) => ({
-      market: row.market,
-      tip: row.selection,
-      confidence: row.confidence >= .75 ? 'Alta' : row.confidence >= .55 ? 'Média' : 'Baixa',
-      odds: row.implied_probability ? 1 / row.implied_probability : 0,
-      reasoning: `EV ${(row.expected_value * 100).toFixed(1)}% · evidência ${row.evidence || 'limitada'}`,
-    }))
+  const bestByMarket = new Map<string, any>()
+  for (const row of item.analysis || []) {
+    const current = bestByMarket.get(row.market)
+    if (!current || row.probability > current.probability) {
+      bestByMarket.set(row.market, row)
+    }
+  }
+  analysis.recommendations = Array.from(bestByMarket.values()).map(row => ({
+    market: row.market,
+    tip: row.selection,
+    confidence: row.confidence >= .75 ? 'Alta' : row.confidence >= .55 ? 'Média' : 'Baixa',
+    odds: row.implied_probability
+      ? 1 / row.implied_probability
+      : 1 / Math.max(row.probability, .01),
+    reasoning: row.expected_value != null
+      ? `EV ${(row.expected_value * 100).toFixed(1)}% · evidência ${row.evidence || 'limitada'}`
+      : `Probabilidade ${(row.probability * 100).toFixed(1)}% · odd justa do modelo`,
+  }))
+  const lineups = item.lineups || []
   return {
     id: String(item.id),
     league: item.competition.name,
@@ -55,12 +82,13 @@ function adapt(item: any): Match {
     country: item.competition.country || '',
     status: item.status === 'in_progress' ? 'live' : item.status === 'finished' ? 'finished' : 'upcoming',
     startTime: new Date(item.kickoff_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    kickoffAt: item.kickoff_at,
     homeTeam: team(item.home_team, true),
     awayTeam: team(item.away_team, false),
     homeScore: item.score?.home ?? undefined,
     awayScore: item.score?.away ?? undefined,
-    homeLineup: emptyLineup(),
-    awayLineup: emptyLineup(),
+    homeLineup: lineup(lineups, item.home_team.name),
+    awayLineup: lineup(lineups, item.away_team.name),
     events: [],
     stats: stats ? {
       ...emptyStats(),
@@ -88,7 +116,7 @@ function adapt(item: any): Match {
 }
 
 export async function loadMatches(): Promise<Match[]> {
-  const rows = await request<any[]>('/matches?status=scheduled,in_progress')
+  const rows = await request<any[]>('/matches?status=scheduled,in_progress&limit=500')
   return rows.map(adapt)
 }
 

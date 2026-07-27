@@ -5,7 +5,7 @@ import {
   Home, TrendingUp, Star, Wallet, ChevronRight, ChevronLeft,
   Circle, Zap, Activity, BarChart3, Users, BookOpen,
   Trash2, CheckCircle2, XCircle, Clock,
-  AlertTriangle, Target, X, Menu
+  AlertTriangle, Target, X, Menu, Filter, Grid3X3
 } from 'lucide-react'
 
 type View = 'home' | 'match' | 'bankroll' | 'favorites'
@@ -165,7 +165,7 @@ function Nav({ view, setView, betCount, onBetSlipOpen, navOpen, setNavOpen, clea
       <div style={s.inner}>
         <button style={s.logo} onClick={() => { setView('home'); clearMatch() }}>
           <div style={s.logoIcon}><Zap size={16} color="#07080f" fill="#07080f" /></div>
-          <span style={s.logoText}>BETANALYST</span>
+          <span style={s.logoText}>ULTRASTATS AI</span>
         </button>
 
         <nav style={{ ...s.nav, display: 'none', ...{ ['@media (min-width:768px)']: { display: 'flex' } } }} className="hidden md:flex">
@@ -179,6 +179,14 @@ function Nav({ view, setView, betCount, onBetSlipOpen, navOpen, setNavOpen, clea
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => window.open('http://localhost:8517', '_blank', 'noopener,noreferrer')}
+            title="Gestão de banca, risco, apostas, liquidação, operações e modelos"
+            style={{ ...s.betBtn, background: '#1e2438', color: '#eef0f9' }}
+          >
+            <Grid3X3 size={14} />
+            <span className="hidden sm:inline">Funcionalidades</span>
+          </button>
           {betCount > 0 && (
             <button onClick={onBetSlipOpen} style={s.betBtn}>
               <Target size={14} />
@@ -263,9 +271,9 @@ function MatchCard({ match, onClick, isFavorite, onToggleFavorite }: {
           </div>
         </div>
 
-        {match.status !== 'finished' && (
+        {match.markets.length > 0 && match.status !== 'finished' && (
           <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #1e2438', display: 'flex', gap: '8px' }}>
-            {[{ label: match.homeTeam.shortName, odds: '2.10' }, { label: 'X', odds: '3.40' }, { label: match.awayTeam.shortName, odds: '3.60' }].map(o => (
+            {(match.markets.find(m => m.name === 'Resultado da Partida')?.options || []).slice(0, 3).map(o => (
               <button key={o.label}
                 onClick={e => { e.stopPropagation(); onClick() }}
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px', borderRadius: '8px', background: '#161b26', border: '1px solid #1e2438', cursor: 'pointer', transition: 'all 0.15s' }}
@@ -273,7 +281,7 @@ function MatchCard({ match, onClick, isFavorite, onToggleFavorite }: {
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e2438'; e.currentTarget.style.background = '#161b26'; Array.from(e.currentTarget.children).forEach((c: any, i) => c.style.color = i === 0 ? '#7a88b0' : '#eef0f9') }}
               >
                 <span style={{ fontSize: '11px', color: '#7a88b0', marginBottom: '2px' }}>{o.label}</span>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '14px', color: '#eef0f9' }}>{o.odds}</span>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '14px', color: '#eef0f9' }}>{o.odds.toFixed(2)}</span>
               </button>
             ))}
           </div>
@@ -291,46 +299,62 @@ function MatchCard({ match, onClick, isFavorite, onToggleFavorite }: {
 function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }: {
   matches: Match[]; onMatchClick: (m: Match) => void; favorites: string[]; onToggleFavorite: (id: string) => void
 }) {
+  const [scope, setScope] = useState<'live' | 'today' | 'next'>('live')
+  const [league, setLeague] = useState('all')
   const live = matches.filter(m => m.status === 'live')
-  const upcoming = matches.filter(m => m.status === 'upcoming')
-  const finished = matches.filter(m => m.status === 'finished')
+  const todayKey = new Date().toLocaleDateString('en-CA')
+  const upcomingToday = matches.filter(m =>
+    m.status === 'upcoming' && m.kickoffAt &&
+    new Date(m.kickoffAt).toLocaleDateString('en-CA') === todayKey
+  )
+  const next = matches.filter(m =>
+    m.status === 'upcoming' && m.kickoffAt &&
+    new Date(m.kickoffAt).toLocaleDateString('en-CA') > todayKey
+  )
+  const scoped = scope === 'live' ? live : scope === 'today' ? upcomingToday : next
+  const leagues = Array.from(new Set(matches.map(m => m.league))).sort()
+  const visible = league === 'all' ? scoped : scoped.filter(m => m.league === league)
 
   const byLeague = (list: Match[]) => list.reduce((acc, m) => { if (!acc[m.league]) acc[m.league] = []; acc[m.league].push(m); return acc }, {} as Record<string, Match[]>)
 
   return (
     <div className="animate-fade-in">
       <div style={{ padding: '24px 0 16px' }}>
-        <h1 style={{ fontFamily: "'Russo One', sans-serif", fontSize: '24px', color: '#eef0f9', letterSpacing: '0.05em', margin: 0 }}>PARTIDAS DE HOJE</h1>
+        <h1 style={{ fontFamily: "'Russo One', sans-serif", fontSize: '24px', color: '#eef0f9', letterSpacing: '0.05em', margin: 0 }}>CENTRAL DE PARTIDAS</h1>
         <p style={{ fontSize: '13px', color: '#5a6480', marginTop: '4px' }}>{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </div>
 
-      {live.length > 0 && (
-        <Section title="Ao Vivo" icon={<Circle size={10} fill="#ff3b3b" color="#ff3b3b" className="pulse-live" />} accent="#ff3b3b">
-          {Object.entries(byLeague(live)).map(([l, ms]) => (
-            <LeagueGroup key={l} league={ms[0].league} logo={ms[0].leagueLogo} country={ms[0].country}>
-              {ms.map(m => <MatchCard key={m.id} match={m} onClick={() => onMatchClick(m)} isFavorite={favorites.includes(m.id)} onToggleFavorite={() => onToggleFavorite(m.id)} />)}
-            </LeagueGroup>
-          ))}
-        </Section>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+        {[
+          { id: 'live', label: `Ao vivo (${live.length})` },
+          { id: 'today', label: `Em breve (${upcomingToday.length})` },
+          { id: 'next', label: `Próximas partidas (${next.length})` },
+        ].map(item => (
+          <button key={item.id} onClick={() => setScope(item.id as typeof scope)}
+            style={{ padding: '9px 14px', borderRadius: 8, border: `1px solid ${scope === item.id ? '#00e887' : '#1e2438'}`, background: scope === item.id ? 'rgba(0,232,135,.12)' : '#0f1119', color: scope === item.id ? '#00e887' : '#7a88b0', cursor: 'pointer', fontWeight: 700 }}>
+            {item.label}
+          </button>
+        ))}
+        <label style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, color: '#7a88b0' }}>
+          <Filter size={14} />
+          <select value={league} onChange={event => setLeague(event.target.value)}
+            style={{ background: '#0f1119', color: '#eef0f9', border: '1px solid #1e2438', borderRadius: 8, padding: '9px 12px' }}>
+            <option value="all">Todas as ligas</option>
+            {leagues.map(item => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+      </div>
+
+      {visible.length === 0 && (
+        <Card style={{ padding: 24, textAlign: 'center', color: '#7a88b0' }}>
+          Nenhuma partida encontrada nesta categoria.
+        </Card>
       )}
-      {upcoming.length > 0 && (
-        <Section title="Em Breve" icon={<Clock size={13} color="#4f8ef7" />} accent="#4f8ef7">
-          {Object.entries(byLeague(upcoming)).map(([l, ms]) => (
-            <LeagueGroup key={l} league={ms[0].league} logo={ms[0].leagueLogo} country={ms[0].country}>
-              {ms.map(m => <MatchCard key={m.id} match={m} onClick={() => onMatchClick(m)} isFavorite={favorites.includes(m.id)} onToggleFavorite={() => onToggleFavorite(m.id)} />)}
-            </LeagueGroup>
-          ))}
-        </Section>
-      )}
-      {finished.length > 0 && (
-        <Section title="Encerradas" icon={<CheckCircle2 size={13} color="#5a6480" />} accent="#5a6480">
-          {Object.entries(byLeague(finished)).map(([l, ms]) => (
-            <LeagueGroup key={l} league={ms[0].league} logo={ms[0].leagueLogo} country={ms[0].country}>
-              {ms.map(m => <MatchCard key={m.id} match={m} onClick={() => onMatchClick(m)} isFavorite={favorites.includes(m.id)} onToggleFavorite={() => onToggleFavorite(m.id)} />)}
-            </LeagueGroup>
-          ))}
-        </Section>
-      )}
+      {Object.entries(byLeague(visible)).map(([l, ms]) => (
+        <LeagueGroup key={l} league={ms[0].league} logo={ms[0].leagueLogo} country={ms[0].country}>
+          {ms.map(m => <MatchCard key={m.id} match={m} onClick={() => onMatchClick(m)} isFavorite={favorites.includes(m.id)} onToggleFavorite={() => onToggleFavorite(m.id)} />)}
+        </LeagueGroup>
+      ))}
     </div>
   )
 }
