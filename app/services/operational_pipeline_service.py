@@ -9,6 +9,7 @@ from typing import Any
 import unicodedata
 
 from sqlalchemy import inspect, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -20,6 +21,7 @@ from app.models import (
     Prediction,
     Team,
 )
+from app.core.football_market_catalog import FOOTBALL_MARKETS
 from app.services.post_match_service import PostMatchService
 from app.utils.betting_math import (
     calculate_expected_value,
@@ -31,15 +33,9 @@ from ultrastats_ai.infrastructure.database.models import RawProviderPayloadRecor
 from ultrastats_ai.infrastructure.database.models import IdentityDecisionRecord
 
 
-MARKETS = (
-    ("match_winner", "Resultado da Partida", "result"),
-    ("over_2_5_goals", "Mais de 2.5 Gols", "goals"),
-    ("under_2_5_goals", "Menos de 2.5 Gols", "goals"),
-    ("under_3_5_goals", "Menos de 3.5 Gols", "goals"),
-    ("both_teams_to_score", "Ambas as Equipes Marcam", "goals"),
-    ("over_8_5_corners", "Mais de 8.5 Escanteios", "corners"),
-    ("over_9_5_corners", "Mais de 9.5 Escanteios", "corners"),
-    ("over_4_5_cards", "Mais de 4.5 Cartões", "cards"),
+MARKETS = tuple(
+    (market.code, market.name, market.category)
+    for market in FOOTBALL_MARKETS
 )
 
 STATUS_MAP = {
@@ -225,10 +221,23 @@ class OperationalPipelineService:
         for code, name, category in MARKETS:
             market = self.session.scalar(select(Market).where(Market.code == code))
             if market is None:
-                market = Market(code=code, name=name, category=category, active=True)
-                self.session.add(market)
-                self.session.flush()
-                counters["markets"] += 1
+                try:
+                    with self.session.begin_nested():
+                        market = Market(
+                            code=code,
+                            name=name,
+                            category=category,
+                            active=True,
+                        )
+                        self.session.add(market)
+                        self.session.flush()
+                    counters["markets"] += 1
+                except IntegrityError:
+                    market = self.session.scalar(
+                        select(Market).where(Market.code == code)
+                    )
+                    if market is None:
+                        raise
             result[code] = market
         return result
 
@@ -589,10 +598,162 @@ class OperationalPipelineService:
                 )))
             },
         }
+        total_goal_lambda = float(home_xg + away_xg)
+        home_goal_lambda = float(home_xg)
+        away_goal_lambda = float(away_xg)
+        total_corner_lambda = max(
+            3.0,
+            (home.corner_rating + away.corner_rating)
+            / 10 * context["tempo"],
+        )
+        home_corner_lambda = max(
+            1.0, home.corner_rating / 10 * context["tempo"]
+        )
+        away_corner_lambda = max(
+            1.0, away.corner_rating / 10 * context["tempo"]
+        )
+        total_card_lambda = max(
+            1.0,
+            (home.card_rating + away.card_rating)
+            / 20 * context["intensity"],
+        )
+        home_card_lambda = max(
+            .5, home.card_rating / 20 * context["intensity"]
+        )
+        away_card_lambda = max(
+            .5, away.card_rating / 20 * context["intensity"]
+        )
+        for value in range(0, 6):
+            line = f"{value}_5"
+            over = Decimal(str(self._poisson_over(
+                value, total_goal_lambda
+            )))
+            forecasts[f"over_{line}_goals"] = {
+                f"Over {value}.5": over
+            }
+            forecasts[f"under_{line}_goals"] = {
+                f"Under {value}.5": Decimal("1") - over
+            }
+        for side, rate in (
+            ("home", home_goal_lambda), ("away", away_goal_lambda)
+        ):
+            for value in range(0, 4):
+                line = f"{value}_5"
+                over = Decimal(str(self._poisson_over(value, rate)))
+                forecasts[f"{side}_over_{line}_goals"] = {
+                    f"Over {value}.5": over
+                }
+                forecasts[f"{side}_under_{line}_goals"] = {
+                    f"Under {value}.5": Decimal("1") - over
+                }
+        for value in range(5, 14):
+            line = f"{value}_5"
+            over = Decimal(str(self._poisson_over(
+                value, total_corner_lambda
+            )))
+            forecasts[f"over_{line}_corners"] = {
+                f"Over {value}.5": over
+            }
+            forecasts[f"under_{line}_corners"] = {
+                f"Under {value}.5": Decimal("1") - over
+            }
+        for side, rate in (
+            ("home", home_corner_lambda), ("away", away_corner_lambda)
+        ):
+            for value in range(1, 8):
+                line = f"{value}_5"
+                over = Decimal(str(self._poisson_over(value, rate)))
+                forecasts[f"{side}_over_{line}_corners"] = {
+                    f"Over {value}.5": over
+                }
+                forecasts[f"{side}_under_{line}_corners"] = {
+                    f"Under {value}.5": Decimal("1") - over
+                }
+        for value in range(0, 9):
+            line = f"{value}_5"
+            over = Decimal(str(self._poisson_over(
+                value, total_card_lambda
+            )))
+            forecasts[f"over_{line}_cards"] = {
+                f"Over {value}.5": over
+            }
+            forecasts[f"under_{line}_cards"] = {
+                f"Under {value}.5": Decimal("1") - over
+            }
+        for side, rate in (
+            ("home", home_card_lambda), ("away", away_card_lambda)
+        ):
+            for value in range(0, 6):
+                line = f"{value}_5"
+                over = Decimal(str(self._poisson_over(value, rate)))
+                forecasts[f"{side}_over_{line}_cards"] = {
+                    f"Over {value}.5": over
+                }
+                forecasts[f"{side}_under_{line}_cards"] = {
+                    f"Under {value}.5": Decimal("1") - over
+                }
         forecasts["match_winner"] = {
             {"home": "Home", "draw": "Draw", "away": "Away"}[key]: value
             for key, value in forecasts["match_winner"].items()
         }
+        winner = forecasts["match_winner"]
+        forecasts["double_chance"] = {
+            "Home or Draw": winner["Home"] + winner["Draw"],
+            "Home or Away": winner["Home"] + winner["Away"],
+            "Draw or Away": winner["Draw"] + winner["Away"],
+        }
+        decisive = max(
+            Decimal(".0001"), winner["Home"] + winner["Away"]
+        )
+        forecasts["draw_no_bet"] = {
+            "Home": winner["Home"] / decisive,
+            "Away": winner["Away"] / decisive,
+        }
+        forecasts["home_clean_sheet"] = {
+            "Yes": Decimal(str(exp(-away_goal_lambda))),
+            "No": Decimal("1") - Decimal(str(exp(-away_goal_lambda))),
+        }
+        forecasts["away_clean_sheet"] = {
+            "Yes": Decimal(str(exp(-home_goal_lambda))),
+            "No": Decimal("1") - Decimal(str(exp(-home_goal_lambda))),
+        }
+        forecasts["goals_odd_even"] = {
+            "Even": Decimal(str(
+                (1 + exp(-2 * total_goal_lambda)) / 2
+            )),
+            "Odd": Decimal(str(
+                (1 - exp(-2 * total_goal_lambda)) / 2
+            )),
+        }
+        exact_goals = {
+            str(goals): Decimal(str(
+                exp(-total_goal_lambda)
+                * total_goal_lambda ** goals / factorial(goals)
+            ))
+            for goals in range(0, 6)
+        }
+        exact_goals["6+"] = max(
+            Decimal("0"), Decimal("1") - sum(exact_goals.values())
+        )
+        forecasts["exact_total_goals"] = exact_goals
+        score_probabilities: dict[str, Decimal] = {}
+        covered = Decimal("0")
+        for home_score in range(0, 5):
+            for away_score in range(0, 5):
+                probability = Decimal(str(
+                    exp(-home_goal_lambda)
+                    * home_goal_lambda ** home_score
+                    / factorial(home_score)
+                    * exp(-away_goal_lambda)
+                    * away_goal_lambda ** away_score
+                    / factorial(away_score)
+                ))
+                score_probabilities[f"{home_score}-{away_score}"] = probability
+                covered += probability
+        score_probabilities["Other"] = max(
+            Decimal("0"), Decimal("1") - covered
+        )
+        forecasts["correct_score"] = score_probabilities
         market_consensus = self._winner_market_consensus(match, markets)
         if market_consensus:
             # Odds de múltiplas casas são uma fonte independente da força

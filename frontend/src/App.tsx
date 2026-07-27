@@ -130,10 +130,6 @@ export default function App() {
               setView('bankroll')
               return
             }
-            if (betSlip.some(item => !item.marketId)) {
-              setLoadError('Um dos mercados deste bilhete não está mais disponível.')
-              return
-            }
             try {
               const payload = {
                 bankroll_id: bankrollId,
@@ -142,12 +138,14 @@ export default function App() {
                 legs: betSlip.map(item => ({
                   match_id: Number(item.matchId),
                   market_id: item.marketId,
+                  market_name: item.market,
                   selection: item.option,
                   odd_value: item.odds,
                 })),
               }
               const assessment = await analyzeBetSlip(payload)
-              if (!assessment.approved) {
+              const manualMarkets = assessment.unavailable_markets || []
+              if (!assessment.approved && manualMarkets.length === 0) {
                 setLoadError(
                   `Bilhete bloqueado pelo risco: ${assessment.warnings.join(', ') || 'valor conservador insuficiente'}.`
                 )
@@ -940,6 +938,11 @@ function BetSlipDrawer({ selections, onRemove, onOddsChange, onClose, totalOdds,
                   <div style={{ fontSize: '11px', color: '#5a6480', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sel.matchName}</div>
                   <div style={{ fontSize: '12px', color: '#7a88b0' }}>{sel.market}</div>
                   <div style={{ fontWeight: 600, fontSize: '14px', color: '#eef0f9', marginTop: '2px' }}>{sel.option}</div>
+                  {!sel.marketId && (
+                    <div style={{ fontSize: '10px', color: '#fbbf24', marginTop: '5px' }}>
+                      Mercado sem vínculo local: {sel.market}. Será registrado manualmente.
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
                   <label style={{ fontSize: '10px', color: '#5a6480' }}>Odd do bilhete</label>

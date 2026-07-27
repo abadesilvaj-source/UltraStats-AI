@@ -144,16 +144,16 @@ def test_pipeline_promotes_fixture_odds_markets_and_predictions():
         "competitions": 1,
         "teams": 2,
         "matches": 1,
-        "markets": 8,
+        "markets": 125,
         "odds": 7,
-        "predictions": 11,
+        "predictions": 165,
     }
     assert db.scalar(select(func.count()).select_from(Competition)) == 1
     assert db.scalar(select(func.count()).select_from(Team)) == 2
     assert db.scalar(select(func.count()).select_from(Match)) == 1
-    assert db.scalar(select(func.count()).select_from(Market)) == 8
+    assert db.scalar(select(func.count()).select_from(Market)) == 125
     assert db.scalar(select(func.count()).select_from(Odd)) == 7
-    assert db.scalar(select(func.count()).select_from(Prediction)) == 11
+    assert db.scalar(select(func.count()).select_from(Prediction)) == 165
     prediction = db.scalar(
         select(Prediction).where(Prediction.selection == "Home")
     )

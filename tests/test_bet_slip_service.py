@@ -142,6 +142,55 @@ def test_manual_odds_override_collected_odds_in_analysis_and_slip():
         assert slip.legs[0].odd_value == Decimal("2.3500")
 
 
+def test_manual_market_without_local_id_is_named_and_accepted():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        bankroll = Bankroll(
+            name="Principal",
+            initial_balance=Decimal("1000"),
+            current_balance=Decimal("1000"),
+            unit_percentage=1,
+        )
+        competition = Competition(name="Liga", sport="football")
+        home, away = Team(name="Casa"), Team(name="Fora")
+        session.add_all((bankroll, competition, home, away))
+        session.flush()
+        match = Match(
+            competition_id=competition.id,
+            home_team_id=home.id,
+            away_team_id=away.id,
+            kickoff_at=datetime.now() + timedelta(days=1),
+            status="scheduled",
+            external_id="manual-market-1",
+        )
+        session.add(match)
+        session.commit()
+        payload = {
+            "bankroll_id": bankroll.id,
+            "stake_amount": 10,
+            "legs": [{
+                "match_id": match.id,
+                "market_name": "Jogador para marcar a qualquer momento",
+                "selection": "Atacante",
+                "odd_value": 2.8,
+            }],
+        }
+
+        analysis = BetSlipService(session).analyze(payload)
+        slip = BetSlipService(session).create(payload)
+
+        assert analysis["unavailable_markets"] == [{
+            "leg": 1,
+            "market": "Jogador para marcar a qualquer momento",
+            "selection": "Atacante",
+        }]
+        assert slip.total_odds == Decimal("2.8000")
+        assert session.get(Market, slip.legs[0].market_id).name == (
+            "Jogador para marcar a qualquer momento"
+        )
+
+
 def test_analyzes_correlated_markets_in_same_match():
     engine = create_engine("sqlite://")
     Base.metadata.create_all(engine)

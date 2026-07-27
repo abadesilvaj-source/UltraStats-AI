@@ -119,10 +119,7 @@ class ApiQueries:
         )
         base["markets"] = self.match_markets(match_id)
         base["analysis"] = self.predictions(match_id=match_id)
-        base["recommendations"] = [
-            item for item in self.recommendations()
-            if item["match_id"] == match_id
-        ]
+        base["recommendations"] = self.recommendations(match_id=match_id)
         base["lineups"] = self.lineups(match_id)
         fusion = self.session.scalar(
             select(FusionResultRecord)
@@ -289,6 +286,43 @@ class ApiQueries:
                     "collected_at": odd.collected_at.isoformat(),
                 }
             )
+        prediction_rows = self.session.execute(
+            select(Prediction, Market)
+            .join(Market, Market.id == Prediction.market_id)
+            .where(
+                Prediction.match_id == match_id,
+                Market.active.is_(True),
+            )
+            .order_by(Prediction.created_at.desc())
+        ).all()
+        existing_options = {
+            (market_id, option["selection"].casefold())
+            for market_id, item in grouped.items()
+            for option in item["options"]
+        }
+        for prediction, market in prediction_rows:
+            key = (market.id, prediction.selection.casefold())
+            if key in existing_options:
+                continue
+            existing_options.add(key)
+            target = grouped.setdefault(
+                market.id,
+                {
+                    "id": market.id,
+                    "code": market.code,
+                    "name": market.name,
+                    "category": market.category,
+                    "options": [],
+                },
+            )
+            target["options"].append({
+                "selection": prediction.selection,
+                "odd": round(
+                    1 / max(float(prediction.probability), .001), 2
+                ),
+                "bookmaker": "Odd justa do modelo",
+                "collected_at": prediction.created_at.isoformat(),
+            })
         return list(grouped.values())
 
     def predictions(self, match_id: int | None = None) -> list[dict]:
@@ -332,7 +366,9 @@ class ApiQueries:
             in self.session.execute(statement).all()
         ]
 
-    def recommendations(self) -> list[dict]:
+    def recommendations(
+        self, match_id: int | None = None
+    ) -> list[dict]:
         has_opportunities = inspect(
             self.session.connection()
         ).has_table(
@@ -369,7 +405,7 @@ class ApiQueries:
             item.id: item.code
             for item in self.session.scalars(select(Market)).all()
         }
-        prediction_rows = self.predictions()
+        prediction_rows = self.predictions(match_id=match_id)
         grouped: dict[tuple[int, int], list[dict]] = {}
         best: dict[tuple[int, int], dict] = {}
         for row in prediction_rows:

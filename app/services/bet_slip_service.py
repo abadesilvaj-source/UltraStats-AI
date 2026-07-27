@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from decimal import Decimal
+import re
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -38,6 +39,39 @@ class BetSlipService:
             raise ValueError("A odd manual deve ser maior que 1 e até 1000.")
         return value.quantize(Decimal(".0001"))
 
+    def _resolve_market(self, item: dict) -> Market:
+        market = None
+        if item.get("market_id"):
+            market = self.session.get(Market, int(item["market_id"]))
+        market_name = str(
+            item.get("market_name") or "Mercado informado manualmente"
+        ).strip()
+        if market is None and market_name:
+            market = self.session.scalar(
+                select(Market).where(Market.name == market_name)
+            )
+        if market is not None:
+            return market
+        slug = re.sub(
+            r"[^a-z0-9]+", "_", market_name.casefold()
+        ).strip("_")[:70] or "mercado"
+        code = f"manual_{slug}"
+        suffix = 1
+        while self.session.scalar(
+            select(Market).where(Market.code == code)
+        ):
+            suffix += 1
+            code = f"manual_{slug}_{suffix}"
+        market = Market(
+            code=code,
+            name=market_name,
+            category="manual",
+            active=True,
+        )
+        self.session.add(market)
+        self.session.flush()
+        return market
+
     def analyze(self, payload: dict) -> dict[str, object]:
         items = payload.get("legs") or []
         if not 1 <= len(items) <= 20:
@@ -46,9 +80,12 @@ class BetSlipService:
         joint_probability = 1.0
         matches: dict[int, int] = {}
         missing_predictions = 0
-        for item in items:
+        unavailable_markets = []
+        for index, item in enumerate(items, start=1):
             match_id = int(item["match_id"])
-            market_id = int(item["market_id"])
+            market_id = (
+                int(item["market_id"]) if item.get("market_id") else None
+            )
             selection = str(item["selection"]).strip()
             odd = self.session.scalar(
                 select(Odd)
@@ -58,7 +95,7 @@ class BetSlipService:
                     Odd.selection == selection,
                 )
                 .order_by(Odd.collected_at.desc())
-            )
+            ) if market_id else None
             leg_odd = self._leg_odd(item, odd)
             prediction = self.session.scalar(
                 select(Prediction)
@@ -68,7 +105,15 @@ class BetSlipService:
                     Prediction.selection == selection,
                 )
                 .order_by(Prediction.created_at.desc())
-            )
+            ) if market_id else None
+            if market_id is None:
+                unavailable_markets.append({
+                    "leg": index,
+                    "market": str(
+                        item.get("market_name") or "Mercado não identificado"
+                    ),
+                    "selection": selection,
+                })
             combined_odds *= leg_odd
             if prediction is None:
                 missing_predictions += 1
@@ -104,6 +149,7 @@ class BetSlipService:
                 0.5 if correlated_pairs or len(items) > 5 else 1.0
             ),
             "warnings": warnings,
+            "unavailable_markets": unavailable_markets,
             "approved": expected_value >= 0.02
             and missing_predictions == 0,
         }
@@ -129,14 +175,22 @@ class BetSlipService:
         combined = Decimal("1")
         for item in items:
             match = self.session.get(Match, int(item["match_id"]))
-            market = self.session.get(Market, int(item["market_id"]))
+            market = self._resolve_market(item)
+            manual_odd = item.get("odd_value") not in (None, "")
             if (
                 match is None
                 or market is None
-                or not market.active
+                or (not market.active and not manual_odd)
                 or match.status not in {"scheduled", "not_started", "in_progress"}
             ):
-                raise ValueError("Partida ou mercado indisponível.")
+                label = str(
+                    item.get("market_name") or getattr(
+                        market, "name", "não identificado"
+                    )
+                )
+                raise ValueError(
+                    f"Partida ou mercado indisponível: {label}."
+                )
             selection = str(item["selection"]).strip()
             identity = (match.id, market.id, selection.casefold())
             if identity in seen_selections:
