@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.database.session import SessionLocal
+from app.models import Market, Match, Team
 from app.services import BankrollService, BetSlipService
 from backend.queries import ApiQueries
 from ultrastats_ai.domain.experience import Favorite
@@ -139,7 +140,44 @@ async def create_bankroll(request: Request):
     )
 
 
-def serialize_slip(slip) -> dict:
+def serialize_bankroll_transaction(item) -> dict:
+    return {
+        "id": item.id,
+        "bankroll_id": item.bankroll_id,
+        "type": item.transaction_type,
+        "amount": float(item.amount),
+        "balance_before": float(item.balance_before),
+        "balance_after": float(item.balance_after),
+        "description": item.description,
+        "created_at": item.created_at.isoformat(),
+    }
+
+
+@app.post("/api/v1/bankrolls/{bankroll_id}/deposit", status_code=201)
+async def deposit_bankroll(bankroll_id: int, request: Request):
+    payload = await request.json()
+    return serialize_bankroll_transaction(
+        BankrollService(request.state.session).deposit(
+            bankroll_id,
+            float(payload.get("amount", 0)),
+            str(payload.get("description", "")).strip() or None,
+        )
+    )
+
+
+@app.post("/api/v1/bankrolls/{bankroll_id}/withdraw", status_code=201)
+async def withdraw_bankroll(bankroll_id: int, request: Request):
+    payload = await request.json()
+    return serialize_bankroll_transaction(
+        BankrollService(request.state.session).withdraw(
+            bankroll_id,
+            float(payload.get("amount", 0)),
+            str(payload.get("description", "")).strip() or None,
+        )
+    )
+
+
+def serialize_slip(slip, session) -> dict:
     return {
         "id": slip.id,
         "bankroll_id": slip.bankroll_id,
@@ -158,6 +196,17 @@ def serialize_slip(slip) -> dict:
                 "id": leg.id,
                 "match_id": leg.match_id,
                 "market_id": leg.market_id,
+                "match": (
+                    f"{session.get(Team, match.home_team_id).name} x "
+                    f"{session.get(Team, match.away_team_id).name}"
+                    if (match := session.get(Match, leg.match_id)) else
+                    f"Partida #{leg.match_id}"
+                ),
+                "market": (
+                    market.name
+                    if (market := session.get(Market, leg.market_id))
+                    else f"Mercado #{leg.market_id}"
+                ),
                 "selection": leg.selection,
                 "odd": float(leg.odd_value),
                 "status": leg.status,
@@ -171,7 +220,7 @@ def serialize_slip(slip) -> dict:
 @app.get("/api/v1/bet-slips")
 def list_bet_slips(request: Request):
     return [
-        serialize_slip(item)
+        serialize_slip(item, request.state.session)
         for item in BetSlipService(request.state.session).list_all()
     ]
 
@@ -179,7 +228,10 @@ def list_bet_slips(request: Request):
 @app.post("/api/v1/bet-slips", status_code=201)
 async def create_bet_slip(request: Request):
     payload = await request.json()
-    return serialize_slip(BetSlipService(request.state.session).create(payload))
+    return serialize_slip(
+        BetSlipService(request.state.session).create(payload),
+        request.state.session,
+    )
 
 
 @app.post("/api/v1/bet-slips/analyze")

@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect } from 'react'
-import { initialBankroll, type Match, type BetSelection, type PlacedBet, type OddsMarket, type OddsOption } from './data'
+import { type Match, type BetSelection, type PlacedBet, type OddsMarket, type OddsOption } from './data'
 import {
-  analyzeBetSlip, createBankroll, loadBankrolls, loadMatch, loadMatches,
-  loadMaturity, placeBet,
+  analyzeBetSlip, createBankroll, depositBankroll, loadBankrolls, loadMatch,
+  loadBetSlips, loadMatches, loadMaturity, placeBet, withdrawBankroll,
 } from './api'
 import {
   Home, TrendingUp, Star, Wallet, ChevronRight, ChevronLeft,
@@ -21,7 +21,7 @@ export default function App() {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
   const [betSlip, setBetSlip] = useState<BetSelection[]>([])
   const [betSlipOpen, setBetSlipOpen] = useState(false)
-  const [placedBets, setPlacedBets] = useState<PlacedBet[]>(initialBankroll)
+  const [placedBets, setPlacedBets] = useState<PlacedBet[]>([])
   const [favorites, setFavorites] = useState<string[]>(['m1', 'm3'])
   const [bankrollAmount, setBankrollAmount] = useState(0)
   const [bankrollId, setBankrollId] = useState<number | null>(null)
@@ -37,6 +37,7 @@ export default function App() {
         setBankrollAmount(active.balance)
       }
     }).catch(error => setLoadError(error.message))
+    loadBetSlips().then(setPlacedBets).catch(error => setLoadError(error.message))
     loadMaturity().then(setMaturity).catch(error => setLoadError(error.message))
     const timer = window.setInterval(
       () => loadMatches().then(setMatches).catch(() => undefined),
@@ -90,13 +91,17 @@ export default function App() {
         )}
         {view === 'bankroll' && (
           <BankrollView bets={placedBets} setBets={setPlacedBets} bankroll={bankrollAmount}
-            setBankroll={setBankrollAmount} bankrollId={bankrollId}
+            bankrollId={bankrollId}
             onBankrollCreated={(item) => {
               setBankrollId(item.id)
               setBankrollAmount(item.balance)
               setLoadError('')
             }}
             onError={setLoadError}
+            onBalanceChanged={(balance) => {
+              setBankrollAmount(balance)
+              setLoadError('')
+            }}
             wonTotal={wonTotal} lostTotal={lostTotal} pending={pendingCount} />
         )}
         {view === 'favorites' && (
@@ -972,18 +977,34 @@ function BetSlipDrawer({ selections, onRemove, onClose, totalOdds, onPlace }: {
   )
 }
 
-function BankrollView({ bets, setBets, bankroll, setBankroll, bankrollId, onBankrollCreated, onError, wonTotal, lostTotal, pending }: {
-  bets: PlacedBet[]; setBets: (b: PlacedBet[]) => void; bankroll: number; setBankroll: (v: number) => void
+function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCreated, onError, onBalanceChanged, pending }: {
+  bets: PlacedBet[]; setBets: (b: PlacedBet[]) => void; bankroll: number
   bankrollId: number | null; onBankrollCreated: (item: any) => void; onError: (message: string) => void
+  onBalanceChanged: (balance: number) => void
   wonTotal: number; lostTotal: number; pending: number
 }) {
-  const [editing, setEditing] = useState(false)
-  const [editVal, setEditVal] = useState(String(bankroll))
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('Banca Principal')
   const [initialBalance, setInitialBalance] = useState('1000')
   const [unitPercentage, setUnitPercentage] = useState('1')
-  const netPL = wonTotal - lostTotal
+  const [movement, setMovement] = useState<'deposit' | 'withdraw' | null>(null)
+  const [movementAmount, setMovementAmount] = useState('')
+  const [period, setPeriod] = useState<'week' | 'month' | 'year' | 'all'>('month')
+  const periodStart = (() => {
+    const date = new Date()
+    if (period === 'week') date.setDate(date.getDate() - 7)
+    if (period === 'month') date.setMonth(date.getMonth() - 1)
+    if (period === 'year') date.setFullYear(date.getFullYear() - 1)
+    return period === 'all' ? null : date
+  })()
+  const periodBets = bets.filter(item => {
+    if (!periodStart) return true
+    const [day, month, year] = item.date.split('/').map(Number)
+    return new Date(year, month - 1, day) >= periodStart
+  })
+  const periodWon = periodBets.filter(b => b.status === 'won').reduce((a, b) => a + b.potentialReturn - b.stake, 0)
+  const periodLost = periodBets.filter(b => b.status === 'lost').reduce((a, b) => a + b.stake, 0)
+  const netPL = periodWon - periodLost
 
   const settle = (id: string, result: 'won' | 'lost') => {
     setBets(bets.map(b => b.id !== id ? b : { ...b, status: result, selections: b.selections.map(s => ({ ...s, status: result })) }))
@@ -1001,6 +1022,49 @@ function BankrollView({ bets, setBets, bankroll, setBankroll, bankrollId, onBank
       <div style={{ padding: '24px 0 16px' }}>
         <h1 style={{ fontFamily: "'Russo One', sans-serif", fontSize: '24px', color: '#eef0f9', letterSpacing: '0.05em', margin: 0 }}>GESTÃO DE BANCA</h1>
         <p style={{ fontSize: '13px', color: '#5a6480', marginTop: '4px' }}>Acompanhe suas apostas e performance</p>
+      </div>
+
+      {bankrollId && (
+        <Card style={{ padding: '14px', marginBottom: '16px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button onClick={() => setMovement('deposit')} style={{ padding: '10px 16px', borderRadius: 8, background: '#00e887', color: '#07080f', border: 0, fontWeight: 700, cursor: 'pointer' }}>
+            + Depósito
+          </button>
+          <button onClick={() => setMovement('withdraw')} style={{ padding: '10px 16px', borderRadius: 8, background: '#1e2438', color: '#eef0f9', border: '1px solid #2a3150', fontWeight: 700, cursor: 'pointer' }}>
+            − Saque
+          </button>
+          {movement && <>
+            <input autoFocus type="number" min="0.01" step="0.01" placeholder="Valor em R$" value={movementAmount} onChange={event => setMovementAmount(event.target.value)}
+              style={{ width: 150, background: '#161b26', border: '1px solid #2a3150', borderRadius: 7, padding: 10, color: '#eef0f9' }} />
+            <button onClick={async () => {
+              const amount = Number(movementAmount)
+              if (!amount || amount <= 0) return onError('Informe um valor maior que zero.')
+              try {
+                const transaction = movement === 'deposit'
+                  ? await depositBankroll(bankrollId, amount)
+                  : await withdrawBankroll(bankrollId, amount)
+                onBalanceChanged(transaction.balance_after)
+                setMovement(null)
+                setMovementAmount('')
+              } catch (error: any) {
+                onError(error.message)
+              }
+            }} style={{ padding: '10px 14px', borderRadius: 7, background: '#4f8ef7', color: '#fff', border: 0, fontWeight: 700, cursor: 'pointer' }}>
+              Confirmar {movement === 'deposit' ? 'depósito' : 'saque'}
+            </button>
+            <button onClick={() => { setMovement(null); setMovementAmount('') }} style={{ background: 'none', border: 0, color: '#7a88b0', cursor: 'pointer' }}>Cancelar</button>
+          </>}
+        </Card>
+      )}
+
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        {([
+          ['week', 'Semanal'], ['month', 'Mensal'], ['year', 'Anual'], ['all', 'Todo período'],
+        ] as const).map(([value, label]) => (
+          <button key={value} onClick={() => setPeriod(value)}
+            style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #1e2438', background: period === value ? '#1e2438' : 'transparent', color: period === value ? '#00e887' : '#7a88b0', cursor: 'pointer', fontSize: 12 }}>
+            {label}
+          </button>
+        ))}
       </div>
 
       {!bankrollId && (
@@ -1051,28 +1115,14 @@ function BankrollView({ bets, setBets, bankroll, setBankroll, bankrollId, onBank
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px', marginBottom: '20px' }}>
         {[
-          { label: 'Banca Total', value: `R$ ${bankroll.toFixed(2)}`, color: '#eef0f9', editable: true },
+          { label: 'Banca Total', value: `R$ ${bankroll.toFixed(2)}`, color: '#eef0f9' },
           { label: 'Lucro / Prejuízo', value: `${netPL >= 0 ? '+' : ''}R$ ${netPL.toFixed(2)}`, color: netPL >= 0 ? '#00c853' : '#ff1744' },
-          { label: 'Ganhos', value: `R$ ${wonTotal.toFixed(2)}`, color: '#00c853' },
-          { label: 'Perdas', value: `R$ ${lostTotal.toFixed(2)}`, color: '#ff1744' },
+          { label: 'Ganhos', value: `R$ ${periodWon.toFixed(2)}`, color: '#00c853' },
+          { label: 'Perdas', value: `R$ ${periodLost.toFixed(2)}`, color: '#ff1744' },
         ].map((c, i) => (
           <Card key={i} style={{ padding: '16px' }}>
             <div style={{ fontSize: '11px', color: '#5a6480', marginBottom: '8px' }}>{c.label}</div>
-            {c.editable && editing ? (
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <input type="number" value={editVal} onChange={e => setEditVal(e.target.value)}
-                  style={{ flex: 1, background: '#161b26', border: '1px solid #1e2438', borderRadius: '6px', padding: '6px 8px', fontSize: '13px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: '#eef0f9', outline: 'none' }} />
-                <button onClick={() => { setBankroll(parseFloat(editVal) || bankroll); setEditing(false) }}
-                  style={{ padding: '6px 8px', borderRadius: '6px', background: '#00e887', color: '#07080f', border: 'none', cursor: 'pointer' }}>
-                  <CheckCircle2 size={14} />
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '18px', color: c.color }}>{c.value}</span>
-                {c.editable && <button onClick={() => setEditing(true)} style={{ fontSize: '11px', color: '#5a6480', background: 'none', border: 'none', cursor: 'pointer' }}>editar</button>}
-              </div>
-            )}
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '18px', color: c.color }}>{c.value}</span>
           </Card>
         ))}
       </div>

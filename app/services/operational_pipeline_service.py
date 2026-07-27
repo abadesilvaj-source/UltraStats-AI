@@ -502,6 +502,11 @@ class OperationalPipelineService:
             Decimal("0.2"),
             Decimal("1.10") + Decimal(str(away.attack_rating - home.defense_rating)) / 50,
         )
+        # A força global diferencia equipes mesmo quando ataque/defesa ainda
+        # têm poucas amostras. O ajuste é simétrico e preserva o mando.
+        power_gap = Decimal(str(home.power_rating - away.power_rating))
+        home_xg = max(Decimal("0.2"), home_xg + power_gap / Decimal("80"))
+        away_xg = max(Decimal("0.2"), away_xg - power_gap / Decimal("80"))
         lineup = self._lineup_context(match)
         home_xg = max(
             Decimal("0.2"),
@@ -576,6 +581,23 @@ class OperationalPipelineService:
             {"home": "Home", "draw": "Draw", "away": "Away"}[key]: value
             for key, value in forecasts["match_winner"].items()
         }
+        market_consensus = self._winner_market_consensus(match, markets)
+        if market_consensus:
+            # Odds de múltiplas casas são uma fonte independente da força
+            # relativa. O blend impede que ratings neutros gerem a mesma
+            # recomendação para todos os confrontos.
+            blended = {
+                selection: (
+                    Decimal("0.35") * forecasts["match_winner"][selection]
+                    + Decimal("0.65") * market_consensus[selection]
+                )
+                for selection in ("Home", "Draw", "Away")
+            }
+            total = sum(blended.values())
+            forecasts["match_winner"] = {
+                selection: value / total
+                for selection, value in blended.items()
+            }
         created = 0
         for code, selections in forecasts.items():
             market = markets[code]
@@ -662,6 +684,40 @@ class OperationalPipelineService:
                     self.session.add(prediction)
                     created += 1
         return created
+
+    def _winner_market_consensus(
+        self,
+        match: Match,
+        markets: dict[str, Market],
+    ) -> dict[str, Decimal] | None:
+        rows = self.session.scalars(
+            select(Odd).where(
+                Odd.match_id == match.id,
+                Odd.market_id == markets["match_winner"].id,
+                Odd.selection.in_(("Home", "Draw", "Away")),
+            )
+        ).all()
+        prices: dict[str, list[Decimal]] = {
+            "Home": [], "Draw": [], "Away": []
+        }
+        for row in rows:
+            value = Decimal(str(row.odd_value))
+            if value > 1:
+                prices[row.selection].append(value)
+        if not all(prices.values()):
+            return None
+        implied = {
+            selection: sum(
+                (Decimal("1") / value for value in values),
+                Decimal("0"),
+            ) / len(values)
+            for selection, values in prices.items()
+        }
+        total = sum(implied.values())
+        return {
+            selection: value / total
+            for selection, value in implied.items()
+        }
 
     def _calibrate_probability(self, probability: float) -> float:
         if self._calibration_history is None:

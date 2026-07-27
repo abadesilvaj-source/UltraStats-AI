@@ -1,4 +1,4 @@
-import type { Match, MatchAnalysis, MatchStats, Lineup, OddsMarket } from './data'
+import type { Match, MatchAnalysis, MatchStats, Lineup, OddsMarket, PlacedBet } from './data'
 
 const API = import.meta.env.VITE_API_URL || '/api/v1'
 
@@ -139,6 +139,36 @@ export async function placeBet(payload: unknown) {
   return request('/bet-slips', { method: 'POST', body: JSON.stringify(payload) })
 }
 
+export async function loadBetSlips(): Promise<PlacedBet[]> {
+  const rows = await request<any[]>('/bet-slips')
+  return rows.map(item => {
+    const results = item.legs.map((leg: any) => leg.result || leg.status)
+    const status: PlacedBet['status'] = item.status === 'pending'
+      ? 'pending'
+      : results.every((value: string) => value === 'won') ? 'won'
+      : results.some((value: string) => value === 'lost') ? 'lost'
+      : 'partial'
+    return {
+      id: String(item.id),
+      selections: item.legs.map((leg: any) => ({
+        id: String(leg.id),
+        matchId: String(leg.match_id),
+        matchName: leg.match,
+        market: leg.market,
+        marketId: leg.market_id,
+        option: leg.selection,
+        odds: leg.odd,
+        status: leg.result || leg.status,
+      })),
+      stake: item.stake_amount,
+      potentialReturn: item.payout_amount ?? item.potential_return,
+      totalOdds: item.total_odds,
+      date: new Date(item.placed_at).toLocaleDateString('pt-BR'),
+      status,
+    }
+  })
+}
+
 export async function analyzeBetSlip(payload: unknown): Promise<any> {
   return request('/bet-slips/analyze', {
     method: 'POST',
@@ -159,6 +189,20 @@ export async function createBankroll(payload: {
   return request('/bankrolls', {
     method: 'POST',
     body: JSON.stringify(payload),
+  })
+}
+
+export async function depositBankroll(bankrollId: number, amount: number) {
+  return request(`/bankrolls/${bankrollId}/deposit`, {
+    method: 'POST',
+    body: JSON.stringify({ amount, description: 'Depósito pelo aplicativo' }),
+  })
+}
+
+export async function withdrawBankroll(bankrollId: number, amount: number) {
+  return request(`/bankrolls/${bankrollId}/withdraw`, {
+    method: 'POST',
+    body: JSON.stringify({ amount, description: 'Saque pelo aplicativo' }),
   })
 }
 

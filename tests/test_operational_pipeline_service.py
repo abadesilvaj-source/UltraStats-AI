@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from copy import deepcopy
 
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
@@ -205,6 +206,48 @@ def test_pipeline_associates_external_odds_by_teams_and_kickoff():
         ("Over 2.5", 1.9),
         ("Under 2.5", 1.95),
     }
+
+
+def test_winner_prediction_uses_match_specific_odds_consensus():
+    db = session()
+    service = OperationalPipelineService(db)
+    first_fixture = fixture("100")
+    second_fixture = fixture("101")
+    second_fixture.values["fixture"]["date"] = "2026-07-24T22:00:00+00:00"
+    first_odds = odds()
+    second_values = deepcopy(odds().values)
+    second_values["fixture"]["id"] = 101
+    winner = second_values["bookmakers"][0]["bets"][0]["values"]
+    winner[0]["odd"] = "4.50"
+    winner[2]["odd"] = "1.65"
+    second_odds = SourceObservation(
+        "api_football",
+        DataCapability.ODDS,
+        "101",
+        second_values,
+        NOW,
+    )
+
+    service.process(
+        fixtures=(first_fixture, second_fixture),
+        odds=(first_odds, second_odds),
+    )
+    db.commit()
+    market_id = db.scalar(
+        select(Market.id).where(Market.code == "match_winner")
+    )
+    first_home = db.scalar(select(Prediction.probability).where(
+        Prediction.match_id == 1,
+        Prediction.market_id == market_id,
+        Prediction.selection == "Home",
+    ))
+    second_away = db.scalar(select(Prediction.probability).where(
+        Prediction.match_id == 2,
+        Prediction.market_id == market_id,
+        Prediction.selection == "Away",
+    ))
+
+    assert second_away > first_home
 
 
 def test_pipeline_persists_final_statistics_automatically():
