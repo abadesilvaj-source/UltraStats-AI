@@ -23,6 +23,21 @@ class BetSlipService:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    @staticmethod
+    def _leg_odd(item: dict, collected_odd: Odd | None) -> Decimal:
+        submitted = item.get("odd_value")
+        if submitted in (None, ""):
+            if collected_odd is None:
+                raise ValueError("Odd atual não encontrada.")
+            return Decimal(str(collected_odd.odd_value))
+        try:
+            value = Decimal(str(submitted))
+        except Exception as exc:
+            raise ValueError("A odd manual deve ser numérica.") from exc
+        if not value.is_finite() or value <= 1 or value > 1000:
+            raise ValueError("A odd manual deve ser maior que 1 e até 1000.")
+        return value.quantize(Decimal(".0001"))
+
     def analyze(self, payload: dict) -> dict[str, object]:
         items = payload.get("legs") or []
         if not 1 <= len(items) <= 20:
@@ -44,8 +59,7 @@ class BetSlipService:
                 )
                 .order_by(Odd.collected_at.desc())
             )
-            if odd is None:
-                raise ValueError("Odd atual não encontrada.")
+            leg_odd = self._leg_odd(item, odd)
             prediction = self.session.scalar(
                 select(Prediction)
                 .where(
@@ -55,10 +69,10 @@ class BetSlipService:
                 )
                 .order_by(Prediction.created_at.desc())
             )
-            combined_odds *= Decimal(str(odd.odd_value))
+            combined_odds *= leg_odd
             if prediction is None:
                 missing_predictions += 1
-                joint_probability *= 1 / float(odd.odd_value)
+                joint_probability *= 1 / float(leg_odd)
             else:
                 joint_probability *= prediction.probability
             matches[match_id] = matches.get(match_id, 0) + 1
@@ -149,8 +163,7 @@ class BetSlipService:
                 )
                 .order_by(Odd.collected_at.desc())
             )
-            if odd is None:
-                raise ValueError("Odd atual não encontrada.")
+            leg_odd = self._leg_odd(item, odd)
             prediction = self.session.scalar(
                 select(Prediction)
                 .where(
@@ -160,8 +173,10 @@ class BetSlipService:
                 )
                 .order_by(Prediction.created_at.desc())
             )
-            combined *= Decimal(str(odd.odd_value))
-            resolved.append((match, market, prediction, odd, selection))
+            combined *= leg_odd
+            resolved.append(
+                (match, market, prediction, leg_odd, selection)
+            )
 
         slip = BetSlip(
             bankroll_id=bankroll.id,
@@ -174,7 +189,7 @@ class BetSlipService:
         )
         self.session.add(slip)
         self.session.flush()
-        for match, market, prediction, odd, selection in resolved:
+        for match, market, prediction, leg_odd, selection in resolved:
             self.session.add(
                 BetLeg(
                     slip_id=slip.id,
@@ -182,7 +197,7 @@ class BetSlipService:
                     market_id=market.id,
                     prediction_id=prediction.id if prediction else None,
                     selection=selection,
-                    odd_value=odd.odd_value,
+                    odd_value=leg_odd,
                     status="pending",
                 )
             )

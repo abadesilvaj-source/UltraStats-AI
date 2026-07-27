@@ -114,6 +114,7 @@ export interface BetSelection {
   marketId?: number
   option: string
   odds: number
+  sourceOdds?: number
   status?: 'pending' | 'won' | 'lost' | 'cashout'
 }
 

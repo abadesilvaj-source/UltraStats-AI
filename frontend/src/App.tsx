@@ -60,12 +60,20 @@ export default function App() {
         ? selectedMatch
         : matches.find(item => item.id === matchId)
       const marketId = Number(source?.markets.find(item => item.name === market)?.id)
-      return [...prev, { id, matchId, matchName, market, marketId, option, odds }]
+      return [...prev, {
+        id, matchId, matchName, market, marketId, option,
+        odds, sourceOdds: odds,
+      }]
     })
     setBetSlipOpen(true)
   }, [matches, selectedMatch])
 
   const removeBet = useCallback((id: string) => setBetSlip(prev => prev.filter(b => b.id !== id)), [])
+  const updateBetOdds = useCallback((id: string, odds: number) => {
+    setBetSlip(prev => prev.map(item => (
+      item.id === id ? { ...item, odds } : item
+    )))
+  }, [])
   const toggleFavorite = useCallback((id: string) => setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]), [])
 
   const totalOdds = betSlip.reduce((acc, b) => acc * b.odds, 1)
@@ -111,7 +119,8 @@ export default function App() {
       </main>
 
       {betSlipOpen && (
-        <BetSlipDrawer selections={betSlip} onRemove={removeBet} onClose={() => setBetSlipOpen(false)}
+        <BetSlipDrawer selections={betSlip} onRemove={removeBet}
+          onOddsChange={updateBetOdds} onClose={() => setBetSlipOpen(false)}
           totalOdds={totalOdds}
           onPlace={async (stake) => {
             if (!bankrollId) {
@@ -128,12 +137,13 @@ export default function App() {
             try {
               const payload = {
                 bankroll_id: bankrollId,
-                bookmaker: 'API-Football',
+                bookmaker: 'Odd informada pelo usuário',
                 stake_amount: stake,
                 legs: betSlip.map(item => ({
                   match_id: Number(item.matchId),
                   market_id: item.marketId,
                   selection: item.option,
+                  odd_value: item.odds,
                 })),
               }
               const assessment = await analyzeBetSlip(payload)
@@ -865,10 +875,36 @@ function H2HTab({ match }: { match: Match }) {
   )
 }
 
-function BetSlipDrawer({ selections, onRemove, onClose, totalOdds, onPlace }: {
-  selections: BetSelection[]; onRemove: (id: string) => void; onClose: () => void; totalOdds: number; onPlace: (stake: number) => void
+function BetSlipDrawer({ selections, onRemove, onOddsChange, onClose, totalOdds, onPlace }: {
+  selections: BetSelection[]; onRemove: (id: string) => void
+  onOddsChange: (id: string, odds: number) => void
+  onClose: () => void; totalOdds: number; onPlace: (stake: number) => void
 }) {
   const [stake, setStake] = useState('50')
+  const [oddDrafts, setOddDrafts] = useState<Record<string, string>>({})
+  useEffect(() => {
+    setOddDrafts(current => Object.fromEntries(
+      selections.map(item => [
+        item.id,
+        current[item.id] ?? item.odds.toFixed(2),
+      ])
+    ))
+  }, [selections])
+  const commitOdd = (selection: BetSelection) => {
+    const parsed = Number(oddDrafts[selection.id])
+    if (Number.isFinite(parsed) && parsed > 1 && parsed <= 1000) {
+      onOddsChange(selection.id, parsed)
+      setOddDrafts(current => ({
+        ...current,
+        [selection.id]: parsed.toFixed(2),
+      }))
+      return
+    }
+    setOddDrafts(current => ({
+      ...current,
+      [selection.id]: selection.odds.toFixed(2),
+    }))
+  }
   const stakeNum = parseFloat(stake) || 0
   const potential = (stakeNum * totalOdds).toFixed(2)
   const profit = (parseFloat(potential) - stakeNum).toFixed(2)
@@ -906,7 +942,25 @@ function BetSlipDrawer({ selections, onRemove, onClose, totalOdds, onPlace }: {
                   <div style={{ fontWeight: 600, fontSize: '14px', color: '#eef0f9', marginTop: '2px' }}>{sel.option}</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '20px', color: '#00e887' }}>{sel.odds.toFixed(2)}</span>
+                  <label style={{ fontSize: '10px', color: '#5a6480' }}>Odd do bilhete</label>
+                  <input
+                    aria-label={`Odd manual para ${sel.option}`}
+                    type="number" min="1.01" max="1000" step="0.01"
+                    value={oddDrafts[sel.id] ?? sel.odds.toFixed(2)}
+                    onChange={event => setOddDrafts(current => ({
+                      ...current,
+                      [sel.id]: event.target.value,
+                    }))}
+                    onBlur={() => commitOdd(sel)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter') event.currentTarget.blur()
+                    }}
+                    style={{ width: '82px', background: '#0f1119', border: '1px solid #2a3150', borderRadius: '6px', padding: '6px 8px', textAlign: 'right', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '16px', color: '#00e887', outline: 'none' }}
+                    onFocus={event => event.currentTarget.select()}
+                  />
+                  <span style={{ fontSize: '10px', color: '#5a6480' }}>
+                    Referência: {(sel.sourceOdds ?? sel.odds).toFixed(2)}
+                  </span>
                   <button onClick={() => onRemove(sel.id)} style={{ background: 'none', border: 'none', color: '#5a6480', cursor: 'pointer' }}>
                     <Trash2 size={14} />
                   </button>
