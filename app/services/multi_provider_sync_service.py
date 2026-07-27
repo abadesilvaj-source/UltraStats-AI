@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 import os
 
@@ -24,6 +25,7 @@ from ultrastats_ai.infrastructure.providers.persistence import (
 )
 from ultrastats_ai.infrastructure.database.models import (
     IdentityDecisionRecord,
+    LiveEventRecord,
     RawProviderPayloadRecord,
 )
 from app.services.operational_pipeline_service import OperationalPipelineService
@@ -32,7 +34,17 @@ from app.services.historical_enrichment_service import HistoricalEnrichmentServi
 from app.services.operational_intelligence_service import (
     OperationalIntelligenceService,
 )
-from ultrastats_ai.domain.live import LiveEngine, LiveEvent, LiveEventType
+from app.services.maturity_service import MaturityService
+from app.services.post_match_service import PostMatchService
+from ultrastats_ai.domain.live import (
+    LiveEngine,
+    LiveEvent,
+    LiveEventType,
+    LiveHealth,
+    LiveMatchState,
+    LivePhase,
+    LiveRecommendation,
+)
 from ultrastats_ai.infrastructure.live import LiveStore
 
 
@@ -224,6 +236,9 @@ class MultiProviderSyncService:
                     self.session
                 ).run()
             )
+            operational["maturity"] = MaturityService(
+                self.session
+            ).run()
             operational["stale_matches_reconciled"] = (
                 self._reconcile_stale_matches()
             )
@@ -432,6 +447,88 @@ class MultiProviderSyncService:
             )
             stored += result["statistics"]
             settled += result["settled_bets"]
+        complementary = self._collect_sportmonks_statistics(
+            engine, matches
+        )
+        stored += complementary[0]
+        settled += complementary[1]
+        return stored, settled
+
+    def _collect_sportmonks_statistics(
+        self,
+        engine: MultiSourceEngine,
+        matches: list[Match],
+    ) -> tuple[int, int]:
+        source = next(
+            (
+                item for item in engine.sources
+                if item.name == "sportmonks"
+                and DataCapability.STATISTICS
+                in getattr(item, "capabilities", ())
+            ),
+            None,
+        )
+        if source is None:
+            return 0, 0
+        by_provider_id = {
+            provider_id: match
+            for match in matches
+            if (
+                provider_id := self._provider_match_id(
+                    match, "sportmonks"
+                )
+            )
+        }
+        if not by_provider_id:
+            return 0, 0
+        dates = sorted(
+            {
+                match.kickoff_at.date().isoformat()
+                for match in by_provider_id.values()
+            },
+            reverse=True,
+        )[:2]
+        observations: list[SourceObservation] = []
+        for date in dates:
+            try:
+                observations.extend(
+                    source.collect(
+                        DataCapability.STATISTICS,
+                        date=date,
+                    )
+                )
+            except Exception:
+                continue
+        stored = settled = 0
+        for observation in observations:
+            match = by_provider_id.get(observation.external_id)
+            if match is None or self.session.scalar(
+                select(exists().where(
+                    MatchStatistics.match_id == match.id
+                ))
+            ):
+                continue
+            self.raw_store.save(
+                RawProviderPayload(
+                    provider=observation.provider,
+                    resource=observation.capability.value,
+                    external_id=observation.external_id,
+                    payload=observation.values,
+                    collected_at=observation.observed_at,
+                )
+            )
+            parsed = _sportmonks_match_statistics(
+                observation.values, match
+            )
+            if parsed is None or not match.external_id:
+                continue
+            result = PostMatchService(self.session).settle_match(
+                match_external_id=str(match.external_id),
+                source="sportmonks",
+                **parsed,
+            )
+            stored += 1
+            settled += len(result["settled_bets"])
         return stored, settled
 
     def _provider_match_id(
@@ -481,7 +578,50 @@ class MultiProviderSyncService:
             }:
                 continue
             match_id = str(fixture.get("id"))
-            state = engine.initial(match_id)
+            latest = store.latest(match_id)
+            state = (
+                LiveMatchState(
+                    match_id=match_id,
+                    phase=LivePhase(latest.phase),
+                    health=LiveHealth(latest.health),
+                    minute=latest.minute,
+                    home_score=latest.home_score,
+                    away_score=latest.away_score,
+                    statistics={
+                        key: Decimal(str(value))
+                        for key, value in latest.statistics.items()
+                    },
+                    odds={
+                        key: Decimal(str(value))
+                        for key, value in latest.odds.items()
+                    },
+                    probabilities={
+                        key: Decimal(str(value))
+                        for key, value in latest.probabilities.items()
+                    },
+                    recommendations=tuple(
+                        LiveRecommendation(
+                            str(item["selection"]),
+                            Decimal(str(item["probability"])),
+                            Decimal(str(item["odds"])),
+                            Decimal(str(item["expected_value"])),
+                        )
+                        for item in latest.recommendations
+                    ),
+                    anomalies=tuple(latest.anomalies),
+                    push_messages=(),
+                    processed_event_ids=tuple(
+                        self.session.scalars(
+                            select(LiveEventRecord.id).where(
+                                LiveEventRecord.match_id == match_id
+                            )
+                        ).all()
+                    ),
+                    last_event_at=latest.captured_at,
+                    revision=latest.revision,
+                )
+                if latest else engine.initial(match_id)
+            )
             minute = int(status.get("elapsed") or 0)
             goals = row.get("goals", {})
             for suffix, kind, payload in (
@@ -496,7 +636,10 @@ class MultiProviderSyncService:
                 ("clock", LiveEventType.CLOCK, {"minute": minute}),
             ):
                 event = LiveEvent(
-                    f"{match_id}:{suffix}:{minute}",
+                    (
+                        f"{match_id}:{suffix}:{minute}:"
+                        f"{goals.get('home')}:{goals.get('away')}"
+                    ),
                     match_id,
                     kind,
                     captured,
@@ -505,8 +648,9 @@ class MultiProviderSyncService:
                 )
                 store.save_event(event)
                 state = engine.ingest(state, event)
-            store.save_snapshot(state, captured)
-            saved += 1
+            if latest is None or state.revision > latest.revision:
+                store.save_snapshot(state, captured)
+                saved += 1
         return saved
 
     def _collect_lineups(
@@ -514,16 +658,18 @@ class MultiProviderSyncService:
         engine: MultiSourceEngine,
         fixtures: tuple[SourceObservation, ...],
     ) -> int:
+        lineup_sources = [
+            source for source in engine.sources
+            if DataCapability.LINEUPS
+            in getattr(source, "capabilities", ())
+        ]
         api_source = next(
             (
-                source for source in engine.sources
+                source for source in lineup_sources
                 if source.name == "api_football"
-                and DataCapability.LINEUPS in getattr(source, "capabilities", ())
             ),
             None,
         )
-        if api_source is None:
-            return 0
         now = datetime.now(timezone.utc)
         candidates: list[tuple[datetime, str]] = []
         for observation in fixtures:
@@ -559,7 +705,9 @@ class MultiProviderSyncService:
                 candidates.append((kickoff, fixture_id))
         saved = 0
         limit = max(0, int(self.environment.get("AUTO_LINEUPS_MAX_PER_SYNC", "3")))
-        for _, fixture_id in sorted(candidates)[:limit]:
+        for _, fixture_id in (
+            sorted(candidates)[:limit] if api_source else []
+        ):
             for observation in api_source.collect(
                 DataCapability.LINEUPS, fixture=fixture_id
             ):
@@ -569,6 +717,32 @@ class MultiProviderSyncService:
                         resource=observation.capability.value,
                         external_id=f"{fixture_id}:{observation.external_id}",
                         payload=observation.values,
+                        collected_at=observation.observed_at,
+                    )
+                ):
+                    saved += 1
+        for source in lineup_sources:
+            if source.name == "api_football":
+                continue
+            try:
+                observations = source.collect(
+                    DataCapability.LINEUPS,
+                    date=now.date().isoformat(),
+                )
+            except Exception:
+                continue
+            for observation in observations:
+                payload = observation.values
+                if not isinstance(payload, dict) or not payload.get(
+                    "lineups"
+                ):
+                    continue
+                if self.raw_store.save(
+                    RawProviderPayload(
+                        provider=observation.provider,
+                        resource=observation.capability.value,
+                        external_id=observation.external_id,
+                        payload=payload,
                         collected_at=observation.observed_at,
                     )
                 ):
@@ -600,3 +774,145 @@ class MultiProviderSyncService:
                 "mmz4281/2526/E0.csv",
             ),
         }
+
+
+def _sportmonks_match_statistics(
+    row: Mapping[str, object],
+    match: Match,
+) -> dict[str, object] | None:
+    participants = row.get("participants")
+    statistics = row.get("statistics")
+    if not isinstance(participants, list) or not isinstance(
+        statistics, list
+    ):
+        return None
+    locations = {
+        str(item.get("id")): str(
+            (item.get("meta") or {}).get("location") or ""
+        ).casefold()
+        for item in participants
+        if isinstance(item, dict) and item.get("id") is not None
+    }
+    values: dict[str, dict[str, object]] = {
+        "home": {},
+        "away": {},
+    }
+    for item in statistics:
+        if not isinstance(item, dict):
+            continue
+        location = locations.get(str(item.get("participant_id")))
+        if location not in values:
+            continue
+        stat_type = item.get("type") or {}
+        if not isinstance(stat_type, dict):
+            continue
+        name = str(
+            stat_type.get("developer_name")
+            or stat_type.get("name")
+            or ""
+        ).casefold().replace(" ", "_")
+        data = item.get("data")
+        value = (
+            data.get("value")
+            if isinstance(data, dict)
+            else item.get("value")
+        )
+        if name and value is not None:
+            values[location][name] = value
+    if not values["home"] and not values["away"]:
+        return None
+    scores = _sportmonks_scores(row)
+    home_score = (
+        int(match.home_score)
+        if match.home_score is not None
+        else scores.get("home")
+    )
+    away_score = (
+        int(match.away_score)
+        if match.away_score is not None
+        else scores.get("away")
+    )
+    if home_score is None or away_score is None:
+        return None
+
+    def stat(
+        location: str,
+        *names: str,
+        percentage: bool = False,
+    ) -> int | float | None:
+        for name in names:
+            value = values[location].get(name)
+            if value is None:
+                continue
+            try:
+                number = float(str(value).rstrip("%"))
+                return number if percentage else int(number)
+            except (TypeError, ValueError):
+                continue
+        return None
+
+    return {
+        "home_score": home_score,
+        "away_score": away_score,
+        "corners_home": stat("home", "corners", "corner_kicks"),
+        "corners_away": stat("away", "corners", "corner_kicks"),
+        "yellow_cards_home": stat("home", "yellowcards", "yellow_cards"),
+        "yellow_cards_away": stat("away", "yellowcards", "yellow_cards"),
+        "red_cards_home": stat("home", "redcards", "red_cards"),
+        "red_cards_away": stat("away", "redcards", "red_cards"),
+        "shots_home": stat("home", "shots_total", "total_shots"),
+        "shots_away": stat("away", "shots_total", "total_shots"),
+        "shots_on_target_home": stat(
+            "home", "shots_on_target", "shots_ongoal"
+        ),
+        "shots_on_target_away": stat(
+            "away", "shots_on_target", "shots_ongoal"
+        ),
+        "offsides_home": stat("home", "offsides"),
+        "offsides_away": stat("away", "offsides"),
+        "possession_home": stat(
+            "home", "ball_possession", "possessiontime",
+            percentage=True,
+        ),
+        "possession_away": stat(
+            "away", "ball_possession", "possessiontime",
+            percentage=True,
+        ),
+        "xg_home": stat(
+            "home", "expected_goals", "xg", percentage=True
+        ),
+        "xg_away": stat(
+            "away", "expected_goals", "xg", percentage=True
+        ),
+    }
+
+
+def _sportmonks_scores(
+    row: Mapping[str, object],
+) -> dict[str, int]:
+    participants = row.get("participants")
+    scores = row.get("scores")
+    if not isinstance(participants, list) or not isinstance(scores, list):
+        return {}
+    locations = {
+        str(item.get("id")): str(
+            (item.get("meta") or {}).get("location") or ""
+        ).casefold()
+        for item in participants
+        if isinstance(item, dict)
+    }
+    result: dict[str, int] = {}
+    for item in scores:
+        if not isinstance(item, dict):
+            continue
+        location = locations.get(str(item.get("participant_id")))
+        score = item.get("score") or {}
+        goals = score.get("goals") if isinstance(score, dict) else None
+        if location in {"home", "away"} and goals is not None:
+            try:
+                result[location] = max(
+                    result.get(location, 0), int(goals)
+                )
+            except (TypeError, ValueError):
+                continue
+    return result

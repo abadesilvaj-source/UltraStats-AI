@@ -1,11 +1,15 @@
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.database.base import Base
 from app.models import SyncRun
-from app.services.multi_provider_sync_service import MultiProviderSyncService
+from app.services.multi_provider_sync_service import (
+    MultiProviderSyncService,
+    _sportmonks_match_statistics,
+)
 from ultrastats_ai.infrastructure.database.models import (
     CanonicalBase,
     ProviderHealthRecord,
@@ -166,3 +170,38 @@ def test_real_sync_records_total_failure():
         raise AssertionError("Falha total deveria bloquear a sincronização.")
     run = session.scalar(select(SyncRun))
     assert run.status == "failed"
+
+
+def test_normalizes_sportmonks_complementary_statistics():
+    row = {
+        "participants": [
+            {"id": 10, "meta": {"location": "home"}},
+            {"id": 20, "meta": {"location": "away"}},
+        ],
+        "statistics": [
+            {
+                "participant_id": 10,
+                "type": {"developer_name": "CORNERS"},
+                "data": {"value": 7},
+            },
+            {
+                "participant_id": 20,
+                "type": {"developer_name": "CORNERS"},
+                "data": {"value": 4},
+            },
+            {
+                "participant_id": 10,
+                "type": {"developer_name": "EXPECTED_GOALS"},
+                "data": {"value": 1.8},
+            },
+        ],
+    }
+
+    result = _sportmonks_match_statistics(
+        row, SimpleNamespace(home_score=2, away_score=1)
+    )
+
+    assert result["home_score"] == 2
+    assert result["corners_home"] == 7
+    assert result["corners_away"] == 4
+    assert result["xg_home"] == 1.8

@@ -454,6 +454,19 @@ class OperationalPipelineService:
             Decimal("0.2"),
             Decimal("1.10") + Decimal(str(away.attack_rating - home.defense_rating)) / 50,
         )
+        lineup = self._lineup_context(match)
+        home_xg = max(
+            Decimal("0.2"),
+            home_xg + Decimal(
+                str((lineup["home_continuity"] - 0.70) * 0.12)
+            ),
+        )
+        away_xg = max(
+            Decimal("0.2"),
+            away_xg + Decimal(
+                str((lineup["away_continuity"] - 0.70) * 0.12)
+            ),
+        )
         model = PoissonScoreModel(
             ModelSpecification(
                 "operational_poisson",
@@ -552,7 +565,12 @@ class OperationalPipelineService:
                     if latest_odd is not None
                     else None
                 )
-                lineup_coverage = self._lineup_coverage(match)
+                lineup_coverage = int(lineup["coverage"])
+                confirmed_lineups = int(lineup["confirmed"])
+                continuity = (
+                    lineup["home_continuity"]
+                    + lineup["away_continuity"]
+                ) / 2
                 prediction = existing or Prediction(
                         match_id=match.id,
                         market_id=market.id,
@@ -562,15 +580,35 @@ class OperationalPipelineService:
                 prediction.probability = calibrated_probability
                 prediction.implied_probability = implied
                 prediction.expected_value = expected
-                prediction.confidence = 0.55 + (0.05 * lineup_coverage)
-                prediction.uqs = 0.5 + (0.05 * lineup_coverage)
-                prediction.use_score = 0.5
-                prediction.confluence = 0.5 + (0.05 * lineup_coverage)
+                prediction.confidence = min(
+                    0.82,
+                    0.50
+                    + (0.06 * lineup_coverage)
+                    + (0.04 * confirmed_lineups)
+                    + (0.05 * continuity),
+                )
+                prediction.uqs = min(
+                    0.80,
+                    0.48 + (0.08 * lineup_coverage)
+                    + (0.04 * confirmed_lineups),
+                )
+                prediction.use_score = min(
+                    0.80, 0.45 + 0.10 * lineup_coverage
+                )
+                prediction.confluence = min(
+                    0.82,
+                    0.48 + (0.07 * lineup_coverage)
+                    + (0.05 * continuity),
+                )
                 prediction.evidence_level = (
-                    "medium" if lineup_coverage == 2 else "low"
+                    "high" if confirmed_lineups == 2
+                    else "medium" if lineup_coverage == 2
+                    else "low"
                 )
                 prediction.risk_level = (
-                    "moderate" if lineup_coverage == 2 else "high"
+                    "low" if confirmed_lineups == 2
+                    else "moderate" if lineup_coverage == 2
+                    else "high"
                 )
                 if existing is None:
                     self.session.add(prediction)
@@ -614,15 +652,18 @@ class OperationalPipelineService:
         ) / (len(nearby) + 20)
 
     def _lineup_coverage(self, match: Match) -> int:
+        return int(self._lineup_context(match)["coverage"])
+
+    def _lineup_context(self, match: Match) -> dict[str, float | int]:
         if not match.external_id:
-            return 0
+            return self._empty_lineup_context()
         connection = self.session.connection()
         if not inspect(connection).has_table(
             RawProviderPayloadRecord.__tablename__
         ):
-            return 0
-        team_ids = self.session.scalars(
-            select(RawProviderPayloadRecord.external_id)
+            return self._empty_lineup_context()
+        rows = self.session.scalars(
+            select(RawProviderPayloadRecord)
             .where(
                 RawProviderPayloadRecord.provider == "api_football",
                 RawProviderPayloadRecord.resource == "lineups",
@@ -630,9 +671,72 @@ class OperationalPipelineService:
                     f"{match.external_id}:%"
                 ),
             )
-            .distinct()
+            .order_by(RawProviderPayloadRecord.collected_at.desc())
         ).all()
-        return min(2, len(team_ids))
+        current: dict[str, tuple[set[str], bool]] = {}
+        for row in rows:
+            team_id = str(row.payload.get("team", {}).get("id") or "")
+            if not team_id or team_id in current:
+                continue
+            starters = {
+                str(item.get("player", {}).get("id"))
+                for item in row.payload.get("startXI", ())
+                if item.get("player", {}).get("id") is not None
+            }
+            current[team_id] = (starters, len(starters) >= 11)
+        continuities: list[float] = []
+        for team_id, (starters, _) in current.items():
+            history = self.session.scalars(
+                select(RawProviderPayloadRecord)
+                .where(
+                    RawProviderPayloadRecord.provider == "api_football",
+                    RawProviderPayloadRecord.resource == "lineups",
+                    RawProviderPayloadRecord.external_id.not_like(
+                        f"{match.external_id}:%"
+                    ),
+                )
+                .order_by(RawProviderPayloadRecord.collected_at.desc())
+                .limit(200)
+            ).all()
+            previous = next(
+                (
+                    item for item in history
+                    if str(
+                        item.payload.get("team", {}).get("id") or ""
+                    ) == team_id
+                ),
+                None,
+            )
+            previous_starters = (
+                {
+                    str(item.get("player", {}).get("id"))
+                    for item in previous.payload.get("startXI", ())
+                    if item.get("player", {}).get("id") is not None
+                }
+                if previous else set()
+            )
+            continuities.append(
+                len(starters.intersection(previous_starters))
+                / max(1, len(starters))
+                if previous_starters else 0.70
+            )
+        while len(continuities) < 2:
+            continuities.append(0.70)
+        return {
+            "coverage": min(2, len(current)),
+            "confirmed": sum(item[1] for item in current.values()),
+            "home_continuity": continuities[0],
+            "away_continuity": continuities[1],
+        }
+
+    @staticmethod
+    def _empty_lineup_context() -> dict[str, float | int]:
+        return {
+            "coverage": 0,
+            "confirmed": 0,
+            "home_continuity": 0.70,
+            "away_continuity": 0.70,
+        }
 
 
 def _optional_int(value: Any) -> int | None:

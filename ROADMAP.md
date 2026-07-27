@@ -44,3 +44,17 @@ Status: G16 concluída integralmente.
 
 Para o uso pessoal atualmente definido, piloto comercial e aprovação jurídica
 ficam fora do escopo. Próximo passo: implantação privada em nuvem.
+
+## G23 — Maturidade operacional e preditiva
+
+- [x] cobertura e qualidade multi-provider mensuráveis;
+- [x] escalações, confirmação e continuidade no modelo;
+- [x] validação temporal, métricas por mercado e drift;
+- [x] catálogo champion/challenger;
+- [x] recomendações por EV conservador e atualidade de odds;
+- [x] análise de risco e correlação de múltiplas;
+- [x] continuidade e deduplicação do motor ao vivo;
+- [x] observabilidade no backend e frontend.
+
+Status: G23 implementada. A qualidade das recomendações continuará crescendo
+com o backfill automático e com a ampliação da amostra auditada.

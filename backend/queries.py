@@ -18,6 +18,7 @@ from app.models import (
 )
 from app.models.sync_run import SyncRun
 from backend.serializers import iso_local
+from app.services.maturity_service import MaturityService
 from ultrastats_ai.infrastructure.database.models import (
     FusionResultRecord,
     IdentityDecisionRecord,
@@ -118,6 +119,10 @@ class ApiQueries:
         )
         base["markets"] = self.match_markets(match_id)
         base["analysis"] = self.predictions(match_id=match_id)
+        base["recommendations"] = [
+            item for item in self.recommendations()
+            if item["match_id"] == match_id
+        ]
         base["lineups"] = self.lineups(base["external_id"])
         fusion = self.session.scalar(
             select(FusionResultRecord)
@@ -325,6 +330,28 @@ class ApiQueries:
                     float(opportunity.score)
                     if opportunity else None
                 ),
+                "probability_interval": (
+                    opportunity.metrics.get("probability_interval")
+                    if opportunity else None
+                ),
+                "conservative_expected_value": (
+                    opportunity.metrics.get(
+                        "conservative_expected_value"
+                    )
+                    if opportunity else None
+                ),
+                "fractional_kelly": (
+                    opportunity.metrics.get("fractional_kelly")
+                    if opportunity else None
+                ),
+                "odds_age_hours": (
+                    opportunity.metrics.get("odds_age_hours")
+                    if opportunity else None
+                ),
+                "market_samples": (
+                    opportunity.metrics.get("market_samples")
+                    if opportunity else None
+                ),
             })
         return result
 
@@ -429,6 +456,9 @@ class ApiQueries:
             "data_fusion": self.fusion_contributions(),
             "intelligence": self.intelligence_status(),
         }
+
+    def maturity_status(self) -> dict:
+        return MaturityService(self.session).report()
 
     def intelligence_status(self) -> dict:
         latest_validation = self.session.scalar(

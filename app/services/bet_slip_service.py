@@ -23,6 +23,77 @@ class BetSlipService:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    def analyze(self, payload: dict) -> dict[str, object]:
+        items = payload.get("legs") or []
+        if not 1 <= len(items) <= 20:
+            raise ValueError("O bilhete deve conter entre 1 e 20 seleções.")
+        combined_odds = Decimal("1")
+        joint_probability = 1.0
+        matches: dict[int, int] = {}
+        missing_predictions = 0
+        for item in items:
+            match_id = int(item["match_id"])
+            market_id = int(item["market_id"])
+            selection = str(item["selection"]).strip()
+            odd = self.session.scalar(
+                select(Odd)
+                .where(
+                    Odd.match_id == match_id,
+                    Odd.market_id == market_id,
+                    Odd.selection == selection,
+                )
+                .order_by(Odd.collected_at.desc())
+            )
+            if odd is None:
+                raise ValueError("Odd atual não encontrada.")
+            prediction = self.session.scalar(
+                select(Prediction)
+                .where(
+                    Prediction.match_id == match_id,
+                    Prediction.market_id == market_id,
+                    Prediction.selection == selection,
+                )
+                .order_by(Prediction.created_at.desc())
+            )
+            combined_odds *= Decimal(str(odd.odd_value))
+            if prediction is None:
+                missing_predictions += 1
+                joint_probability *= 1 / float(odd.odd_value)
+            else:
+                joint_probability *= prediction.probability
+            matches[match_id] = matches.get(match_id, 0) + 1
+        correlated_pairs = sum(
+            max(0, amount - 1) for amount in matches.values()
+        )
+        adjusted_probability = joint_probability * (
+            0.85 ** correlated_pairs
+        )
+        expected_value = (
+            adjusted_probability * float(combined_odds) - 1
+        )
+        warnings = []
+        if correlated_pairs:
+            warnings.append("correlated_legs")
+        if missing_predictions:
+            warnings.append("missing_predictions")
+        if len(items) > 5:
+            warnings.append("high_leg_count")
+        return {
+            "legs": len(items),
+            "combined_odds": float(combined_odds),
+            "joint_probability": joint_probability,
+            "correlation_adjusted_probability":
+                adjusted_probability,
+            "expected_value": expected_value,
+            "correlated_pairs": correlated_pairs,
+            "recommended_max_bankroll_percentage": (
+                0.5 if correlated_pairs or len(items) > 5 else 1.0
+            ),
+            "warnings": warnings,
+            "approved": expected_value >= 0.02
+            and missing_predictions == 0,
+        }
+
     def create(self, payload: dict) -> BetSlip:
         items = payload.get("legs") or []
         if not 1 <= len(items) <= 20:
@@ -38,7 +109,9 @@ class BetSlipService:
             raise ValueError("Banca, stake ou saldo inválido.")
 
         resolved = []
-        seen_matches: set[int] = set()
+        legs_per_match: dict[int, int] = {}
+        seen_selections: set[tuple[int, int, str]] = set()
+        markets_per_match: dict[int, set[int]] = {}
         combined = Decimal("1")
         for item in items:
             match = self.session.get(Match, int(item["match_id"]))
@@ -50,12 +123,23 @@ class BetSlipService:
                 or match.status not in {"scheduled", "not_started", "in_progress"}
             ):
                 raise ValueError("Partida ou mercado indisponível.")
-            if match.id in seen_matches:
-                raise ValueError(
-                    "Seleções da mesma partida estão bloqueadas por correlação."
-                )
-            seen_matches.add(match.id)
             selection = str(item["selection"]).strip()
+            identity = (match.id, market.id, selection.casefold())
+            if identity in seen_selections:
+                raise ValueError(
+                    "A mesma seleção não pode ser repetida no bilhete."
+                )
+            if market.id in markets_per_match.get(match.id, set()):
+                raise ValueError(
+                    "Seleções do mesmo mercado na mesma partida são incompatíveis."
+                )
+            legs_per_match[match.id] = legs_per_match.get(match.id, 0) + 1
+            if legs_per_match[match.id] > 2:
+                raise ValueError(
+                    "No máximo dois mercados correlacionados por partida."
+                )
+            seen_selections.add(identity)
+            markets_per_match.setdefault(match.id, set()).add(market.id)
             odd = self.session.scalar(
                 select(Odd)
                 .where(

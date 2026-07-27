@@ -1,6 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import { initialBankroll, type Match, type BetSelection, type PlacedBet, type OddsMarket, type OddsOption } from './data'
-import { loadBankrolls, loadMatch, loadMatches, placeBet } from './api'
+import {
+  analyzeBetSlip, loadBankrolls, loadMatch, loadMatches,
+  loadMaturity, placeBet,
+} from './api'
 import {
   Home, TrendingUp, Star, Wallet, ChevronRight, ChevronLeft,
   Circle, Zap, Activity, BarChart3, Users, BookOpen,
@@ -8,7 +11,7 @@ import {
   AlertTriangle, Target, X, Menu, Filter, Grid3X3
 } from 'lucide-react'
 
-type View = 'home' | 'match' | 'bankroll' | 'favorites'
+type View = 'home' | 'match' | 'bankroll' | 'favorites' | 'system'
 type MatchTab = 'live' | 'lineup' | 'stats' | 'analysis' | 'markets' | 'h2h'
 
 export default function App() {
@@ -23,6 +26,7 @@ export default function App() {
   const [bankrollAmount, setBankrollAmount] = useState(1000)
   const [bankrollId, setBankrollId] = useState<number | null>(null)
   const [navOpen, setNavOpen] = useState(false)
+  const [maturity, setMaturity] = useState<any>(null)
 
   useEffect(() => {
     loadMatches().then(setMatches).catch(error => setLoadError(error.message))
@@ -33,6 +37,7 @@ export default function App() {
         setBankrollAmount(active.balance)
       }
     }).catch(error => setLoadError(error.message))
+    loadMaturity().then(setMaturity).catch(error => setLoadError(error.message))
     const timer = window.setInterval(
       () => loadMatches().then(setMatches).catch(() => undefined),
       60_000,
@@ -90,6 +95,7 @@ export default function App() {
         {view === 'favorites' && (
           <FavoritesView matches={matches} favorites={favorites} onMatchClick={openMatch} onToggleFavorite={toggleFavorite} />
         )}
+        {view === 'system' && <SystemView maturity={maturity} />}
       </main>
 
       {betSlipOpen && (
@@ -101,7 +107,7 @@ export default function App() {
               return
             }
             try {
-              await placeBet({
+              const payload = {
                 bankroll_id: bankrollId,
                 bookmaker: 'API-Football',
                 stake_amount: stake,
@@ -110,7 +116,15 @@ export default function App() {
                   market_id: item.marketId,
                   selection: item.option,
                 })),
-              })
+              }
+              const assessment = await analyzeBetSlip(payload)
+              if (!assessment.approved) {
+                setLoadError(
+                  `Bilhete bloqueado pelo risco: ${assessment.warnings.join(', ') || 'valor conservador insuficiente'}.`
+                )
+                return
+              }
+              await placeBet(payload)
             } catch (error: any) {
               setLoadError(error.message)
               return
@@ -148,7 +162,12 @@ function Nav({ view, setView, betCount, onBetSlipOpen, navOpen, setNavOpen, clea
   view: View; setView: (v: View) => void; betCount: number
   onBetSlipOpen: () => void; navOpen: boolean; setNavOpen: (v: boolean) => void; clearMatch: () => void
 }) {
-  const navItems = [{ id: 'home' as View, label: 'Hoje', icon: Home }, { id: 'favorites' as View, label: 'Favoritos', icon: Star }, { id: 'bankroll' as View, label: 'Banca', icon: Wallet }]
+  const navItems = [
+    { id: 'home' as View, label: 'Hoje', icon: Home },
+    { id: 'favorites' as View, label: 'Favoritos', icon: Star },
+    { id: 'bankroll' as View, label: 'Banca', icon: Wallet },
+    { id: 'system' as View, label: 'Sistema', icon: Activity },
+  ]
 
   const s: Record<string, React.CSSProperties> = {
     header: { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50, background: '#0f1119', borderBottom: '1px solid #1e2438', height: '56px' },
@@ -1070,6 +1089,69 @@ function FavoritesView({ matches, favorites, onMatchClick, onToggleFavorite }: {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function SystemView({ maturity }: { maturity: any }) {
+  if (!maturity) {
+    return <Card style={{ marginTop: 24, padding: 32, color: '#7a88b0' }}>
+      Carregando diagnóstico operacional...
+    </Card>
+  }
+  const percent = (value: number) => `${(value * 100).toFixed(1)}%`
+  const coverages = [
+    ['Estatísticas', maturity.coverage.statistics],
+    ['Odds', maturity.coverage.odds],
+    ['Previsões', maturity.coverage.predictions],
+    ['Escalações', maturity.coverage.lineups],
+  ]
+  return (
+    <div className="animate-fade-in">
+      <div style={{ padding: '24px 0 16px' }}>
+        <h1 style={{ fontFamily: "'Russo One', sans-serif", fontSize: 24, color: '#eef0f9', margin: 0 }}>
+          SAÚDE DO SISTEMA
+        </h1>
+        <p style={{ fontSize: 13, color: '#5a6480' }}>
+          Cobertura, atualidade e disponibilidade dos motores
+        </p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 10 }}>
+        <Card style={{ padding: 16 }}>
+          <div style={{ color: '#5a6480', fontSize: 11 }}>Qualidade geral</div>
+          <div style={{ color: maturity.quality_score >= .7 ? '#00e887' : '#fbbf24', fontSize: 28, fontWeight: 700 }}>
+            {percent(maturity.quality_score)}
+          </div>
+        </Card>
+        {coverages.map(([label, value]: any) => (
+          <Card key={label} style={{ padding: 16 }}>
+            <div style={{ color: '#5a6480', fontSize: 11 }}>{label}</div>
+            <div style={{ color: value >= .7 ? '#00e887' : '#fbbf24', fontSize: 22, fontWeight: 700 }}>
+              {percent(value)}
+            </div>
+          </Card>
+        ))}
+      </div>
+      <SectionLabel>Provedores</SectionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 8, marginBottom: 24 }}>
+        {Object.entries(maturity.providers).map(([name, item]: [string, any]) => (
+          <Card key={name} style={{ padding: 12, display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: '#eef0f9', fontSize: 12 }}>{name}</span>
+            <span style={{ color: item.available ? '#00e887' : '#ff1744', fontSize: 11 }}>
+              {item.available ? `Ativo · ${item.latency_ms ?? '—'} ms` : 'Indisponível'}
+            </span>
+          </Card>
+        ))}
+      </div>
+      <SectionLabel>Alertas operacionais</SectionLabel>
+      {maturity.alerts.length === 0 ? (
+        <Card style={{ padding: 16, color: '#00e887' }}>Nenhum alerta ativo.</Card>
+      ) : maturity.alerts.map((alert: any) => (
+        <Card key={alert.code} style={{ padding: 14, marginBottom: 8, borderColor: alert.severity === 'critical' ? '#ff1744' : '#fbbf24' }}>
+          <strong style={{ color: '#eef0f9', fontSize: 12 }}>{alert.code}</strong>
+          <div style={{ color: '#7a88b0', fontSize: 12, marginTop: 4 }}>{alert.message}</div>
+        </Card>
+      ))}
     </div>
   )
 }

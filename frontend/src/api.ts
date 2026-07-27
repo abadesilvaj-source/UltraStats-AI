@@ -57,7 +57,7 @@ function adapt(item: any): Match {
   const stats = item.statistics
   const analysis = emptyAnalysis()
   const bestByMarket = new Map<string, any>()
-  for (const row of item.analysis || []) {
+  for (const row of item.recommendations || item.analysis || []) {
     const current = bestByMarket.get(row.market)
     if (!current || row.probability > current.probability) {
       bestByMarket.set(row.market, row)
@@ -70,7 +70,9 @@ function adapt(item: any): Match {
     odds: row.implied_probability
       ? 1 / row.implied_probability
       : 1 / Math.max(row.probability, .01),
-    reasoning: row.expected_value != null
+    reasoning: row.conservative_expected_value != null
+      ? `EV conservador ${(row.conservative_expected_value * 100).toFixed(1)}% · ${row.actionable ? 'acionável' : 'bloqueada'}`
+      : row.expected_value != null
       ? `EV ${(row.expected_value * 100).toFixed(1)}% · evidência ${row.evidence || 'limitada'}`
       : `Probabilidade ${(row.probability * 100).toFixed(1)}% · odd justa do modelo`,
   }))
@@ -137,6 +139,17 @@ export async function placeBet(payload: unknown) {
   return request('/bet-slips', { method: 'POST', body: JSON.stringify(payload) })
 }
 
+export async function analyzeBetSlip(payload: unknown): Promise<any> {
+  return request('/bet-slips/analyze', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function loadBankrolls(): Promise<any[]> {
   return request('/bankrolls')
+}
+
+export async function loadMaturity(): Promise<any> {
+  return request('/maturity/status')
 }

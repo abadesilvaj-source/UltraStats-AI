@@ -69,6 +69,11 @@ def intelligence_status(request: Request):
     return queries(request).intelligence_status()
 
 
+@app.get("/api/v1/maturity/status")
+def maturity_status(request: Request):
+    return queries(request).maturity_status()
+
+
 @app.get("/api/v1/matches")
 def matches(
     request: Request,
@@ -150,6 +155,12 @@ def list_bet_slips(request: Request):
 async def create_bet_slip(request: Request):
     payload = await request.json()
     return serialize_slip(BetSlipService(request.state.session).create(payload))
+
+
+@app.post("/api/v1/bet-slips/analyze")
+async def analyze_bet_slip(request: Request):
+    payload = await request.json()
+    return BetSlipService(request.state.session).analyze(payload)
 
 
 @app.get("/api/v1/favorites")

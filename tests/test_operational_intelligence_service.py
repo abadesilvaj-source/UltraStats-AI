@@ -73,7 +73,7 @@ def test_materializes_model_lifecycle_and_recommendations():
     assert result["model_approved"] is False
     assert session.scalar(
         select(func.count()).select_from(PredictiveModelRecord)
-    ) == 1
+    ) == 2
     assert session.scalar(
         select(func.count()).select_from(TrainingDatasetRecord)
     ) == 1
@@ -86,6 +86,10 @@ def test_materializes_model_lifecycle_and_recommendations():
     opportunity = session.scalar(
         select(RecommendationOpportunityRecord)
     )
-    assert opportunity.safe
-    assert opportunity.blocked_reasons == []
-    assert opportunity.metrics["warnings"] == ["low_evidence"]
+    assert not opportunity.safe
+    assert "model_validation_failed" in opportunity.blocked_reasons
+    assert "insufficient_conservative_edge" in opportunity.blocked_reasons
+    assert opportunity.metrics["warnings"] == [
+        "low_evidence",
+        "limited_market_sample",
+    ]
