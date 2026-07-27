@@ -55,6 +55,11 @@ function lineup(rows: any[], teamName: string): Lineup {
 
 function adapt(item: any): Match {
   const stats = item.statistics
+  const availableStats = stats
+    ? Object.entries(stats)
+        .filter(([, value]) => value !== null && value !== undefined)
+        .map(([key]) => key)
+    : []
   const analysis = emptyAnalysis()
   const bestByMarket = new Map<string, any>()
   for (const row of item.recommendations || item.analysis || []) {
@@ -110,6 +115,8 @@ function adapt(item: any): Match {
     homeLineup: lineup(lineups, item.home_team.name),
     awayLineup: lineup(lineups, item.away_team.name),
     events: [],
+    statsAvailable: availableStats.length > 0,
+    availableStats,
     stats: stats ? {
       ...emptyStats(),
       possession: [stats.possession_home || 0, stats.possession_away || 0],
@@ -136,7 +143,9 @@ function adapt(item: any): Match {
 }
 
 export async function loadMatches(): Promise<Match[]> {
-  const rows = await request<any[]>('/matches?status=scheduled,in_progress&limit=500')
+  const rows = await request<any[]>(
+    '/matches?status=scheduled,in_progress,finished&limit=500'
+  )
   return rows.map(adapt)
 }
 

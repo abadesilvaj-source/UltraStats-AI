@@ -750,7 +750,7 @@ class MultiProviderSyncService:
         return saved
 
     def _reconcile_stale_matches(self) -> int:
-        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=6)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=4)
         stale = self.session.scalars(
             select(Match).where(
                 Match.status == "in_progress",
@@ -758,9 +758,7 @@ class MultiProviderSyncService:
             )
         ).all()
         for match in stale:
-            match.status = "finished" if (
-                match.home_score is not None and match.away_score is not None
-            ) else "cancelled"
+            match.status = "finished"
         return len(stale)
 
     def _fixture_parameters(self) -> dict[str, str]:

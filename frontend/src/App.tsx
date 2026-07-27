@@ -347,7 +347,7 @@ function MatchCard({ match, onClick, isFavorite, onToggleFavorite }: {
 function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }: {
   matches: Match[]; onMatchClick: (m: Match) => void; favorites: string[]; onToggleFavorite: (id: string) => void
 }) {
-  const [scope, setScope] = useState<'live' | 'today' | 'next'>('live')
+  const [scope, setScope] = useState<'live' | 'today' | 'next' | 'finished'>('live')
   const [league, setLeague] = useState('all')
   const live = matches.filter(m => m.status === 'live')
   const todayKey = new Date().toLocaleDateString('en-CA')
@@ -359,7 +359,13 @@ function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }: {
     m.status === 'upcoming' && m.kickoffAt &&
     new Date(m.kickoffAt).toLocaleDateString('en-CA') > todayKey
   )
-  const scoped = scope === 'live' ? live : scope === 'today' ? upcomingToday : next
+  const finished = matches
+    .filter(m => m.status === 'finished')
+    .sort((a, b) => new Date(b.kickoffAt || 0).getTime() - new Date(a.kickoffAt || 0).getTime())
+  const scoped = scope === 'live'
+    ? live : scope === 'today'
+    ? upcomingToday : scope === 'next'
+    ? next : finished
   const leagues = Array.from(new Set(matches.map(m => m.league))).sort()
   const visible = league === 'all' ? scoped : scoped.filter(m => m.league === league)
 
@@ -377,6 +383,7 @@ function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }: {
           { id: 'live', label: `Ao vivo (${live.length})` },
           { id: 'today', label: `Em breve (${upcomingToday.length})` },
           { id: 'next', label: `Próximas partidas (${next.length})` },
+          { id: 'finished', label: `Encerradas (${finished.length})` },
         ].map(item => (
           <button key={item.id} onClick={() => setScope(item.id as typeof scope)}
             style={{ padding: '9px 14px', borderRadius: 8, border: `1px solid ${scope === item.id ? '#00e887' : '#1e2438'}`, background: scope === item.id ? 'rgba(0,232,135,.12)' : '#0f1119', color: scope === item.id ? '#00e887' : '#7a88b0', cursor: 'pointer', fontWeight: 700 }}>
@@ -437,12 +444,14 @@ function MatchView({ match, betSlip, onAddBet, onBack, isFavorite, onToggleFavor
   onAddBet: (matchId: string, matchName: string, market: string, option: string, odds: number) => void
   onBack: () => void; isFavorite: boolean; onToggleFavorite: () => void
 }) {
-  const [tab, setTab] = useState<MatchTab>(match.status === 'live' ? 'live' : 'lineup')
+  const [tab, setTab] = useState<MatchTab>(
+    match.status === 'live' ? 'live' : match.status === 'finished' ? 'stats' : 'lineup'
+  )
   const matchName = `${match.homeTeam.name} vs ${match.awayTeam.name}`
   const addBet = (market: string, option: string, odds: number) => onAddBet(match.id, matchName, market, option, odds)
 
   const tabs: { id: MatchTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'live', label: 'Ao Vivo', icon: <Activity size={13} /> },
+    { id: 'live', label: match.status === 'finished' ? 'Eventos' : 'Ao Vivo', icon: <Activity size={13} /> },
     { id: 'lineup', label: 'Escalação', icon: <Users size={13} /> },
     { id: 'stats', label: 'Estatísticas', icon: <BarChart3 size={13} /> },
     { id: 'markets', label: 'Mercados', icon: <Target size={13} /> },
@@ -577,13 +586,19 @@ function LiveTab({ match }: { match: Match }) {
 
 function StatsBars({ match }: { match: Match }) {
   const rows = [
-    { label: 'Posse de Bola', h: `${match.stats.possession[0]}%`, a: `${match.stats.possession[1]}%`, hv: match.stats.possession[0], av: match.stats.possession[1] },
-    { label: 'Chutes', h: String(match.stats.shots[0]), a: String(match.stats.shots[1]), hv: match.stats.shots[0], av: match.stats.shots[1] },
-    { label: 'No Alvo', h: String(match.stats.shotsOnTarget[0]), a: String(match.stats.shotsOnTarget[1]), hv: match.stats.shotsOnTarget[0], av: match.stats.shotsOnTarget[1] },
-    { label: 'Escanteios', h: String(match.stats.corners[0]), a: String(match.stats.corners[1]), hv: match.stats.corners[0], av: match.stats.corners[1] },
-    { label: 'Faltas', h: String(match.stats.fouls[0]), a: String(match.stats.fouls[1]), hv: match.stats.fouls[1], av: match.stats.fouls[0] },
-    { label: 'xG', h: String(match.stats.xG[0]), a: String(match.stats.xG[1]), hv: match.stats.xG[0], av: match.stats.xG[1] },
-  ]
+    { keys: ['possession_home', 'possession_away'], label: 'Posse de Bola', h: `${match.stats.possession[0]}%`, a: `${match.stats.possession[1]}%`, hv: match.stats.possession[0], av: match.stats.possession[1] },
+    { keys: ['shots_home', 'shots_away'], label: 'Chutes', h: String(match.stats.shots[0]), a: String(match.stats.shots[1]), hv: match.stats.shots[0], av: match.stats.shots[1] },
+    { keys: ['shots_on_target_home', 'shots_on_target_away'], label: 'No Alvo', h: String(match.stats.shotsOnTarget[0]), a: String(match.stats.shotsOnTarget[1]), hv: match.stats.shotsOnTarget[0], av: match.stats.shotsOnTarget[1] },
+    { keys: ['corners_home', 'corners_away'], label: 'Escanteios', h: String(match.stats.corners[0]), a: String(match.stats.corners[1]), hv: match.stats.corners[0], av: match.stats.corners[1] },
+    { keys: ['xg_home', 'xg_away'], label: 'xG', h: String(match.stats.xG[0]), a: String(match.stats.xG[1]), hv: match.stats.xG[0], av: match.stats.xG[1] },
+  ].filter(row => row.keys.some(key => match.availableStats?.includes(key)))
+  if (!match.statsAvailable || rows.length === 0) {
+    return (
+      <Card style={{ padding: 32, textAlign: 'center', color: '#7a88b0' }}>
+        Dados da partida não disponíveis.
+      </Card>
+    )
+  }
   return (
     <Card style={{ overflow: 'hidden' }}>
       {rows.map((row, i) => {
@@ -666,17 +681,27 @@ function LineupTab({ match }: { match: Match }) {
 
 function StatsTab({ match }: { match: Match }) {
   const rows = [
-    { label: 'Posse de Bola', h: `${match.stats.possession[0]}%`, a: `${match.stats.possession[1]}%`, hv: match.stats.possession[0], av: match.stats.possession[1] },
-    { label: 'Chutes Totais', h: String(match.stats.shots[0]), a: String(match.stats.shots[1]), hv: match.stats.shots[0], av: match.stats.shots[1] },
-    { label: 'Chutes no Alvo', h: String(match.stats.shotsOnTarget[0]), a: String(match.stats.shotsOnTarget[1]), hv: match.stats.shotsOnTarget[0], av: match.stats.shotsOnTarget[1] },
-    { label: 'Escanteios', h: String(match.stats.corners[0]), a: String(match.stats.corners[1]), hv: match.stats.corners[0], av: match.stats.corners[1] },
-    { label: 'Faltas Cometidas', h: String(match.stats.fouls[0]), a: String(match.stats.fouls[1]), hv: match.stats.fouls[1], av: match.stats.fouls[0] },
-    { label: 'Cartões Amarelos', h: String(match.stats.yellowCards[0]), a: String(match.stats.yellowCards[1]), hv: match.stats.yellowCards[1], av: match.stats.yellowCards[0] },
-    { label: 'Impedimentos', h: String(match.stats.offsides[0]), a: String(match.stats.offsides[1]), hv: match.stats.offsides[1], av: match.stats.offsides[0] },
-    { label: 'Passes', h: String(match.stats.passes[0]), a: String(match.stats.passes[1]), hv: match.stats.passes[0], av: match.stats.passes[1] },
-    { label: 'Precisão de Passes', h: `${match.stats.passAccuracy[0]}%`, a: `${match.stats.passAccuracy[1]}%`, hv: match.stats.passAccuracy[0], av: match.stats.passAccuracy[1] },
-    { label: 'Expected Goals (xG)', h: String(match.stats.xG[0]), a: String(match.stats.xG[1]), hv: match.stats.xG[0], av: match.stats.xG[1] },
-  ]
+    { keys: ['possession_home', 'possession_away'], label: 'Posse de Bola', h: `${match.stats.possession[0]}%`, a: `${match.stats.possession[1]}%`, hv: match.stats.possession[0], av: match.stats.possession[1] },
+    { keys: ['shots_home', 'shots_away'], label: 'Chutes Totais', h: String(match.stats.shots[0]), a: String(match.stats.shots[1]), hv: match.stats.shots[0], av: match.stats.shots[1] },
+    { keys: ['shots_on_target_home', 'shots_on_target_away'], label: 'Chutes no Alvo', h: String(match.stats.shotsOnTarget[0]), a: String(match.stats.shotsOnTarget[1]), hv: match.stats.shotsOnTarget[0], av: match.stats.shotsOnTarget[1] },
+    { keys: ['corners_home', 'corners_away'], label: 'Escanteios', h: String(match.stats.corners[0]), a: String(match.stats.corners[1]), hv: match.stats.corners[0], av: match.stats.corners[1] },
+    { keys: ['yellow_cards_home', 'yellow_cards_away'], label: 'Cartões Amarelos', h: String(match.stats.yellowCards[0]), a: String(match.stats.yellowCards[1]), hv: match.stats.yellowCards[0], av: match.stats.yellowCards[1] },
+    { keys: ['red_cards_home', 'red_cards_away'], label: 'Cartões Vermelhos', h: String(match.stats.redCards[0]), a: String(match.stats.redCards[1]), hv: match.stats.redCards[0], av: match.stats.redCards[1] },
+    { keys: ['offsides_home', 'offsides_away'], label: 'Impedimentos', h: String(match.stats.offsides[0]), a: String(match.stats.offsides[1]), hv: match.stats.offsides[0], av: match.stats.offsides[1] },
+    { keys: ['xg_home', 'xg_away'], label: 'Expected Goals (xG)', h: String(match.stats.xG[0]), a: String(match.stats.xG[1]), hv: match.stats.xG[0], av: match.stats.xG[1] },
+  ].filter(row => row.keys.some(key => match.availableStats?.includes(key)))
+
+  if (!match.statsAvailable || rows.length === 0) {
+    return (
+      <Card style={{ padding: 40, textAlign: 'center' }}>
+        <BarChart3 size={30} color="#2a3150" style={{ margin: '0 auto 12px' }} />
+        <div style={{ color: '#eef0f9', fontWeight: 700, marginBottom: 5 }}>Dados da partida não disponíveis</div>
+        <div style={{ color: '#5a6480', fontSize: 12 }}>
+          O sistema continuará consultando os provedores e atualizará o modelo quando as estatísticas forem recebidas.
+        </div>
+      </Card>
+    )
+  }
 
   return (
     <Card style={{ overflow: 'hidden' }}>

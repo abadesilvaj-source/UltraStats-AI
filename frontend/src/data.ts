@@ -72,6 +72,8 @@ export interface Match {
   awayLineup: Lineup
   events: LiveEvent[]
   stats: MatchStats
+  statsAvailable?: boolean
+  availableStats?: string[]
   markets: OddsMarket[]
   h2h: H2HMatch[]
   analysis: MatchAnalysis

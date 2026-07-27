@@ -44,28 +44,39 @@ class ApiQueries:
         offset: int = 0,
     ) -> list[dict]:
         home, away = aliased(Team), aliased(Team)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         statement = (
             select(Match, home, away, Competition)
             .join(home, home.id == Match.home_team_id)
             .join(away, away.id == Match.away_team_id)
             .join(Competition, Competition.id == Match.competition_id)
-            .where(Match.status.in_(statuses))
             .order_by(Match.kickoff_at)
             .offset(offset)
         )
-        if set(statuses).issubset({"scheduled", "not_started", "in_progress"}):
-            now = datetime.now(timezone.utc).replace(tzinfo=None)
+        conditions = []
+        if {"scheduled", "not_started"} & set(statuses):
+            conditions.append(and_(
+                Match.status.in_(("scheduled", "not_started")),
+                Match.kickoff_at >= now - timedelta(minutes=45),
+            ))
+        if "in_progress" in statuses:
+            conditions.append(and_(
+                Match.status == "in_progress",
+                Match.kickoff_at >= now - timedelta(days=30),
+            ))
+        if "finished" in statuses:
+            conditions.append(and_(
+                Match.status == "finished",
+                Match.kickoff_at >= now - timedelta(days=30),
+            ))
+        terminal = set(statuses) & {"postponed", "cancelled"}
+        if terminal:
+            conditions.append(Match.status.in_(terminal))
+        if conditions:
+            statement = statement.where(or_(*conditions))
+        else:
             statement = statement.where(
-                or_(
-                    and_(
-                        Match.status.in_(("scheduled", "not_started")),
-                        Match.kickoff_at >= now - timedelta(minutes=45),
-                    ),
-                    and_(
-                        Match.status == "in_progress",
-                        Match.kickoff_at >= now - timedelta(hours=6),
-                    ),
-                )
+                Match.status.in_(statuses)
             )
         if limit is not None:
             statement = statement.limit(limit)
@@ -74,7 +85,12 @@ class ApiQueries:
             {
                 "id": match.id,
                 "external_id": match.external_id,
-                "status": match.status,
+                "status": (
+                    "finished"
+                    if match.status == "in_progress"
+                    and match.kickoff_at < now - timedelta(hours=4)
+                    else match.status
+                ),
                 "kickoff_at": iso_local(match.kickoff_at, self.timezone),
                 "timezone": self.timezone,
                 "competition": {

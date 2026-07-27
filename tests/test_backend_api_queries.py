@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.database.base import Base
-from app.models import Bankroll, Competition, Market, Match, Odd, Prediction, Team
+from app.models import (
+    Bankroll, Competition, Market, Match, MatchStatistics, Odd,
+    Prediction, Team,
+)
 from backend.queries import ApiQueries
 
 
@@ -119,3 +122,50 @@ def test_recommendations_always_select_one_model_pick_per_match():
         assert primary[0]["recommendation_type"] == "model_pick"
         assert not primary[0]["no_bet"]
         assert sum(not row["no_bet"] for row in rows) == 1
+
+
+def test_stale_live_match_is_exposed_as_finished_with_statistics():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        competition = Competition(
+            name="Liga", country="Brasil", season="2026", sport="football"
+        )
+        home = Team(name="Casa", source="multi_provider")
+        away = Team(name="Fora", source="multi_provider")
+        session.add_all((competition, home, away))
+        session.flush()
+        match = Match(
+            competition_id=competition.id,
+            home_team_id=home.id,
+            away_team_id=away.id,
+            kickoff_at=datetime.now(timezone.utc) - timedelta(hours=5),
+            status="in_progress",
+            external_id="stale-live-1",
+            home_score=2,
+            away_score=1,
+        )
+        session.add(match)
+        session.flush()
+        session.add(MatchStatistics(
+            match_id=match.id,
+            corners_home=7,
+            corners_away=3,
+            shots_home=12,
+            shots_away=8,
+        ))
+        session.commit()
+        queries = ApiQueries(session, "America/Sao_Paulo")
+
+        rows = queries.matches(
+            statuses=("scheduled", "in_progress", "finished")
+        )
+        stored = session.scalar(
+            select(MatchStatistics).where(
+                MatchStatistics.match_id == match.id
+            )
+        )
+
+        assert rows[0]["status"] == "finished"
+        assert stored.corners_home == 7
+        assert stored.shots_away == 8
