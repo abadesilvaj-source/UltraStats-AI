@@ -143,10 +143,19 @@ function adapt(item: any): Match {
 }
 
 export async function loadMatches(): Promise<Match[]> {
-  const rows = await request<any[]>(
-    '/matches?status=scheduled,in_progress,finished&limit=500'
-  )
-  return rows.map(adapt)
+  const [activeRows, finishedRows] = await Promise.all([
+    request<any[]>('/matches?status=scheduled,in_progress&limit=500'),
+    request<any[]>('/matches?status=finished&limit=200'),
+  ])
+  const rowsById = new Map<string, any>()
+  for (const row of [...activeRows, ...finishedRows]) {
+    const id = String(row.id)
+    const current = rowsById.get(id)
+    if (!current || row.status === 'in_progress' || current.status === 'finished') {
+      rowsById.set(id, row)
+    }
+  }
+  return Array.from(rowsById.values()).map(adapt)
 }
 
 export async function loadMatch(id: string): Promise<Match> {
