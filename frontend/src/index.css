@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=Russo+One&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Russo One', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --color-bg: #07080f;
+  --color-surface: #0f1119;
+  --color-surface-2: #161b26;
+  --color-surface-3: #1c2235;
+  --color-border: #1e2438;
+  --color-border-2: #2a3150;
+
+  --color-primary: #00e887;
+  --color-primary-dim: #00b868;
+  --color-live: #ff3b3b;
+  --color-live-dim: #cc2020;
+  --color-blue: #4f8ef7;
+  --color-orange: #ff7c3a;
+  --color-yellow: #fbbf24;
+
+  --color-text: #eef0f9;
+  --color-muted: #5a6480;
+  --color-muted-2: #7a88b0;
+
+  --color-win: #00c853;
+  --color-loss: #ff1744;
+  --color-pending: #fbbf24;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: #07080f;
+  color: #eef0f9;
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1e2438; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #2a3150; }
+
+* { scrollbar-width: thin; scrollbar-color: #1e2438 transparent; }
+
+.font-display { font-family: 'Russo One', sans-serif; }
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes event-appear {
+  from { transform: translateX(-12px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.animate-slide-up { animation: slide-up 0.3s ease-out; }
+.animate-fade-in { animation: fade-in 0.2s ease-out; }
+.animate-slide-right { animation: slide-in-right 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-event { animation: event-appear 0.4s ease-out; }
+.pulse-live { animation: pulse-live 1.4s ease-in-out infinite; }
+
+.odds-btn {
+  transition: all 0.15s ease;
+}
+.odds-btn:hover {
+  background-color: #00e887;
+  color: #07080f;
+  transform: translateY(-1px);
+}
+.odds-btn.selected {
+  background-color: #00e887;
+  color: #07080f;
+  font-weight: 700;
+}

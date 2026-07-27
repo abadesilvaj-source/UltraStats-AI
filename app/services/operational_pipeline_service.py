@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Competition, Market, Match, Odd, Prediction, Team
+from app.services.post_match_service import PostMatchService
 from app.utils.betting_math import (
     calculate_expected_value,
     calculate_implied_probability,
@@ -20,7 +21,11 @@ MARKETS = (
     ("match_winner", "Resultado da Partida", "result"),
     ("over_2_5_goals", "Mais de 2.5 Gols", "goals"),
     ("under_2_5_goals", "Menos de 2.5 Gols", "goals"),
+    ("under_3_5_goals", "Menos de 3.5 Gols", "goals"),
     ("both_teams_to_score", "Ambas as Equipes Marcam", "goals"),
+    ("over_8_5_corners", "Mais de 8.5 Escanteios", "corners"),
+    ("over_9_5_corners", "Mais de 9.5 Escanteios", "corners"),
+    ("over_4_5_cards", "Mais de 4.5 Cartões", "cards"),
 )
 
 STATUS_MAP = {
@@ -83,6 +88,65 @@ class OperationalPipelineService:
             if match.status in {"scheduled", "in_progress"}:
                 counters["predictions"] += self._predict(match, markets)
         return counters
+
+    def process_post_match_statistics(
+        self,
+        fixture: SourceObservation,
+        statistics: tuple[SourceObservation, ...],
+    ) -> dict[str, int]:
+        """Persiste estatísticas finais e liquida apostas da partida."""
+        row = fixture.values
+        fixture_data = row.get("fixture", {})
+        teams = row.get("teams", {})
+        goals = row.get("goals", {})
+        external_id = str(fixture_data.get("id", "")).strip()
+        home = teams.get("home", {})
+        away = teams.get("away", {})
+        if (
+            not external_id
+            or goals.get("home") is None
+            or goals.get("away") is None
+        ):
+            return {"statistics": 0, "settled_bets": 0}
+
+        by_team = {
+            str(item.values.get("team", {}).get("id")): _statistics_values(
+                item.values
+            )
+            for item in statistics
+            if isinstance(item.values, dict)
+        }
+        home_stats = by_team.get(str(home.get("id")), {})
+        away_stats = by_team.get(str(away.get("id")), {})
+        if not home_stats and not away_stats:
+            return {"statistics": 0, "settled_bets": 0}
+
+        result = PostMatchService(self.session).settle_match(
+            match_external_id=external_id,
+            home_score=int(goals["home"]),
+            away_score=int(goals["away"]),
+            source="api_football",
+            corners_home=_integer_stat(home_stats, "Corner Kicks"),
+            corners_away=_integer_stat(away_stats, "Corner Kicks"),
+            yellow_cards_home=_integer_stat(home_stats, "Yellow Cards"),
+            yellow_cards_away=_integer_stat(away_stats, "Yellow Cards"),
+            red_cards_home=_integer_stat(home_stats, "Red Cards"),
+            red_cards_away=_integer_stat(away_stats, "Red Cards"),
+            shots_home=_integer_stat(home_stats, "Total Shots"),
+            shots_away=_integer_stat(away_stats, "Total Shots"),
+            shots_on_target_home=_integer_stat(home_stats, "Shots on Goal"),
+            shots_on_target_away=_integer_stat(away_stats, "Shots on Goal"),
+            offsides_home=_integer_stat(home_stats, "Offsides"),
+            offsides_away=_integer_stat(away_stats, "Offsides"),
+            possession_home=_percentage_stat(home_stats, "Ball Possession"),
+            possession_away=_percentage_stat(away_stats, "Ball Possession"),
+            xg_home=_float_stat(home_stats, "expected_goals"),
+            xg_away=_float_stat(away_stats, "expected_goals"),
+        )
+        return {
+            "statistics": 1,
+            "settled_bets": len(result["settled_bets"]),
+        }
 
     def _ensure_markets(self, counters: dict[str, int]) -> dict[str, Market]:
         result: dict[str, Market] = {}
@@ -283,11 +347,40 @@ class OperationalPipelineService:
                     home_xg, away_xg, market="over_under"
                 ).probabilities["under"]
             },
+            "under_3_5_goals": {
+                "Under 3.5": min(
+                    Decimal("0.92"),
+                    model.predict(
+                        home_xg, away_xg, market="over_under"
+                    ).probabilities["under"] + Decimal(".15"),
+                )
+            },
             "both_teams_to_score": {
                 key.title(): value
                 for key, value in model.predict(
                     home_xg, away_xg, market="both_teams_to_score"
                 ).probabilities.items()
+            },
+            "over_8_5_corners": {
+                "Over 8.5": Decimal(
+                    str(min(0.82, max(0.18, (
+                        home.corner_rating + away.corner_rating
+                    ) / 200)))
+                )
+            },
+            "over_9_5_corners": {
+                "Over 9.5": Decimal(
+                    str(min(0.76, max(0.14, (
+                        home.corner_rating + away.corner_rating
+                    ) / 220)))
+                )
+            },
+            "over_4_5_cards": {
+                "Over 4.5": Decimal(
+                    str(min(0.82, max(0.18, (
+                        home.card_rating + away.card_rating
+                    ) / 200)))
+                )
             },
         }
         forecasts["match_winner"] = {
@@ -355,6 +448,38 @@ def _optional_int(value: Any) -> int | None:
     return int(value) if value is not None else None
 
 
+def _statistics_values(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        str(item.get("type")): item.get("value")
+        for item in row.get("statistics", ())
+        if isinstance(item, dict) and item.get("type")
+    }
+
+
+def _integer_stat(values: dict[str, Any], key: str) -> int | None:
+    value = values.get(key)
+    if value in (None, ""):
+        return None
+    try:
+        return int(float(str(value).rstrip("%")))
+    except ValueError:
+        return None
+
+
+def _float_stat(values: dict[str, Any], key: str) -> float | None:
+    value = values.get(key)
+    if value in (None, ""):
+        return None
+    try:
+        return float(str(value).rstrip("%"))
+    except ValueError:
+        return None
+
+
+def _percentage_stat(values: dict[str, Any], key: str) -> float | None:
+    return _float_stat(values, key)
+
+
 def _mapped_odds(bet: dict[str, Any]) -> tuple[tuple[str, str, Decimal], ...]:
     name = str(bet.get("name") or "").casefold()
     result: list[tuple[str, str, Decimal]] = []
@@ -373,6 +498,14 @@ def _mapped_odds(bet: dict[str, Any]) -> tuple[tuple[str, str, Decimal], ...]:
                 result.append(("over_2_5_goals", label, odd))
             elif label == "Under 2.5":
                 result.append(("under_2_5_goals", label, odd))
+            elif label == "Under 3.5":
+                result.append(("under_3_5_goals", label, odd))
         elif name in {"both teams score", "both teams to score"} and label in {"Yes", "No"}:
             result.append(("both_teams_to_score", label, odd))
+        elif "corners" in name and label == "Over 8.5":
+            result.append(("over_8_5_corners", label, odd))
+        elif "corners" in name and label == "Over 9.5":
+            result.append(("over_9_5_corners", label, odd))
+        elif "cards" in name and label == "Over 4.5":
+            result.append(("over_4_5_cards", label, odd))
     return tuple(result)

@@ -4,8 +4,10 @@ from collections.abc import Callable, Mapping
 from datetime import datetime, timezone
 import os
 
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
+from app.models import Bet, Match, MatchStatistics
 from app.services.sync_monitor_service import SyncMonitorService
 from ultrastats_ai.infrastructure.providers import (
     DataCapability,
@@ -19,6 +21,8 @@ from ultrastats_ai.infrastructure.providers.persistence import (
     SqlAlchemyRawPayloadStore,
 )
 from app.services.operational_pipeline_service import OperationalPipelineService
+from ultrastats_ai.domain.live import LiveEngine, LiveEvent, LiveEventType
+from ultrastats_ai.infrastructure.live import LiveStore
 
 
 class MultiProviderSyncService:
@@ -143,6 +147,15 @@ class MultiProviderSyncService:
                 fixtures=report.observations,
                 odds=odds_report.observations,
             )
+            operational["live_snapshots"] = self._persist_live_snapshots(
+                report.observations
+            )
+            statistics_saved, settled_bets = self._collect_post_match_statistics(
+                engine,
+                report.observations,
+            )
+            operational["statistics"] = statistics_saved
+            operational["settled_bets"] = settled_bets
             self.session.commit()
             completed = self.monitor.mark_success(
                 sync_run.id,
@@ -173,6 +186,138 @@ class MultiProviderSyncService:
             engine.close()
             if football_provider is not None:
                 football_provider.close()
+
+    def _collect_post_match_statistics(
+        self,
+        engine: MultiSourceEngine,
+        fixtures: tuple[SourceObservation, ...],
+    ) -> tuple[int, int]:
+        """Coleta somente partidas encerradas ainda sem estatísticas."""
+        api_source = next(
+            (
+                source
+                for source in engine.sources
+                if source.name == "api_football"
+                and DataCapability.STATISTICS
+                in getattr(source, "capabilities", ())
+            ),
+            None,
+        )
+        if api_source is None:
+            return 0, 0
+
+        candidates = []
+        for observation in fixtures:
+            if observation.provider != "api_football":
+                continue
+            fixture = observation.values.get("fixture", {})
+            status = fixture.get("status", {})
+            external_id = str(fixture.get("id", "")).strip()
+            if status.get("short") not in {"FT", "AET", "PEN"} or not external_id:
+                continue
+            match = self.session.scalar(
+                select(Match).where(Match.external_id == external_id)
+            )
+            if match is None:
+                continue
+            already_stored = self.session.scalar(
+                select(
+                    exists().where(MatchStatistics.match_id == match.id)
+                )
+            )
+            if already_stored:
+                continue
+            has_pending_bet = self.session.scalar(
+                select(
+                    exists().where(
+                        Bet.match_id == match.id,
+                        Bet.status == "pending",
+                    )
+                )
+            )
+            candidates.append((not bool(has_pending_bet), observation))
+
+        candidates.sort(key=lambda item: item[0])
+        limit = max(
+            0,
+            int(self.environment.get("AUTO_STATS_MAX_PER_SYNC", "1")),
+        )
+        pipeline = OperationalPipelineService(self.session)
+        stored = settled = 0
+        for _, fixture_observation in candidates[:limit]:
+            fixture_id = str(
+                fixture_observation.values["fixture"]["id"]
+            )
+            observations = api_source.collect(
+                DataCapability.STATISTICS,
+                fixture=fixture_id,
+            )
+            for observation in observations:
+                self.raw_store.save(
+                    RawProviderPayload(
+                        provider=observation.provider,
+                        resource=observation.capability.value,
+                        external_id=(
+                            f"{fixture_id}:{observation.external_id}"
+                        ),
+                        payload=observation.values,
+                        collected_at=observation.observed_at,
+                    )
+                )
+            result = pipeline.process_post_match_statistics(
+                fixture_observation,
+                observations,
+            )
+            stored += result["statistics"]
+            settled += result["settled_bets"]
+        return stored, settled
+
+    def _persist_live_snapshots(
+        self,
+        fixtures: tuple[SourceObservation, ...],
+    ) -> int:
+        engine = LiveEngine()
+        store = LiveStore(self.session)
+        captured = datetime.now(timezone.utc)
+        saved = 0
+        for observation in fixtures:
+            if observation.provider != "api_football":
+                continue
+            row = observation.values
+            fixture = row.get("fixture", {})
+            status = fixture.get("status", {})
+            if status.get("short") not in {
+                "1H", "HT", "2H", "ET", "BT", "P", "LIVE"
+            }:
+                continue
+            match_id = str(fixture.get("id"))
+            state = engine.initial(match_id)
+            minute = int(status.get("elapsed") or 0)
+            goals = row.get("goals", {})
+            for suffix, kind, payload in (
+                (
+                    "score",
+                    LiveEventType.SCORE,
+                    {
+                        "home": int(goals.get("home") or 0),
+                        "away": int(goals.get("away") or 0),
+                    },
+                ),
+                ("clock", LiveEventType.CLOCK, {"minute": minute}),
+            ):
+                event = LiveEvent(
+                    f"{match_id}:{suffix}:{minute}",
+                    match_id,
+                    kind,
+                    captured,
+                    captured,
+                    payload,
+                )
+                store.save_event(event)
+                state = engine.ingest(state, event)
+            store.save_snapshot(state, captured)
+            saved += 1
+        return saved
 
     def _fixture_parameters(self) -> dict[str, str]:
         now = datetime.now(timezone.utc)

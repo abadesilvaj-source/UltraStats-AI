@@ -9,6 +9,8 @@ from app.services.risk_service import RiskService
 from app.services.bankroll_accounting_service import (
     BankrollAccountingService,
 )
+from app.services.bet_slip_service import BetSlipService
+from app.services.learning_pipeline_service import LearningPipelineService
 
 from app.services.sports_sync_service import SportsSyncService
 
@@ -39,6 +41,8 @@ __all__ = [
     "BankrollService",
     "RiskService",
     "BankrollAccountingService",
+    "BetSlipService",
+    "LearningPipelineService",
     "SportsSyncService",
     "SyncMonitorService",
     "CollectorOrchestratorService",

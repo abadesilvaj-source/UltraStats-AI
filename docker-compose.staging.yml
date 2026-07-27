@@ -40,6 +40,42 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command:
+      [
+        "python",
+        "-m",
+        "uvicorn",
+        "backend.main:app",
+        "--host=0.0.0.0",
+        "--port=8000",
+      ]
+    env_file: ${STAGING_ENV_FILE:-.env.staging}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-8516}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
   dashboard:
     build: .
     command:
@@ -55,7 +91,7 @@ services:
       ]
     env_file: ${STAGING_ENV_FILE:-.env.staging}
     ports:
-      - "${DASHBOARD_PORT:-8501}:8501"
+      - "${LEGACY_DASHBOARD_PORT:-8517}:8501"
     volumes:
       - staging_logs:/app/logs
       - staging_exports:/app/exports

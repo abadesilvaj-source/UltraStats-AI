@@ -4,7 +4,15 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
 from app.database.base import Base
-from app.models import Competition, Market, Match, Odd, Prediction, Team
+from app.models import (
+    Competition,
+    Market,
+    Match,
+    MatchStatistics,
+    Odd,
+    Prediction,
+    Team,
+)
 from app.services.operational_pipeline_service import OperationalPipelineService
 from ultrastats_ai.infrastructure.providers import (
     DataCapability,
@@ -99,16 +107,16 @@ def test_pipeline_promotes_fixture_odds_markets_and_predictions():
         "competitions": 1,
         "teams": 2,
         "matches": 1,
-        "markets": 4,
+        "markets": 8,
         "odds": 7,
-        "predictions": 7,
+        "predictions": 11,
     }
     assert db.scalar(select(func.count()).select_from(Competition)) == 1
     assert db.scalar(select(func.count()).select_from(Team)) == 2
     assert db.scalar(select(func.count()).select_from(Match)) == 1
-    assert db.scalar(select(func.count()).select_from(Market)) == 4
+    assert db.scalar(select(func.count()).select_from(Market)) == 8
     assert db.scalar(select(func.count()).select_from(Odd)) == 7
-    assert db.scalar(select(func.count()).select_from(Prediction)) == 7
+    assert db.scalar(select(func.count()).select_from(Prediction)) == 11
     prediction = db.scalar(
         select(Prediction).where(Prediction.selection == "Home")
     )
@@ -139,3 +147,45 @@ def test_pipeline_is_idempotent_and_ignores_non_api_fixtures():
     assert second["matches"] == 0
     assert second["odds"] == 0
     assert second["predictions"] == 0
+
+
+def test_pipeline_persists_final_statistics_automatically():
+    db = session()
+    finished = fixture()
+    finished.values["fixture"]["status"] = {"short": "FT"}
+    finished.values["goals"] = {"home": 2, "away": 1}
+    pipeline = OperationalPipelineService(db)
+    pipeline.process(fixtures=(finished,))
+    statistics = tuple(
+        SourceObservation(
+            "api_football",
+            DataCapability.STATISTICS,
+            str(team_id),
+            {
+                "team": {"id": team_id},
+                "statistics": [
+                    {"type": "Corner Kicks", "value": corners},
+                    {"type": "Yellow Cards", "value": cards},
+                    {"type": "Red Cards", "value": 0},
+                    {"type": "Total Shots", "value": 12},
+                    {"type": "Shots on Goal", "value": 5},
+                    {"type": "Offsides", "value": 2},
+                    {"type": "Ball Possession", "value": possession},
+                    {"type": "expected_goals", "value": xg},
+                ],
+            },
+            NOW,
+        )
+        for team_id, corners, cards, possession, xg in (
+            (1, 6, 2, "55%", "1.70"),
+            (2, 3, 4, "45%", "0.80"),
+        )
+    )
+    result = pipeline.process_post_match_statistics(finished, statistics)
+    stored = db.scalar(select(MatchStatistics))
+    assert result == {"statistics": 1, "settled_bets": 0}
+    assert stored.corners_home == 6
+    assert stored.yellow_cards_away == 4
+    assert stored.offsides_home == 2
+    assert stored.possession_home == 55
+    assert stored.xg_away == .8

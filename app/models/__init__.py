@@ -1,5 +1,6 @@
 from app.models.audit import Audit
 from app.models.bet import Bet
+from app.models.bet_slip import BetLeg, BetSlip
 from app.models.competition import Competition
 from app.models.market import Market
 from app.models.match import Match
@@ -21,6 +22,8 @@ from app.models.scheduler_heartbeat import (
 __all__ = [
     "Audit",
     "Bet",
+    "BetLeg",
+    "BetSlip",
     "Competition",
     "Market",
     "Match",

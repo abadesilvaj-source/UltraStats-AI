@@ -43,6 +43,12 @@ class BankrollTransaction(Base):
         index=True,
     )
 
+    slip_id: Mapped[int | None] = mapped_column(
+        ForeignKey("bet_slips.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     transaction_type: Mapped[str] = mapped_column(
         String(30),
         nullable=False,
