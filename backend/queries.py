@@ -369,9 +369,12 @@ class ApiQueries:
             item.id: item.code
             for item in self.session.scalars(select(Market)).all()
         }
+        prediction_rows = self.predictions()
+        grouped: dict[tuple[int, int], list[dict]] = {}
         best: dict[tuple[int, int], dict] = {}
-        for row in self.predictions():
+        for row in prediction_rows:
             key = (row["match_id"], row["market_id"])
+            grouped.setdefault(key, []).append(row)
             current = best.get(key)
             if current is None or row["probability"] > current["probability"]:
                 best[key] = row
@@ -391,8 +394,30 @@ class ApiQueries:
                     and row["evidence"] != "low"
                 )
             )
+            ordered = sorted(
+                grouped[(row["match_id"], row["market_id"])],
+                key=lambda item: item["probability"],
+                reverse=True,
+            )
+            probability_margin = (
+                ordered[0]["probability"] - ordered[1]["probability"]
+                if len(ordered) > 1 else ordered[0]["probability"]
+            )
+            no_bet = bool(
+                not actionable
+                and (
+                    row["expected_value"] is None
+                    or probability_margin < .08
+                    or row["evidence"] == "low"
+                )
+            )
             result.append({
                 **row,
+                "display_selection": (
+                    "Sem aposta" if no_bet else row["selection"]
+                ),
+                "no_bet": no_bet,
+                "probability_margin": probability_margin,
                 "actionable": actionable,
                 "recommendation_type": (
                     "value_bet" if actionable else "model_lead"
@@ -432,6 +457,34 @@ class ApiQueries:
                     if opportunity else None
                 ),
             })
+        correlated_codes = {
+            "over_2_5_goals", "under_2_5_goals", "under_3_5_goals",
+            "both_teams_to_score",
+        }
+        by_match: dict[int, list[dict]] = {}
+        for item in result:
+            if (
+                item["actionable"]
+                and market_codes[item["market_id"]] in correlated_codes
+            ):
+                by_match.setdefault(item["match_id"], []).append(item)
+        for items in by_match.values():
+            keep = max(
+                items,
+                key=lambda item: (
+                    item["conservative_expected_value"] or -1,
+                    item["recommendation_score"] or -1,
+                ),
+            )
+            for item in items:
+                if item is keep:
+                    continue
+                item["actionable"] = False
+                item["recommendation_type"] = "model_lead"
+                item["blocked_reasons"] = [
+                    *item["blocked_reasons"],
+                    "correlated_market_exposure",
+                ]
         return result
 
     def markets(self) -> list[dict]:

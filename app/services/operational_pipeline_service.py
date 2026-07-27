@@ -3,11 +3,12 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from difflib import SequenceMatcher
+from math import exp, factorial
 import re
 from typing import Any
 import unicodedata
 
-from sqlalchemy import inspect, select
+from sqlalchemy import inspect, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -68,7 +69,7 @@ class OperationalPipelineService:
     def __init__(self, session: Session) -> None:
         self.session = session
         self._calibration_history: list[
-            tuple[str, float]
+            tuple[str, float, int, int]
         ] | None = None
 
     def process(
@@ -507,6 +508,17 @@ class OperationalPipelineService:
         power_gap = Decimal(str(home.power_rating - away.power_rating))
         home_xg = max(Decimal("0.2"), home_xg + power_gap / Decimal("80"))
         away_xg = max(Decimal("0.2"), away_xg - power_gap / Decimal("80"))
+        context = self._match_context(match)
+        home_xg = max(
+            Decimal("0.2"),
+            home_xg * Decimal(str(context["home_attack"]))
+            / Decimal(str(context["away_defense"])),
+        )
+        away_xg = max(
+            Decimal("0.2"),
+            away_xg * Decimal(str(context["away_attack"]))
+            / Decimal(str(context["home_defense"])),
+        )
         lineup = self._lineup_context(match)
         home_xg = max(
             Decimal("0.2"),
@@ -556,25 +568,25 @@ class OperationalPipelineService:
                 ).probabilities.items()
             },
             "over_8_5_corners": {
-                "Over 8.5": Decimal(
-                    str(min(0.82, max(0.18, (
-                        home.corner_rating + away.corner_rating
-                    ) / 200)))
-                )
+                "Over 8.5": Decimal(str(self._poisson_over(
+                    8,
+                    max(3.0, (home.corner_rating + away.corner_rating)
+                        / 10 * context["tempo"]),
+                )))
             },
             "over_9_5_corners": {
-                "Over 9.5": Decimal(
-                    str(min(0.76, max(0.14, (
-                        home.corner_rating + away.corner_rating
-                    ) / 220)))
-                )
+                "Over 9.5": Decimal(str(self._poisson_over(
+                    9,
+                    max(3.0, (home.corner_rating + away.corner_rating)
+                        / 10 * context["tempo"]),
+                )))
             },
             "over_4_5_cards": {
-                "Over 4.5": Decimal(
-                    str(min(0.82, max(0.18, (
-                        home.card_rating + away.card_rating
-                    ) / 200)))
-                )
+                "Over 4.5": Decimal(str(self._poisson_over(
+                    4,
+                    max(1.0, (home.card_rating + away.card_rating)
+                        / 20 * context["intensity"]),
+                )))
             },
         }
         forecasts["match_winner"] = {
@@ -603,7 +615,7 @@ class OperationalPipelineService:
             market = markets[code]
             for selection, probability in selections.items():
                 calibrated_probability = self._calibrate_probability(
-                    float(probability)
+                    float(probability), market.id, match.competition_id
                 )
                 existing = self.session.scalar(
                     select(Prediction).where(
@@ -685,6 +697,86 @@ class OperationalPipelineService:
                     created += 1
         return created
 
+    def _match_context(self, match: Match) -> dict[str, float]:
+        rows = self.session.scalars(
+            select(Match).where(
+                Match.status == "finished",
+                Match.kickoff_at < match.kickoff_at,
+                or_(
+                    Match.home_team_id.in_(
+                        (match.home_team_id, match.away_team_id)
+                    ),
+                    Match.away_team_id.in_(
+                        (match.home_team_id, match.away_team_id)
+                    ),
+                ),
+            ).order_by(Match.kickoff_at.desc()).limit(40)
+        ).all()
+
+        def profile(team_id: int) -> tuple[float, float, float]:
+            scored = conceded = weights = 0.0
+            last_at = None
+            for index, row in enumerate(
+                item for item in rows
+                if team_id in (item.home_team_id, item.away_team_id)
+                and item.home_score is not None
+                and item.away_score is not None
+            ):
+                is_home = row.home_team_id == team_id
+                opponent = self.session.get(
+                    Team,
+                    row.away_team_id if is_home else row.home_team_id,
+                )
+                opponent_factor = (
+                    max(.75, min(1.25, float(opponent.power_rating) / 50))
+                    if opponent else 1.0
+                )
+                weight = exp(-index / 8) * opponent_factor
+                scored += float(
+                    row.home_score if is_home else row.away_score
+                ) * weight
+                conceded += float(
+                    row.away_score if is_home else row.home_score
+                ) * weight
+                weights += weight
+                last_at = last_at or row.kickoff_at
+            if not weights:
+                return 1.0, 1.0, 7.0
+            rest = max(
+                2.0,
+                (match.kickoff_at - last_at).total_seconds() / 86400,
+            )
+            return (
+                max(.65, min(1.45, scored / weights / 1.35)),
+                max(.65, min(1.45, conceded / weights / 1.35)),
+                rest,
+            )
+
+        home_attack, home_defense, home_rest = profile(match.home_team_id)
+        away_attack, away_defense, away_rest = profile(match.away_team_id)
+        if home_rest < 4:
+            home_attack *= .94
+        if away_rest < 4:
+            away_attack *= .94
+        return {
+            "home_attack": home_attack,
+            "home_defense": home_defense,
+            "away_attack": away_attack,
+            "away_defense": away_defense,
+            "tempo": max(.80, min(1.20, (home_attack + away_attack) / 2)),
+            "intensity": max(
+                .85, min(1.20, 1 + abs(home_attack - away_attack) * .15)
+            ),
+        }
+
+    @staticmethod
+    def _poisson_over(line: int, expected: float) -> float:
+        below = sum(
+            exp(-expected) * expected ** value / factorial(value)
+            for value in range(line + 1)
+        )
+        return max(.02, min(.98, 1 - below))
+
     def _winner_market_consensus(
         self,
         match: Match,
@@ -719,19 +811,28 @@ class OperationalPipelineService:
             for selection, value in implied.items()
         }
 
-    def _calibrate_probability(self, probability: float) -> float:
+    def _calibrate_probability(
+        self,
+        probability: float,
+        market_id: int | None = None,
+        competition_id: int | None = None,
+    ) -> float:
         if self._calibration_history is None:
             self._calibration_history = [
-                (status, float(predicted or 0))
-                for status, predicted in self.session.execute(
+                (status, float(predicted or 0), historical_market, competition)
+                for status, predicted, historical_market, competition
+                in self.session.execute(
                     select(
                         Audit.result_status,
                         Audit.predicted_probability,
+                        Prediction.market_id,
+                        Match.competition_id,
                     )
                     .join(
                         Prediction,
                         Prediction.id == Audit.prediction_id,
                     )
+                    .join(Match, Match.id == Prediction.match_id)
                     .where(
                         Prediction.model_version
                         == self.model_version,
@@ -743,9 +844,22 @@ class OperationalPipelineService:
             ]
         nearby = [
             status
-            for status, predicted in self._calibration_history
+            for status, predicted, historical_market, competition
+            in self._calibration_history
             if abs(predicted - probability) <= 0.10
+            and (market_id is None or historical_market == market_id)
+            and (
+                competition_id is None or competition == competition_id
+            )
         ]
+        if len(nearby) < 20 and market_id is not None:
+            nearby = [
+                status
+                for status, predicted, historical_market, _
+                in self._calibration_history
+                if historical_market == market_id
+                and abs(predicted - probability) <= .12
+            ]
         if len(nearby) < 20:
             return probability
         observed = sum(

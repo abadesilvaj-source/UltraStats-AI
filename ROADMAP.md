@@ -67,3 +67,13 @@ com o backfill automático e com a ampliação da amostra auditada.
 - [x] Separar SLA operacional de cobertura bruta.
 - [x] Expor capacidades, elegibilidade, atualidade e neutralidade no painel.
 - [x] Documentar a arquitetura e os critérios auditáveis.
+## G26 — Motor estatístico e recomendador avançados ✅
+
+- [x] Elo contextual com recência, adversário, mando e descanso.
+- [x] Modelos especializados para 1X2, gols, escanteios e cartões.
+- [x] Ensemble de Poisson, ratings, escalações e consenso de mercado.
+- [x] Calibração segmentada por competição e mercado.
+- [x] Política explícita de “Sem aposta”.
+- [x] Controle de mercados correlacionados.
+- [x] Integração ao walk-forward, drift e champion/challenger existentes.
+- [x] Documentação e testes de regressão.

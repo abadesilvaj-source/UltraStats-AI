@@ -19,7 +19,40 @@ class LearningPipelineService:
         audited = self._audit_predictions(match, statistics)
         self._update_team(match.home_team_id, match, statistics, home=True)
         self._update_team(match.away_team_id, match, statistics, home=False)
-        return {"audited_predictions": audited, "ratings_updated": 2}
+        self._update_contextual_elo(match)
+        return {
+            "audited_predictions": audited,
+            "ratings_updated": 2,
+            "contextual_elo_updated": True,
+        }
+
+    def _update_contextual_elo(self, match: Match) -> None:
+        home = self.session.get(Team, match.home_team_id)
+        away = self.session.get(Team, match.away_team_id)
+        if (
+            home is None or away is None
+            or match.home_score is None or match.away_score is None
+        ):
+            return
+        home_elo = 500 + float(home.power_rating) * 20
+        away_elo = 500 + float(away.power_rating) * 20
+        expected_home = 1 / (
+            1 + 10 ** ((away_elo - (home_elo + 65)) / 400)
+        )
+        actual_home = (
+            1.0 if match.home_score > match.away_score
+            else .5 if match.home_score == match.away_score
+            else 0.0
+        )
+        goal_margin = abs(match.home_score - match.away_score)
+        multiplier = 1 + min(2, goal_margin) * .15
+        delta = 18 * multiplier * (actual_home - expected_home)
+        home.power_rating = max(
+            1, min(100, (home_elo + delta - 500) / 20)
+        )
+        away.power_rating = max(
+            1, min(100, (away_elo - delta - 500) / 20)
+        )
 
     def _audit_predictions(
         self, match: Match, statistics: MatchStatistics

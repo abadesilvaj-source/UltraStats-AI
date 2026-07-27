@@ -65,12 +65,14 @@ function adapt(item: any): Match {
   }
   analysis.recommendations = Array.from(bestByMarket.values()).map(row => ({
     market: row.market,
-    tip: row.selection,
+    tip: row.display_selection || row.selection,
     confidence: row.confidence >= .75 ? 'Alta' : row.confidence >= .55 ? 'Média' : 'Baixa',
     odds: row.implied_probability
       ? 1 / row.implied_probability
       : 1 / Math.max(row.probability, .01),
-    reasoning: row.conservative_expected_value != null
+    reasoning: row.no_bet
+      ? `Sem vantagem estatística segura · margem entre cenários ${((row.probability_margin || 0) * 100).toFixed(1)}%`
+      : row.conservative_expected_value != null
       ? `EV conservador ${(row.conservative_expected_value * 100).toFixed(1)}% · ${row.actionable ? 'acionável' : 'bloqueada'}`
       : row.expected_value != null
       ? `EV ${(row.expected_value * 100).toFixed(1)}% · evidência ${row.evidence || 'limitada'}`
