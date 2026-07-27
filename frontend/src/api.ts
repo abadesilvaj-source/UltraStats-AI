@@ -74,6 +74,15 @@ function adapt(item: any): Match {
       ? `EV ${(row.expected_value * 100).toFixed(1)}% · evidência ${row.evidence || 'limitada'}`
       : `Probabilidade ${(row.probability * 100).toFixed(1)}% · odd justa do modelo`,
   }))
+  if (item.data_fusion?.provenance) {
+    analysis.keyFactors = Object.entries(item.data_fusion.provenance).map(
+      ([field, detail]: [string, any]) =>
+        `${field}: ${detail.provider} · ${detail.contributors?.length || 1} fonte(s)`
+    )
+    analysis.summary = item.data_fusion.conflicts?.length
+      ? `Dados conciliados com ${item.data_fusion.conflicts.length} divergência(s) resolvida(s) por qualidade, atualidade e consenso.`
+      : 'Dados conciliados entre os provedores disponíveis, sem divergências relevantes.'
+  }
   const lineups = item.lineups || []
   return {
     id: String(item.id),

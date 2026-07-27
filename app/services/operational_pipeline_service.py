@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any
 
@@ -148,6 +148,24 @@ class OperationalPipelineService:
             "statistics": 1,
             "settled_bets": len(result["settled_bets"]),
         }
+
+    def refresh_all_predictions(self) -> int:
+        counters = {"markets": 0}
+        markets = self._ensure_markets(counters)
+        matches = self.session.scalars(
+            select(Match).where(
+                Match.status.in_(("scheduled", "in_progress")),
+                Match.kickoff_at >= (
+                    datetime.now(timezone.utc).replace(tzinfo=None)
+                    - timedelta(hours=6)
+                ),
+                Match.kickoff_at <= (
+                    datetime.now(timezone.utc).replace(tzinfo=None)
+                    + timedelta(days=14)
+                ),
+            )
+        ).all()
+        return sum(self._predict(match, markets) for match in matches)
 
     def _ensure_markets(self, counters: dict[str, int]) -> dict[str, Market]:
         result: dict[str, Market] = {}

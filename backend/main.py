@@ -59,6 +59,11 @@ def health(request: Request):
     return queries(request).system_status()
 
 
+@app.get("/api/v1/providers/contributions")
+def provider_contributions(request: Request):
+    return queries(request).fusion_contributions()
+
+
 @app.get("/api/v1/matches")
 def matches(
     request: Request,

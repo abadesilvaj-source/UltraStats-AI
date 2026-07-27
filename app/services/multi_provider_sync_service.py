@@ -25,6 +25,8 @@ from ultrastats_ai.infrastructure.database.models import (
     RawProviderPayloadRecord,
 )
 from app.services.operational_pipeline_service import OperationalPipelineService
+from app.services.match_fusion_service import MatchFusionService
+from app.services.historical_enrichment_service import HistoricalEnrichmentService
 from ultrastats_ai.domain.live import LiveEngine, LiveEvent, LiveEventType
 from ultrastats_ai.infrastructure.live import LiveStore
 
@@ -54,6 +56,7 @@ class MultiProviderSyncService:
         sync_run = self.monitor.start_run("multi_provider", triggered_by)
         engine = self.engine_factory(self.environment)
         football_provider = None
+        football_data_payload = None
         saved = 0
         skipped = 0
         failures: dict[str, str] = {}
@@ -127,6 +130,7 @@ class MultiProviderSyncService:
                         dateFrom=parameters["date"],
                         dateTo=parameters["date"],
                     )
+                    football_data_payload = data
                     payload = RawProviderPayload(
                         "football_data",
                         "matches",
@@ -153,6 +157,20 @@ class MultiProviderSyncService:
             operational = OperationalPipelineService(self.session).process(
                 fixtures=report.observations,
                 odds=odds_report.observations,
+            )
+            operational["fusion"] = MatchFusionService(self.session).fuse(
+                report.observations,
+                football_data_payload=football_data_payload,
+            )
+            operational["historical_enrichment"] = (
+                HistoricalEnrichmentService(self.session).process(
+                    report.observations
+                )
+            )
+            operational["fusion_predictions"] = (
+                OperationalPipelineService(
+                    self.session
+                ).refresh_all_predictions()
             )
             operational["live_snapshots"] = self._persist_live_snapshots(
                 report.observations

@@ -10,13 +10,37 @@ partidas apenas por semelhança de nomes.
 | Fonte | Uso operacional atual | Limitação relevante |
 |---|---|---|
 | API-Football | agenda, placar, status, odds, estatísticas, eventos e escalações | cota diária e cobertura variável por competição |
-| football-data.org | competições, agenda e placares de confirmação | não fornece odds nem estatísticas detalhadas no plano gratuito |
-| Football-Data.co.uk | resultados e odds históricas para treinamento | não é uma fonte ao vivo |
-| OpenLigaDB | agenda e placares de confirmação | cobertura concentrada em ligas específicas |
-| StatsBomb Open Data | eventos, escalações históricas e xG para treinamento/validação | conjunto histórico selecionado, não agenda mundial ao vivo |
+| football-data.org | agenda, status e placares entram no consenso canônico | não fornece odds nem estatísticas detalhadas no plano gratuito |
+| Football-Data.co.uk | resultados e odds históricas atualizam ratings e priors do modelo | não é uma fonte ao vivo |
+| OpenLigaDB | agenda e placares entram no consenso e cobrem lacunas | cobertura concentrada em ligas específicas |
+| StatsBomb Open Data | eventos, escalações históricas e xG validam/treinam modelos offline | conjunto histórico selecionado, não agenda mundial ao vivo |
 
 O endpoint `GET /api/v1/health` expõe disponibilidade, latência, última
 verificação e capacidades de cada conector.
+
+## Fusão por campo
+
+Cada observação é conciliada com uma partida canônica por identificador externo,
+horário (tolerância de três horas) e similaridade normalizada dos dois clubes.
+O vínculo fica persistido e é reutilizado nas sincronizações seguintes.
+
+Para cada campo (`kickoff_at`, `status`, placar e estádio), a decisão considera:
+
+1. consenso entre fontes independentes;
+2. terminalidade do status;
+3. qualidade declarada da fonte para aquele campo;
+4. instante da observação.
+
+Cada decisão grava fonte selecionada, fontes participantes, qualidade, conflitos
+e horário da fusão. A API oferece:
+
+- `GET /api/v1/providers/contributions`, com campos escolhidos por provedor;
+- `data_fusion` em `/matches/{id}`, com procedência por campo;
+- resumo de fusão em `/health`.
+
+Fontes secundárias também podem criar uma partida canônica ausente na
+API-Football. Depois da fusão, o motor gera previsões para todas as partidas
+ativas, independentemente da fonte que as originou.
 
 ## Escalações
 

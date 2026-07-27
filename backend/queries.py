@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import and_, func, or_, select
@@ -17,6 +18,8 @@ from app.models import (
 from app.models.sync_run import SyncRun
 from backend.serializers import iso_local
 from ultrastats_ai.infrastructure.database.models import (
+    FusionResultRecord,
+    IdentityDecisionRecord,
     ProviderHealthRecord,
     RawProviderPayloadRecord,
 )
@@ -111,6 +114,20 @@ class ApiQueries:
         base["markets"] = self.match_markets(match_id)
         base["analysis"] = self.predictions(match_id=match_id)
         base["lineups"] = self.lineups(base["external_id"])
+        fusion = self.session.scalar(
+            select(FusionResultRecord)
+            .where(FusionResultRecord.canonical_id == f"match:{match_id}")
+            .order_by(FusionResultRecord.fused_at.desc())
+        )
+        base["data_fusion"] = (
+            {
+                "values": fusion.values,
+                "provenance": fusion.provenance,
+                "conflicts": fusion.conflicts,
+                "fused_at": fusion.fused_at.isoformat(),
+            }
+            if fusion else None
+        )
         return base
 
     def lineups(self, external_id: str | None) -> list[dict]:
@@ -340,4 +357,66 @@ class ApiQueries:
                 if latest else None
             ),
             "providers": providers,
+            "data_fusion": self.fusion_contributions(),
+        }
+
+    def fusion_contributions(self) -> dict:
+        rows = self.session.scalars(
+            select(FusionResultRecord)
+            .where(FusionResultRecord.canonical_id.like("match:%"))
+            .order_by(FusionResultRecord.fused_at.desc())
+            .limit(1000)
+        ).all()
+        provider_fields: Counter[str] = Counter()
+        provider_candidates: Counter[str] = Counter()
+        conflicts = 0
+        for row in rows:
+            conflicts += len(row.conflicts)
+            for detail in row.provenance.values():
+                if isinstance(detail, dict) and detail.get("provider"):
+                    provider_fields[str(detail["provider"])] += 1
+                    for provider in detail.get("contributors", ()):
+                        provider_candidates[str(provider)] += 1
+        identities_by_provider = dict(
+            self.session.execute(
+                select(
+                    IdentityDecisionRecord.provider,
+                    func.count(IdentityDecisionRecord.id),
+                )
+                .where(
+                    IdentityDecisionRecord.external_id.like("match:%"),
+                    IdentityDecisionRecord.status == "matched",
+                )
+                .group_by(IdentityDecisionRecord.provider)
+            ).all()
+        )
+        training = self.session.scalar(
+            select(FusionResultRecord)
+            .where(FusionResultRecord.canonical_id.like("training:%"))
+            .order_by(FusionResultRecord.fused_at.desc())
+            .limit(1)
+        )
+        return {
+            "recent_fusions": len(rows),
+            "matched_identities": sum(identities_by_provider.values()),
+            "matched_identities_by_provider": identities_by_provider,
+            "conflicts_detected": conflicts,
+            "fields_selected_by_provider": dict(provider_fields),
+            "field_candidates_by_provider": dict(provider_candidates),
+            "latest_historical_enrichment": (
+                {
+                    "source": next(
+                        (
+                            detail.get("provider")
+                            for detail in training.provenance.values()
+                            if isinstance(detail, dict)
+                            and detail.get("provider")
+                        ),
+                        None,
+                    ),
+                    **training.values,
+                    "applied_at": training.fused_at.isoformat(),
+                }
+                if training else None
+            ),
         }
