@@ -249,3 +249,47 @@ export async function withdrawBankroll(bankrollId: number, amount: number): Prom
 export async function loadMaturity(): Promise<any> {
   return request('/maturity/status')
 }
+
+export type PredictionDto = {
+  id: number
+  match_id: number
+  match: string
+  competition: string
+  kickoff_at: string
+  market_id: number
+  market: string
+  market_category: string
+  selection: string
+  probability: number
+  implied_probability: number | null
+  expected_value: number | null
+  confidence: number
+  evidence: 'low' | 'medium' | 'high'
+  risk: string
+  model: string
+}
+
+export type RecommendationDto = PredictionDto & {
+  display_selection: string
+  no_bet: boolean
+  is_primary_recommendation: boolean
+  probability_margin: number
+  actionable: boolean
+  recommendation_type: 'value_bet' | 'model_lead' | 'model_pick'
+  blocked_reasons: string[]
+  warnings: string[]
+  recommendation_score: number | null
+  conservative_expected_value: number | null
+}
+
+export async function loadPredictions(): Promise<PredictionDto[]> {
+  return request('/predictions')
+}
+
+export async function loadRecommendations(): Promise<RecommendationDto[]> {
+  return request('/recommendations')
+}
+
+export async function loadIntelligence(): Promise<any> {
+  return request('/intelligence/status')
+}

@@ -5,9 +5,9 @@ import {
 } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Activity, BarChart3, BrainCircuit, Database, FlaskConical,
+  Activity, AlertTriangle, BarChart3, BrainCircuit, CheckCircle2, Database, FlaskConical,
   Grid3X3, Home, Menu, Receipt, RefreshCw, ShieldCheck, Star,
-  Target, Wallet, X, Zap,
+  Target, TrendingUp, Wallet, X, Zap,
 } from 'lucide-react'
 import {
   BankrollView, BetSlipDrawer, FavoritesView, HomeView, MatchView,
@@ -16,8 +16,9 @@ import {
 import type { BetSelection, Match, PlacedBet } from '../data'
 import {
   analyzeBetSlip, loadBankrolls, loadBetSlips, loadMatch, loadMatches,
-  loadMaturity, placeBet,
+  loadIntelligence, loadMaturity, loadPredictions, loadRecommendations, placeBet,
 } from '../api'
+import type { PredictionDto, RecommendationDto } from '../api'
 
 type Bankroll = {
   id: number
@@ -43,6 +44,9 @@ const queryKeys = {
   bankrolls: ['bankrolls'] as const,
   bets: ['bets'] as const,
   maturity: ['maturity'] as const,
+  predictions: ['predictions'] as const,
+  recommendations: ['recommendations'] as const,
+  intelligence: ['intelligence'] as const,
 }
 
 function useStoredFavorites() {
@@ -103,6 +107,24 @@ function UltraStatsApp() {
     queryFn: loadMaturity,
     refetchInterval: 120_000,
     staleTime: 60_000,
+  })
+  const predictionsQuery = useQuery({
+    queryKey: queryKeys.predictions,
+    queryFn: loadPredictions,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  })
+  const recommendationsQuery = useQuery({
+    queryKey: queryKeys.recommendations,
+    queryFn: loadRecommendations,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  })
+  const intelligenceQuery = useQuery({
+    queryKey: queryKeys.intelligence,
+    queryFn: loadIntelligence,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
   })
 
   useEffect(() => {
@@ -185,6 +207,7 @@ function UltraStatsApp() {
   )
   const queryError = [
     matchesQuery.error, bankrollQuery.error, betsQuery.error, maturityQuery.error,
+    predictionsQuery.error, recommendationsQuery.error, intelligenceQuery.error,
   ].find(Boolean)
 
   return (
@@ -269,11 +292,21 @@ function UltraStatsApp() {
             </FeaturePage>
           } />
           <Route path="/system" element={<SystemView maturity={maturityQuery.data} />} />
-          <Route path="/analysis" element={<EnginePage kind="analysis" maturity={maturityQuery.data} />} />
-          <Route path="/risk" element={<EnginePage kind="risk" maturity={maturityQuery.data} />} />
-          <Route path="/statistics" element={<EnginePage kind="statistics" maturity={maturityQuery.data} />} />
-          <Route path="/models" element={<EnginePage kind="models" maturity={maturityQuery.data} />} />
-          <Route path="/recommendations" element={<EnginePage kind="recommendations" maturity={maturityQuery.data} />} />
+          <Route path="/analysis" element={
+            <AnalysisPage predictions={predictionsQuery.data || []} onOpenMatch={id => navigate(`/matches/${id}`)} />
+          } />
+          <Route path="/risk" element={
+            <RiskPage recommendations={recommendationsQuery.data || []} onOpenMatch={id => navigate(`/matches/${id}`)} />
+          } />
+          <Route path="/statistics" element={
+            <StatisticsPage maturity={maturityQuery.data} intelligence={intelligenceQuery.data} />
+          } />
+          <Route path="/models" element={
+            <ModelsPage maturity={maturityQuery.data} intelligence={intelligenceQuery.data} />
+          } />
+          <Route path="/recommendations" element={
+            <RecommendationsPage recommendations={recommendationsQuery.data || []} onOpenMatch={id => navigate(`/matches/${id}`)} />
+          } />
           <Route path="/providers" element={<SystemView maturity={maturityQuery.data} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -459,39 +492,181 @@ function FeaturePage({
   )
 }
 
-const engineCopy = {
-  analysis: ['ANÁLISES', 'Projeções organizadas por partida, mercado e confiança.'],
-  risk: ['GESTÃO DE RISCO', 'Exposição, limites e qualidade antes da confirmação.'],
-  statistics: ['MOTOR ESTATÍSTICO', 'Cobertura, evidência e atualização pós-partida.'],
-  models: ['MODELOS E APRENDIZADO', 'Calibração, validação e evolução do machine learning.'],
-  recommendations: ['RECOMENDAÇÕES', 'Oportunidades avaliadas com gates de segurança.'],
-} as const
-
-function EnginePage({
-  kind, maturity,
-}: {
-  kind: keyof typeof engineCopy
-  maturity: any
+function AnalysisPage({ predictions, onOpenMatch }: {
+  predictions: PredictionDto[]; onOpenMatch: (id: number) => void
 }) {
-  const [title, subtitle] = engineCopy[kind]
-  const quality = maturity?.quality_score
-  const coverage = maturity?.coverage || {}
+  const [evidence, setEvidence] = useState('all')
+  const [search, setSearch] = useState('')
+  const visible = predictions
+    .filter(item => evidence === 'all' || item.evidence === evidence)
+    .filter(item => `${item.match} ${item.market} ${item.competition}`.toLocaleLowerCase()
+      .includes(search.toLocaleLowerCase()))
   return (
-    <FeaturePage title={title} subtitle={subtitle}>
+    <FeaturePage title="ANÁLISES" subtitle="Probabilidades produzidas pelo motor, organizadas por partida e mercado.">
       <div className="engine-grid">
-        <MetricCard label="Qualidade operacional"
-          value={quality == null ? '—' : `${Math.round(quality * 100)}%`} />
-        <MetricCard label="Estatísticas"
-          value={coverage.statistics == null ? '—' : `${Math.round(coverage.statistics * 100)}%`} />
-        <MetricCard label="Previsões"
-          value={coverage.predictions == null ? '—' : `${Math.round(coverage.predictions * 100)}%`} />
-        <MetricCard label="Odds"
-          value={coverage.odds == null ? '—' : `${Math.round(coverage.odds * 100)}%`} />
+        <MetricCard label="Previsões ativas" value={String(predictions.length)} />
+        <MetricCard label="Partidas analisadas" value={String(new Set(predictions.map(item => item.match_id)).size)} />
+        <MetricCard label="Evidência média/alta" value={String(predictions.filter(item => item.evidence !== 'low').length)} />
+        <MetricCard label="Modelos ativos" value={String(new Set(predictions.map(item => item.model)).size)} />
       </div>
-      <SystemView maturity={maturity} />
+      <div className="data-toolbar">
+        <input aria-label="Pesquisar análises" placeholder="Pesquisar partida, liga ou mercado…" value={search}
+          onChange={event => setSearch(event.target.value)} />
+        <select aria-label="Filtrar análises" value={evidence} onChange={event => setEvidence(event.target.value)}>
+          <option value="all">Todas as evidências</option><option value="high">Evidência alta</option>
+          <option value="medium">Evidência média</option><option value="low">Evidência baixa</option>
+        </select>
+      </div>
+      <DataList empty="Nenhuma previsão encontrada com estes filtros.">
+        {visible.slice(0, 120).map(item => (
+          <button className="data-row" key={item.id} onClick={() => onOpenMatch(item.match_id)}>
+            <div><strong>{item.match}</strong><span>{item.competition} · {item.market}</span></div>
+            <div><strong>{item.selection}</strong><span>{Math.round(item.probability * 100)}% · {evidenceLabel(item.evidence)}</span></div>
+          </button>
+        ))}
+      </DataList>
     </FeaturePage>
   )
 }
+
+function RiskPage({ recommendations, onOpenMatch }: {
+  recommendations: RecommendationDto[]; onOpenMatch: (id: number) => void
+}) {
+  const primary = recommendations.filter(item => item.is_primary_recommendation)
+  return (
+    <FeaturePage title="GESTÃO DE RISCO" subtitle="Exposição, evidência e bloqueios avaliados antes da aposta.">
+      <div className="engine-grid">
+        <MetricCard label="Sugestões principais" value={String(primary.length)} />
+        <MetricCard label="Valor confirmado" value={String(recommendations.filter(item => item.actionable).length)} />
+        <MetricCard label="Não recomendados" value={String(recommendations.filter(item => item.no_bet).length)} />
+        <MetricCard label="Risco alto" value={String(recommendations.filter(item => item.risk === 'high').length)} />
+      </div>
+      <section className="insight-panel">
+        <div><ShieldCheck size={20} /><strong>Política de risco aplicada</strong></div>
+        <p>Mercados de evidência baixa continuam disponíveis com aviso. Somente oportunidades aprovadas nos gates de valor, confiança e correlação são classificadas como acionáveis.</p>
+      </section>
+      <DataList empty="Nenhuma avaliação de risco disponível.">
+        {primary.slice(0, 80).map(item => (
+          <button className="data-row" key={`${item.match_id}-${item.market_id}`} onClick={() => onOpenMatch(item.match_id)}>
+            <div><strong>{item.match}</strong><span>{item.market} · {item.selection}</span></div>
+            <RiskBadge item={item} />
+          </button>
+        ))}
+      </DataList>
+    </FeaturePage>
+  )
+}
+
+function StatisticsPage({ maturity, intelligence }: { maturity: any; intelligence: any }) {
+  const statistics = intelligence?.statistics || {}
+  const coverage = maturity?.coverage || {}
+  const raw = maturity?.raw_coverage || {}
+  return (
+    <FeaturePage title="MOTOR ESTATÍSTICO" subtitle="Cobertura pós-jogo e atualização das estatísticas coletadas.">
+      <div className="engine-grid">
+        <MetricCard label="Partidas com estatísticas" value={String(statistics.matches_with_statistics ?? '—')} />
+        <MetricCard label="Cobertura elegível" value={percent(coverage.statistics)} />
+        <MetricCard label="Cobertura bruta" value={percent(raw.statistics)} />
+        <MetricCard label="Tentativas em 24h" value={String(statistics.recent_attempts ?? '—')} />
+      </div>
+      <section className="insight-panel">
+        <div><Activity size={20} /><strong>Última atualização estatística</strong></div>
+        <p>{statistics.last_update ? formatDateTime(statistics.last_update) : 'Nenhuma atualização registrada.'}</p>
+      </section>
+      <CoverageBars items={[
+        ['Estatísticas pós-jogo', coverage.statistics], ['Odds', coverage.odds],
+        ['Previsões', coverage.predictions], ['Escalações', raw.lineups],
+      ]} />
+    </FeaturePage>
+  )
+}
+
+function ModelsPage({ maturity, intelligence }: { maturity: any; intelligence: any }) {
+  const learning = intelligence?.learning || {}
+  const validation = learning.latest_validation
+  const metrics = validation?.metrics || {}
+  return (
+    <FeaturePage title="MODELOS E APRENDIZADO" subtitle="Auditoria, validação e evolução do modelo preditivo.">
+      <div className="engine-grid">
+        <MetricCard label="Previsões auditadas" value={String(learning.audited_predictions ?? '—')} />
+        <MetricCard label="Modelos registrados" value={String(learning.registered_models ?? '—')} />
+        <MetricCard label="Datasets de treino" value={String(learning.training_datasets ?? '—')} />
+        <MetricCard label="Cobertura preditiva" value={percent(maturity?.coverage?.predictions)} />
+      </div>
+      <section className={`insight-panel ${validation?.approved ? 'success' : 'warning'}`}>
+        <div>{validation?.approved ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+          <strong>{validation ? (validation.approved ? 'Modelo aprovado no último gate' : 'Modelo ainda não aprovado') : 'Validação ainda não disponível'}</strong>
+        </div>
+        <p>{validation?.evaluated_at ? `Avaliado em ${formatDateTime(validation.evaluated_at)}` : 'O pipeline precisa acumular evidência auditada para uma validação conclusiva.'}</p>
+      </section>
+      <div className="model-metrics">
+        {Object.entries(metrics).slice(0, 12).map(([key, value]) => (
+          <div key={key}><span>{humanize(key)}</span><strong>{formatMetric(value)}</strong></div>
+        ))}
+        {!Object.keys(metrics).length && <p>Nenhuma métrica de validação consolidada disponível.</p>}
+      </div>
+    </FeaturePage>
+  )
+}
+
+function RecommendationsPage({ recommendations, onOpenMatch }: {
+  recommendations: RecommendationDto[]; onOpenMatch: (id: number) => void
+}) {
+  const [filter, setFilter] = useState('primary')
+  const primary = recommendations.filter(item => item.is_primary_recommendation)
+  const visible = filter === 'all' ? recommendations
+    : filter === 'value' ? recommendations.filter(item => item.actionable) : primary
+  return (
+    <FeaturePage title="RECOMENDAÇÕES" subtitle="Melhor sugestão por partida, com indicação explícita de segurança.">
+      <div className="engine-grid">
+        <MetricCard label="Partidas cobertas" value={String(new Set(recommendations.map(item => item.match_id)).size)} />
+        <MetricCard label="Sugestões principais" value={String(primary.length)} />
+        <MetricCard label="Apostas de valor" value={String(recommendations.filter(item => item.actionable).length)} />
+        <MetricCard label="Mercados avaliados" value={String(recommendations.length)} />
+      </div>
+      <div className="segmented-control">
+        {[['primary', 'Melhores por partida'], ['value', 'Valor confirmado'], ['all', 'Todos os mercados']].map(([id, label]) => (
+          <button key={id} className={filter === id ? 'active' : ''} onClick={() => setFilter(id)}>{label}</button>
+        ))}
+      </div>
+      <DataList empty="Nenhuma recomendação disponível nesta categoria.">
+        {visible.slice(0, 120).map(item => (
+          <button className="recommendation-row" key={`${item.match_id}-${item.market_id}`} onClick={() => onOpenMatch(item.match_id)}>
+            <div className="recommendation-icon"><TrendingUp size={17} /></div>
+            <div><strong>{item.match}</strong><span>{item.market} · {item.selection}</span></div>
+            <div className="recommendation-score"><strong>{Math.round(item.probability * 100)}%</strong><RiskBadge item={item} /></div>
+          </button>
+        ))}
+      </DataList>
+    </FeaturePage>
+  )
+}
+
+function DataList({ children, empty }: { children: React.ReactNode; empty: string }) {
+  const isEmpty = Array.isArray(children) && children.length === 0
+  return <div className="data-list">{isEmpty ? <div className="data-empty">{empty}</div> : children}</div>
+}
+
+function RiskBadge({ item }: { item: RecommendationDto }) {
+  const label = item.actionable ? 'Valor confirmado'
+    : item.recommendation_type === 'model_pick' ? 'Melhor projeção' : 'Não recomendada'
+  return <span className={`risk-badge ${item.actionable ? 'safe' : item.no_bet ? 'blocked' : 'projection'}`}>{label}</span>
+}
+
+function CoverageBars({ items }: { items: [string, number | undefined][] }) {
+  return <div className="coverage-list">{items.map(([label, value]) => (
+    <div key={label}><div><span>{label}</span><strong>{percent(value)}</strong></div>
+      <progress max="1" value={value || 0} aria-label={`${label}: ${percent(value)}`} /></div>
+  ))}</div>
+}
+
+const percent = (value?: number) => value == null ? '—' : `${Math.round(value * 100)}%`
+const evidenceLabel = (value: string) => ({ high: 'Alta', medium: 'Média', low: 'Baixa' }[value] || value)
+const formatDateTime = (value: string) => new Date(value).toLocaleString('pt-BR')
+const humanize = (value: string) => value.replace(/_/g, ' ').replace(/^\w/, (letter: string) => letter.toUpperCase())
+const formatMetric = (value: unknown) => typeof value === 'number'
+  ? (value >= 0 && value <= 1 ? `${(value * 100).toFixed(1)}%` : value.toFixed(2))
+  : String(value)
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
