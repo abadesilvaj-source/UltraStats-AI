@@ -1,7 +1,8 @@
 FROM node:22-alpine AS build
 WORKDIR /web
-COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && pnpm install --frozen-lockfile
+ENV CI=true
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile --shamefully-hoist
 COPY . .
 RUN pnpm build
 

@@ -232,15 +232,15 @@ export async function createBankroll(payload: {
   })
 }
 
-export async function depositBankroll(bankrollId: number, amount: number) {
-  return request(`/bankrolls/${bankrollId}/deposit`, {
+export async function depositBankroll(bankrollId: number, amount: number): Promise<{ balance_after: number }> {
+  return request<{ balance_after: number }>(`/bankrolls/${bankrollId}/deposit`, {
     method: 'POST',
     body: JSON.stringify({ amount, description: 'Depósito pelo aplicativo' }),
   })
 }
 
-export async function withdrawBankroll(bankrollId: number, amount: number) {
-  return request(`/bankrolls/${bankrollId}/withdraw`, {
+export async function withdrawBankroll(bankrollId: number, amount: number): Promise<{ balance_after: number }> {
+  return request<{ balance_after: number }>(`/bankrolls/${bankrollId}/withdraw`, {
     method: 'POST',
     body: JSON.stringify({ amount, description: 'Saque pelo aplicativo' }),
   })

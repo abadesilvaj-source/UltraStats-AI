@@ -286,18 +286,36 @@ function MatchCard({ match, onClick, isFavorite, onToggleFavorite }: {
   match: Match; onClick: () => void; isFavorite: boolean; onToggleFavorite: () => void
 }) {
   return (
+    <div
+      className="match-card-interactive"
+      role="button"
+      tabIndex={0}
+      aria-label={`Abrir ${match.homeTeam.name} contra ${match.awayTeam.name}`}
+      onClick={onClick}
+      onKeyDown={event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onClick()
+        }
+      }}
+    >
     <Card style={{ cursor: 'pointer', transition: 'border-color 0.15s' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', borderBottom: '1px solid #1e2438' }}>
         <span style={{ fontSize: '12px', color: '#5a6480', fontFamily: "'JetBrains Mono', monospace" }}>{match.startTime}</span>
         {match.status === 'live' && <LiveBadge minute={match.minute} />}
         {match.status === 'finished' && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: '#1e2438', color: '#5a6480' }}>Encerrado</span>}
         {match.status === 'upcoming' && <span style={{ fontSize: '11px', color: '#5a6480' }}>Em breve</span>}
-        <button onClick={e => { e.stopPropagation(); onToggleFavorite() }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isFavorite ? '#fbbf24' : '#2a3150', padding: '2px' }}>
+        <button
+          aria-label={isFavorite ? 'Remover partida dos favoritos' : 'Adicionar partida aos favoritos'}
+          aria-pressed={isFavorite}
+          onClick={e => { e.stopPropagation(); onToggleFavorite() }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: isFavorite ? '#fbbf24' : '#2a3150', padding: '2px' }}
+        >
           <Star size={14} fill={isFavorite ? '#fbbf24' : 'none'} />
         </button>
       </div>
 
-      <div onClick={onClick} style={{ padding: '16px' }}>
+      <div style={{ padding: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#161b26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>{match.homeTeam.logo}</div>
@@ -341,10 +359,11 @@ function MatchCard({ match, onClick, isFavorite, onToggleFavorite }: {
         <ChevronRight size={14} color="#00e887" />
       </div>
     </Card>
+    </div>
   )
 }
 
-function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }: {
+export function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }: {
   matches: Match[]; onMatchClick: (m: Match) => void; favorites: string[]; onToggleFavorite: (id: string) => void
 }) {
   const [scope, setScope] = useState<'live' | 'today' | 'next' | 'finished'>('live')
@@ -415,18 +434,6 @@ function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }: {
   )
 }
 
-function Section({ title, accent, icon, children }: { title: string; accent: string; icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: '32px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-        {icon}
-        <h2 style={{ fontSize: '11px', fontWeight: 700, color: accent, letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>{title}</h2>
-      </div>
-      {children}
-    </div>
-  )
-}
-
 function LeagueGroup({ league, logo, country, group, children }: { league: string; logo: string; country: string; group?: Match['competitionGroup']; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '16px' }}>
@@ -443,7 +450,7 @@ function LeagueGroup({ league, logo, country, group, children }: { league: strin
   )
 }
 
-function MatchView({ match, betSlip, onAddBet, onBack, isFavorite, onToggleFavorite }: {
+export function MatchView({ match, betSlip, onAddBet, onBack, isFavorite, onToggleFavorite }: {
   match: Match; betSlip: BetSelection[]
   onAddBet: (matchId: string, matchName: string, market: string, option: string, odds: number) => void
   onBack: () => void; isFavorite: boolean; onToggleFavorite: () => void
@@ -957,7 +964,7 @@ function H2HTab({ match }: { match: Match }) {
   )
 }
 
-function BetSlipDrawer({ selections, onRemove, onOddsChange, onClose, totalOdds, onPlace }: {
+export function BetSlipDrawer({ selections, onRemove, onOddsChange, onClose, totalOdds, onPlace }: {
   selections: BetSelection[]; onRemove: (id: string) => void
   onOddsChange: (id: string, odds: number) => void
   onClose: () => void; totalOdds: number; onPlace: (stake: number) => void
@@ -1123,7 +1130,7 @@ function BetSlipDrawer({ selections, onRemove, onOddsChange, onClose, totalOdds,
   )
 }
 
-function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCreated, onError, onBalanceChanged, pending }: {
+export function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCreated, onError, onBalanceChanged, pending }: {
   bets: PlacedBet[]; setBets: (b: PlacedBet[]) => void; bankroll: number
   bankrollId: number | null; onBankrollCreated: (item: any) => void; onError: (message: string) => void
   onBalanceChanged: (balance: number) => void
@@ -1339,7 +1346,7 @@ function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCreated, 
   )
 }
 
-function FavoritesView({ matches, favorites, onMatchClick, onToggleFavorite }: {
+export function FavoritesView({ matches, favorites, onMatchClick, onToggleFavorite }: {
   matches: Match[]; favorites: string[]; onMatchClick: (m: Match) => void; onToggleFavorite: (id: string) => void
 }) {
   const favMatches = matches.filter(m => favorites.includes(m.id))
@@ -1366,7 +1373,7 @@ function FavoritesView({ matches, favorites, onMatchClick, onToggleFavorite }: {
   )
 }
 
-function SystemView({ maturity }: { maturity: any }) {
+export function SystemView({ maturity }: { maturity: any }) {
   if (!maturity) {
     return <Card style={{ marginTop: 24, padding: 32, color: '#7a88b0' }}>
       Carregando diagnóstico operacional...
