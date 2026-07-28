@@ -29,7 +29,7 @@ app.add_middleware(
         if value.strip()
     ],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
 
@@ -101,13 +101,20 @@ def markets(request: Request):
 
 
 @app.get("/api/v1/predictions")
-def predictions(request: Request):
-    return queries(request).predictions()
+def predictions(request: Request, limit: int = 500):
+    return queries(request).predictions(limit=max(1, min(limit, 1000)))
 
 
 @app.get("/api/v1/recommendations")
-def recommendations(request: Request):
-    return queries(request).recommendations()
+def recommendations(
+    request: Request,
+    primary_only: bool = False,
+    limit: int = 500,
+):
+    return queries(request).recommendations(
+        primary_only=primary_only,
+        limit=max(1, min(limit, 1000)),
+    )
 
 
 @app.get("/api/v1/bankrolls")

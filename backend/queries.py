@@ -345,7 +345,9 @@ class ApiQueries:
             })
         return list(grouped.values())
 
-    def predictions(self, match_id: int | None = None) -> list[dict]:
+    def predictions(
+        self, match_id: int | None = None, limit: int | None = None
+    ) -> list[dict]:
         home, away = aliased(Team), aliased(Team)
         statement = (
             select(Prediction, Match, Market, home, away, Competition)
@@ -364,6 +366,8 @@ class ApiQueries:
         )
         if match_id is not None:
             statement = statement.where(Match.id == match_id)
+        if limit is not None:
+            statement = statement.limit(limit)
         return [
             {
                 "id": p.id,
@@ -388,7 +392,10 @@ class ApiQueries:
         ]
 
     def recommendations(
-        self, match_id: int | None = None
+        self,
+        match_id: int | None = None,
+        primary_only: bool = False,
+        limit: int | None = None,
     ) -> list[dict]:
         has_opportunities = inspect(
             self.session.connection()
@@ -567,7 +574,12 @@ class ApiQueries:
                 *primary["warnings"],
                 "model_pick_without_confirmed_value",
             ]
-        return result
+        if primary_only:
+            result = [
+                item for item in result
+                if item["is_primary_recommendation"]
+            ]
+        return result[:limit] if limit is not None else result
 
     def markets(self) -> list[dict]:
         return [

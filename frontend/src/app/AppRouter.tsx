@@ -143,9 +143,13 @@ function UltraStatsApp() {
     market: string,
     option: string,
     odds: number,
+    explicitMarketId?: number,
   ) => {
     const source = matches.find(item => item.id === matchId)
-    const marketId = Number(source?.markets.find(item => item.name === market)?.id)
+    const fallbackMarketId = Number(source?.markets.find(item => item.name === market)?.id)
+    const marketId = explicitMarketId ?? (
+      Number.isFinite(fallbackMarketId) ? fallbackMarketId : undefined
+    )
     setBetSlip(current => {
       const id = `${matchId}-${market}-${option}`
       if (current.some(item => item.id === id)) {
@@ -291,21 +295,26 @@ function UltraStatsApp() {
           } />
           <Route path="/system" element={<SystemView maturity={maturityQuery.data} />} />
           <Route path="/analysis" element={
+            predictionsQuery.isPending ? <LoadingScreen compact /> :
             <AnalysisPage predictions={predictionsQuery.data || []} onOpenMatch={id => navigate(`/matches/${id}`)} />
           } />
           <Route path="/risk" element={
+            recommendationsQuery.isPending ? <LoadingScreen compact /> :
             <RiskPage recommendations={recommendationsQuery.data || []} onOpenMatch={id => navigate(`/matches/${id}`)} />
           } />
           <Route path="/statistics" element={
+            intelligenceQuery.isPending ? <LoadingScreen compact /> :
             <StatisticsPage maturity={maturityQuery.data} intelligence={intelligenceQuery.data} />
           } />
           <Route path="/models" element={
+            intelligenceQuery.isPending ? <LoadingScreen compact /> :
             <ModelsPage maturity={maturityQuery.data} intelligence={intelligenceQuery.data} />
           } />
           <Route path="/recommendations" element={
+            recommendationsQuery.isPending ? <LoadingScreen compact /> :
             <RecommendationsPage recommendations={recommendationsQuery.data || []} onOpenMatch={id => navigate(`/matches/${id}`)} />
           } />
-          <Route path="/providers" element={<SystemView maturity={maturityQuery.data} />} />
+          <Route path="/providers" element={<ProvidersPage maturity={maturityQuery.data} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       )}
@@ -342,7 +351,7 @@ function MatchRoute({
   betSlip: BetSelection[]
   onAddBet: (
     matchId: string, matchName: string, market: string,
-    option: string, odds: number,
+    option: string, odds: number, marketId?: number,
   ) => void
 }) {
   const { matchId = '' } = useParams()
@@ -502,8 +511,8 @@ function AnalysisPage({ predictions, onOpenMatch }: {
   return (
     <FeaturePage title="ANÁLISES" subtitle="Probabilidades produzidas pelo motor, organizadas por partida e mercado.">
       <div className="engine-grid">
-        <MetricCard label="Previsões ativas" value={String(predictions.length)} />
-        <MetricCard label="Partidas analisadas" value={String(new Set(predictions.map(item => item.match_id)).size)} />
+        <MetricCard label="Previsões exibidas" value={String(predictions.length)} />
+        <MetricCard label="Partidas nesta amostra" value={String(new Set(predictions.map(item => item.match_id)).size)} />
         <MetricCard label="Evidência média/alta" value={String(predictions.filter(item => item.evidence !== 'low').length)} />
         <MetricCard label="Modelos ativos" value={String(new Set(predictions.map(item => item.model)).size)} />
       </div>
@@ -536,7 +545,7 @@ function RiskPage({ recommendations, onOpenMatch }: {
       <div className="engine-grid">
         <MetricCard label="Sugestões principais" value={String(primary.length)} />
         <MetricCard label="Valor confirmado" value={String(recommendations.filter(item => item.actionable).length)} />
-        <MetricCard label="Não recomendados" value={String(recommendations.filter(item => item.no_bet).length)} />
+        <MetricCard label="Sem valor confirmado" value={String(primary.filter(item => !item.actionable).length)} />
         <MetricCard label="Risco alto" value={String(recommendations.filter(item => item.risk === 'high').length)} />
       </div>
       <section className="insight-panel">
@@ -612,18 +621,18 @@ function RecommendationsPage({ recommendations, onOpenMatch }: {
 }) {
   const [filter, setFilter] = useState('primary')
   const primary = recommendations.filter(item => item.is_primary_recommendation)
-  const visible = filter === 'all' ? recommendations
-    : filter === 'value' ? recommendations.filter(item => item.actionable) : primary
+  const visible = filter === 'value'
+    ? recommendations.filter(item => item.actionable) : primary
   return (
     <FeaturePage title="RECOMENDAÇÕES" subtitle="Melhor sugestão por partida, com indicação explícita de segurança.">
       <div className="engine-grid">
         <MetricCard label="Partidas cobertas" value={String(new Set(recommendations.map(item => item.match_id)).size)} />
         <MetricCard label="Sugestões principais" value={String(primary.length)} />
         <MetricCard label="Apostas de valor" value={String(recommendations.filter(item => item.actionable).length)} />
-        <MetricCard label="Mercados avaliados" value={String(recommendations.length)} />
+        <MetricCard label="Projeções exibidas" value={String(recommendations.length)} />
       </div>
       <div className="segmented-control">
-        {[['primary', 'Melhores por partida'], ['value', 'Valor confirmado'], ['all', 'Todos os mercados']].map(([id, label]) => (
+        {[['primary', 'Melhores por partida'], ['value', 'Valor confirmado']].map(([id, label]) => (
           <button key={id} className={filter === id ? 'active' : ''} onClick={() => setFilter(id)}>{label}</button>
         ))}
       </div>
@@ -636,6 +645,40 @@ function RecommendationsPage({ recommendations, onOpenMatch }: {
           </button>
         ))}
       </DataList>
+    </FeaturePage>
+  )
+}
+
+function ProvidersPage({ maturity }: { maturity: any }) {
+  const providers = Object.entries(maturity?.providers || {}) as [string, any][]
+  const available = providers.filter(([, item]) => item.available).length
+  return (
+    <FeaturePage title="PROVEDORES E QUALIDADE" subtitle="Disponibilidade, latência, capacidades e atualidade de cada fonte.">
+      <div className="engine-grid">
+        <MetricCard label="Provedores monitorados" value={String(providers.length)} />
+        <MetricCard label="Disponíveis" value={String(available)} />
+        <MetricCard label="Indisponíveis" value={String(providers.length - available)} />
+        <MetricCard label="Neutralidade de identidade" value={percent(maturity?.neutrality?.multi_provider_identity_coverage)} />
+      </div>
+      <div className="provider-grid">
+        {providers.map(([name, item]) => (
+          <article className="provider-card" key={name}>
+            <div>
+              <span className={`provider-dot ${item.available ? 'online' : ''}`} />
+              <strong>{humanize(name)}</strong>
+              <span className={`provider-state ${item.available ? 'online' : ''}`}>
+                {item.available ? 'Disponível' : 'Indisponível'}
+              </span>
+            </div>
+            <p>{item.latency_ms == null ? 'Latência não informada' : `${item.latency_ms} ms`} · peso base {item.base_weight ?? 1}</p>
+            <div className="capability-list">
+              {(item.capabilities || []).map((capability: string) => <span key={capability}>{humanize(capability)}</span>)}
+            </div>
+            <small>Último dado: {item.last_payload_at ? formatDateTime(item.last_payload_at) : 'ainda não registrado'}</small>
+          </article>
+        ))}
+        {!providers.length && <div className="data-empty">Diagnóstico dos provedores indisponível.</div>}
+      </div>
     </FeaturePage>
   )
 }

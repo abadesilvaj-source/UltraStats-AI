@@ -452,14 +452,20 @@ function LeagueGroup({ league, logo, country, group, children }: { league: strin
 
 export function MatchView({ match, betSlip, onAddBet, onBack, isFavorite, onToggleFavorite }: {
   match: Match; betSlip: BetSelection[]
-  onAddBet: (matchId: string, matchName: string, market: string, option: string, odds: number) => void
+  onAddBet: (matchId: string, matchName: string, market: string, option: string, odds: number, marketId?: number) => void
   onBack: () => void; isFavorite: boolean; onToggleFavorite: () => void
 }) {
   const [tab, setTab] = useState<MatchTab>(
     match.status === 'live' ? 'live' : match.status === 'finished' ? 'stats' : 'lineup'
   )
   const matchName = `${match.homeTeam.name} vs ${match.awayTeam.name}`
-  const addBet = (market: string, option: string, odds: number) => onAddBet(match.id, matchName, market, option, odds)
+  const addBet = (market: string, option: string, odds: number) => {
+    const marketId = Number(match.markets.find(item => item.name === market)?.id)
+    onAddBet(
+      match.id, matchName, market, option, odds,
+      Number.isFinite(marketId) ? marketId : undefined,
+    )
+  }
 
   const tabs: { id: MatchTab; label: string; icon: React.ReactNode }[] = [
     { id: 'live', label: match.status === 'finished' ? 'Eventos' : 'Ao Vivo', icon: <Activity size={13} /> },

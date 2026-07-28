@@ -10,7 +10,7 @@ const emptyStats = (): MatchStats => ({
   passAccuracy: [0, 0], xG: [0, 0],
 })
 const emptyAnalysis = (): MatchAnalysis => ({
-  summary: 'Análise processada pelo motor estatístico multifuente.',
+  summary: 'Nenhuma análise preditiva disponível para esta partida.',
   homeForm: [], awayForm: [], keyFactors: [], recommendations: [],
 })
 
@@ -90,6 +90,9 @@ function adapt(item: any): Match {
       ? `EV ${(row.expected_value * 100).toFixed(1)}% · evidência ${row.evidence || 'limitada'}`
       : `Probabilidade ${(row.probability * 100).toFixed(1)}% · odd justa do modelo`,
   }))
+  if (analysis.recommendations.length) {
+    analysis.summary = 'Projeções calculadas pelo motor estatístico com os dados atualmente disponíveis.'
+  }
   if (item.data_fusion?.provenance) {
     analysis.keyFactors = Object.entries(item.data_fusion.provenance).map(
       ([field, detail]: [string, any]) =>
@@ -288,11 +291,11 @@ export type RecommendationDto = PredictionDto & {
 }
 
 export async function loadPredictions(): Promise<PredictionDto[]> {
-  return request('/predictions')
+  return request('/predictions?limit=500')
 }
 
 export async function loadRecommendations(): Promise<RecommendationDto[]> {
-  return request('/recommendations')
+  return request('/recommendations?primary_only=true&limit=200')
 }
 
 export async function loadIntelligence(): Promise<any> {

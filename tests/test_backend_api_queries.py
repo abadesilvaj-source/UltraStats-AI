@@ -122,6 +122,14 @@ def test_recommendations_always_select_one_model_pick_per_match():
         assert primary[0]["recommendation_type"] == "model_pick"
         assert not primary[0]["no_bet"]
         assert sum(not row["no_bet"] for row in rows) == 1
+        compact = ApiQueries(
+            session, "America/Sao_Paulo"
+        ).recommendations(primary_only=True, limit=1)
+        assert len(compact) == 1
+        assert compact[0]["is_primary_recommendation"]
+        assert len(ApiQueries(
+            session, "America/Sao_Paulo"
+        ).predictions(limit=1)) == 1
 
 
 def test_stale_live_match_is_exposed_as_finished_with_statistics():
