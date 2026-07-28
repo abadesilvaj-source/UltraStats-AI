@@ -71,3 +71,20 @@ Cada mercado também possui seu próprio gate, configurado por
 `MODEL_MIN_MARKET_SAMPLES`, `MODEL_MAX_MARKET_BRIER` e
 `MODEL_MAX_MARKET_CALIBRATION_ERROR`. O modelo global aprovado não autoriza
 automaticamente um mercado com poucas amostras ou desempenho ruim.
+# Validação localizada
+
+Além dos gates globais e por mercado, o modelo aplica um gate por
+`competição × mercado`. Uma recomendação somente recebe o estado seguro
+quando há amostra, Brier Score e erro de calibração aceitáveis no contexto
+da competição em que a partida será disputada. Competições fora do catálogo
+operacional não alimentam o treinamento nem geram novas previsões.
+
+Os limites são configuráveis:
+
+- `MODEL_MIN_COMPETITION_MARKET_SAMPLES`;
+- `MODEL_MAX_COMPETITION_MARKET_BRIER`;
+- `MODEL_MAX_COMPETITION_MARKET_CALIBRATION_ERROR`.
+
+Esse isolamento impede que uma boa calibração global esconda desempenho
+ruim em uma liga ou mercado específico. Ao ingressar uma competição nova,
+as projeções permanecem experimentais até acumularem evidência local.

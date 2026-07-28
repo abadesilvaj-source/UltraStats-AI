@@ -65,3 +65,17 @@ degradada e validação preditiva estão em
 [`multi-provider-model-validation.md`](../architecture/multi-provider-model-validation.md).
 
 Fontes sem API pública ou licença explícita não são coletadas por scraping.
+## Próximas integrações gratuitas
+
+Os conectores adicionais devem permanecer desativados até que suas chaves
+gratuitas sejam informadas. Não se considera uma integração concluída apenas
+porque o endpoint público de saúde responde.
+
+- **GOAL API:** agenda, placares, eventos, escalações, estatísticas e odds;
+  requer `GOAL_API_KEY`.
+- **Zafronix Sports APIs:** histórico de seleções e competições, estádios,
+  árbitros e clima; requer `ZAFRONIX_API_KEY`.
+
+Depois de fornecidas as chaves, cada fonte deve passar por contrato,
+persistência bruta, resolução de identidade, fusão, monitoramento de cota e
+teste de aceitação antes de contribuir com previsões.

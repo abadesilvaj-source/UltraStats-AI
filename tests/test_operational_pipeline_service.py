@@ -46,8 +46,8 @@ def fixture(external_id="100"):
             },
             "league": {
                 "id": 10,
-                "name": "Test League",
-                "country": "Brazil",
+                "name": "Premier League",
+                "country": "England",
                 "season": 2026,
             },
             "teams": {

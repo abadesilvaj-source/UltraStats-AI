@@ -11,11 +11,13 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     Audit,
+    Competition,
     Market,
     Match,
     Odd,
     Prediction,
 )
+from app.core.competition_catalog import competition_policy
 from ultrastats_ai.infrastructure.database.models import (
     ModelBacktestRecord,
     ModelValidationRecord,
@@ -100,14 +102,23 @@ class OperationalIntelligenceService:
                 )
             )
 
-        audits = self.session.scalars(
-            select(Audit)
+        audit_rows = self.session.execute(
+            select(Audit, Competition)
+            .join(Prediction, Prediction.id == Audit.prediction_id)
+            .join(Match, Match.id == Prediction.match_id)
+            .join(Competition, Competition.id == Match.competition_id)
             .where(
                 Audit.source == "automatic_learning_pipeline",
                 Audit.result_status.in_(("won", "lost")),
             )
             .order_by(Audit.audited_at)
         ).all()
+        audits = [
+            audit for audit, competition in audit_rows
+            if competition_policy(
+                competition.name, competition.country
+            ) is not None
+        ]
         checksum = sha256(
             "|".join(
                 f"{item.id}:{item.result_status}:"
@@ -142,6 +153,9 @@ class OperationalIntelligenceService:
             calibration_error = self._calibration_error(audits)
             walk_forward = self._walk_forward_metrics(audits)
             per_market = self._per_market_metrics(audits)
+            per_competition_market = (
+                self._per_competition_market_metrics(audits)
+            )
             drift = bool(
                 walk_forward["baseline_brier"] is not None
                 and walk_forward["recent_brier"] is not None
@@ -173,6 +187,7 @@ class OperationalIntelligenceService:
                 "samples": len(audits),
                 "walk_forward": walk_forward,
                 "per_market": per_market,
+                "per_competition_market": per_competition_market,
                 "drift_detected": drift,
                 "champion": self.model_version,
                 "challenger": "challenger-v1",
@@ -228,6 +243,10 @@ class OperationalIntelligenceService:
             validation.metrics.get("per_market", {})
             if validation else {}
         )
+        per_competition_market = (
+            validation.metrics.get("per_competition_market", {})
+            if validation else {}
+        )
         matches = self.session.scalars(
             select(Match).where(
                 Match.status.in_(("scheduled", "in_progress")),
@@ -239,6 +258,17 @@ class OperationalIntelligenceService:
         ).all()
         created = 0
         for match in matches:
+            competition = self.session.get(
+                Competition, match.competition_id
+            )
+            policy = (
+                competition_policy(
+                    competition.name, competition.country
+                )
+                if competition else None
+            )
+            if policy is None:
+                continue
             predictions = self.session.scalars(
                 select(Prediction)
                 .where(
@@ -292,6 +322,19 @@ class OperationalIntelligenceService:
                 market_approved = self._market_is_approved(
                     market_metrics
                 )
+                competition_market_key = (
+                    f"{policy.code}:{market.code}"
+                )
+                competition_market_metrics = (
+                    per_competition_market.get(
+                        competition_market_key, {}
+                    )
+                )
+                competition_market_approved = (
+                    self._competition_market_is_approved(
+                        competition_market_metrics
+                    )
+                )
                 margin = 1.96 * sqrt(
                     prediction.probability
                     * (1 - prediction.probability)
@@ -327,6 +370,10 @@ class OperationalIntelligenceService:
                     reasons.append("model_validation_failed")
                 if not market_approved:
                     reasons.append("market_validation_failed")
+                if not competition_market_approved:
+                    reasons.append(
+                        "competition_market_validation_failed"
+                    )
                 safe = not reasons
                 kelly = (
                     max(
@@ -368,6 +415,15 @@ class OperationalIntelligenceService:
                             "market_validation": {
                                 **market_metrics,
                                 "approved": market_approved,
+                            },
+                            "competition": {
+                                "code": policy.code,
+                                "group": policy.group,
+                            },
+                            "competition_market_validation": {
+                                **competition_market_metrics,
+                                "approved":
+                                    competition_market_approved,
                             },
                             "odds_age_hours": odd_age_hours,
                             "fractional_kelly": kelly * 0.25,
@@ -437,6 +493,28 @@ class OperationalIntelligenceService:
             )
         )
 
+    @staticmethod
+    def _competition_market_is_approved(
+        metrics: dict[str, object],
+    ) -> bool:
+        samples = int(metrics.get("samples") or 0)
+        brier = metrics.get("brier_score")
+        calibration = metrics.get("calibration_error")
+        return (
+            samples >= int(os.getenv(
+                "MODEL_MIN_COMPETITION_MARKET_SAMPLES", "20"
+            ))
+            and brier is not None
+            and float(brier) <= float(os.getenv(
+                "MODEL_MAX_COMPETITION_MARKET_BRIER", "0.32"
+            ))
+            and calibration is not None
+            and float(calibration) <= float(os.getenv(
+                "MODEL_MAX_COMPETITION_MARKET_CALIBRATION_ERROR",
+                "0.30",
+            ))
+        )
+
     def _provider_coverage(self) -> dict[str, object]:
         rows = self.session.execute(
             select(
@@ -498,6 +576,53 @@ class OperationalIntelligenceService:
                 "calibration_error": self._calibration_error(items),
             }
             for market_id, items in grouped.items()
+        }
+
+    def _per_competition_market_metrics(
+        self, audits: list[Audit]
+    ) -> dict[str, dict[str, float | int | None]]:
+        prediction_ids = [
+            item.prediction_id for item in audits
+            if item.prediction_id is not None
+        ]
+        rows = self.session.execute(
+            select(
+                Prediction.id,
+                Prediction.market_id,
+                Competition.name,
+                Competition.country,
+            )
+            .join(Match, Match.id == Prediction.match_id)
+            .join(Competition, Competition.id == Match.competition_id)
+            .where(Prediction.id.in_(prediction_ids or [-1]))
+        ).all()
+        lookup = {
+            prediction_id: (market_id, name, country)
+            for prediction_id, market_id, name, country in rows
+        }
+        market_names = {
+            item.id: item.code
+            for item in self.session.scalars(select(Market)).all()
+        }
+        grouped: dict[str, list[Audit]] = {}
+        for audit in audits:
+            item = lookup.get(audit.prediction_id)
+            if item is None:
+                continue
+            market_id, name, country = item
+            policy = competition_policy(name, country)
+            if policy is None:
+                continue
+            key = f"{policy.code}:{market_names.get(market_id, market_id)}"
+            grouped.setdefault(key, []).append(audit)
+        return {
+            key: {
+                "samples": len(items),
+                "brier_score": self._brier(items),
+                "calibration_error": self._calibration_error(items),
+                "recent_brier_score": self._brier(items[-100:]),
+            }
+            for key, items in grouped.items()
         }
 
     def _walk_forward_metrics(

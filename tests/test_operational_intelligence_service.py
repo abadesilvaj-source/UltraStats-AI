@@ -23,7 +23,9 @@ def test_materializes_model_lifecycle_and_recommendations():
     Base.metadata.create_all(engine)
     CanonicalBase.metadata.create_all(engine)
     session = Session(engine)
-    competition = Competition(name="Liga ML", sport="football")
+    competition = Competition(
+        name="Premier League", country="England", sport="football"
+    )
     home, away = Team(name="Casa ML"), Team(name="Fora ML")
     market = Market(
         code="match_winner",
@@ -89,6 +91,10 @@ def test_materializes_model_lifecycle_and_recommendations():
     assert not opportunity.safe
     assert "model_validation_failed" in opportunity.blocked_reasons
     assert "market_validation_failed" in opportunity.blocked_reasons
+    assert (
+        "competition_market_validation_failed"
+        in opportunity.blocked_reasons
+    )
     assert "insufficient_conservative_edge" in opportunity.blocked_reasons
     assert opportunity.metrics["warnings"] == [
         "low_evidence",
@@ -108,6 +114,20 @@ def test_market_gate_requires_sample_quality_and_calibration():
         "samples": 3,
         "brier_score": .05,
         "calibration_error": .01,
+    })
+
+
+def test_competition_market_gate_requires_local_evidence():
+    service = OperationalIntelligenceService
+    assert service._competition_market_is_approved({
+        "samples": 30,
+        "brier_score": .22,
+        "calibration_error": .10,
+    })
+    assert not service._competition_market_is_approved({
+        "samples": 5,
+        "brier_score": .10,
+        "calibration_error": .05,
     })
     assert not service._market_is_approved({
         "samples": 50,
