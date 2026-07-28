@@ -131,7 +131,7 @@ export interface PlacedBet {
   potentialReturn: number
   totalOdds: number
   date: string
-  status: 'pending' | 'won' | 'lost' | 'void' | 'partial'
+  status: 'pending' | 'won' | 'lost' | 'void' | 'partial' | 'canceled'
 }
 
 const arsenal: Team = {

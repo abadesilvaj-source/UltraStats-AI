@@ -76,6 +76,15 @@ def test_multiple_slip_reserves_stake_and_combines_odds():
         assert slip.total_odds == Decimal("4.0000")
         assert len(slip.legs) == 2
         assert session.get(Bankroll, bankroll.id).current_balance == Decimal("950")
+        canceled = BetSlipService(session).cancel(slip.id)
+        assert canceled.status == "canceled"
+        assert canceled.payout_amount == Decimal("50.00")
+        assert all(leg.status == "canceled" for leg in canceled.legs)
+        assert session.get(
+            Bankroll, bankroll.id
+        ).current_balance == Decimal("1000.00")
+        with pytest.raises(ValueError, match="Somente bilhetes pendentes"):
+            BetSlipService(session).cancel(slip.id)
 
 
 def test_manual_odds_override_collected_odds_in_analysis_and_slip():

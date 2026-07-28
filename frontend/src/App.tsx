@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { type Match, type BetSelection, type PlacedBet, type OddsMarket, type OddsOption } from './data'
 import {
-  analyzeBetSlip, createBankroll, depositBankroll, loadBankrolls, loadMatch,
+  analyzeBetSlip, cancelBetSlip, createBankroll, depositBankroll, loadBankrolls, loadMatch,
   loadBetSlips, loadMatches, loadMaturity, placeBet, settleBetLeg,
   withdrawBankroll,
 } from './api'
@@ -1369,6 +1369,17 @@ export function BetsView({ bets, setBets, onError, onSettled }: {
     lost: { label: 'Perdeu', color: '#ff1744' },
     void: { label: 'Anulada', color: '#7a88b0' },
     partial: { label: 'Parcial', color: '#4f8ef7' },
+    canceled: { label: 'Cancelada', color: '#7a88b0' },
+  }
+  const cancel = async (slipId: string) => {
+    if (!window.confirm('Cancelar esta aposta e devolver o valor apostado à banca?')) return
+    try {
+      await cancelBetSlip(slipId)
+      setBets(await loadBetSlips())
+      onSettled()
+    } catch (error: any) {
+      onError(error.message)
+    }
   }
   return (
     <div className="animate-fade-in">
@@ -1376,6 +1387,7 @@ export function BetsView({ bets, setBets, onError, onSettled }: {
         {([
           ['all', 'Todas'], ['pending', 'Pendentes'], ['won', 'Ganhas'],
           ['lost', 'Perdidas'], ['void', 'Anuladas'], ['partial', 'Parciais'],
+          ['canceled', 'Canceladas'],
         ] as const).map(([value, label]) => (
           <button key={value} onClick={() => setStatus(value)}
             style={{ padding: '8px 12px', borderRadius: 7, border: `1px solid ${status === value ? '#00e887' : '#1e2438'}`, background: status === value ? 'rgba(0,232,135,.1)' : '#0f1119', color: status === value ? '#00e887' : '#7a88b0', cursor: 'pointer' }}>
@@ -1398,7 +1410,14 @@ export function BetsView({ bets, setBets, onError, onSettled }: {
                   <span style={{ color: cfg.color, fontWeight: 700 }}>{cfg.label}</span>
                   <span style={{ color: '#5a6480', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{bet.date}</span>
                 </div>
-                <strong style={{ color: '#eef0f9', fontFamily: "'JetBrains Mono', monospace" }}>{bet.totalOdds.toFixed(2)}x</strong>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <strong style={{ color: '#eef0f9', fontFamily: "'JetBrains Mono', monospace" }}>{bet.totalOdds.toFixed(2)}x</strong>
+                  {bet.status === 'pending' && (
+                    <button className="cancel-bet-button" onClick={() => cancel(bet.id)}>
+                      Cancelar aposta
+                    </button>
+                  )}
+                </div>
               </div>
               <div style={{ padding: '8px 16px 14px' }}>
                 {bet.selections.map(selection => (

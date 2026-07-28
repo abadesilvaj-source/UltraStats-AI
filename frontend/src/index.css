@@ -312,6 +312,12 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .settle-button.won { color: #00c853; background: rgba(0,200,83,.15); }
 .settle-button.lost { color: #ff1744; background: rgba(255,23,68,.15); }
 .settle-button.void { color: #7a88b0; background: rgba(122,136,176,.15); }
+.cancel-bet-button {
+  padding: 6px 9px; border: 1px solid #ff1744; border-radius: 6px;
+  color: #ff8298; background: rgba(255,23,68,.08); cursor: pointer;
+  font-size: 11px; font-weight: 700;
+}
+.cancel-bet-button:hover { color: #fff; background: #b51131; }
 
 @media (max-width: 900px) {
   .sidebar {

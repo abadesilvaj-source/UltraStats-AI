@@ -178,12 +178,17 @@ export async function settleBetLeg(
   })
 }
 
+export async function cancelBetSlip(slipId: string) {
+  return request(`/bet-slips/${slipId}/cancel`, { method: 'POST' })
+}
+
 export async function loadBetSlips(): Promise<PlacedBet[]> {
   const rows = await request<any[]>('/bet-slips')
   return rows.map(item => {
     const results = item.legs.map((leg: any) => leg.result || leg.status)
     const status: PlacedBet['status'] = item.status === 'pending'
-      ? 'pending'
+      ? 'pending' : item.status === 'canceled'
+      ? 'canceled'
       : results.every((value: string) => value === 'won') ? 'won'
       : results.some((value: string) => value === 'lost') ? 'lost'
       : results.every((value: string) => value === 'void') ? 'void'

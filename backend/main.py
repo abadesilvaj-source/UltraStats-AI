@@ -253,6 +253,12 @@ async def settle_bet_slip_leg(
     return serialize_slip(slip, request.state.session)
 
 
+@app.post("/api/v1/bet-slips/{slip_id}/cancel")
+def cancel_bet_slip(slip_id: int, request: Request):
+    slip = BetSlipService(request.state.session).cancel(slip_id)
+    return serialize_slip(slip, request.state.session)
+
+
 @app.get("/api/v1/favorites")
 def favorites(request: Request, user_id: str = "default"):
     return [

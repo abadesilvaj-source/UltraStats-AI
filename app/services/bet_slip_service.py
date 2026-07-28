@@ -346,6 +346,44 @@ class BetSlipService:
         self.session.commit()
         return self.get(slip.id)
 
+    def cancel(self, slip_id: int) -> BetSlip:
+        slip = self.get(slip_id)
+        if slip.status != "pending":
+            raise ValueError(
+                "Somente bilhetes pendentes podem ser cancelados."
+            )
+        if any(leg.status != "pending" for leg in slip.legs):
+            raise ValueError(
+                "Bilhetes parcialmente liquidados não podem ser cancelados."
+            )
+        bankroll = self.session.get(Bankroll, slip.bankroll_id)
+        if bankroll is None:
+            raise ValueError("Banca do bilhete não encontrada.")
+        now = datetime.now(timezone.utc)
+        refund = Decimal(str(slip.stake_amount)).quantize(Decimal(".01"))
+        before = Decimal(str(bankroll.current_balance))
+        bankroll.current_balance = before + refund
+        slip.status = "canceled"
+        slip.payout_amount = refund
+        slip.settled_at = now
+        for leg in slip.legs:
+            leg.status = "canceled"
+            leg.result = "void"
+            leg.settled_at = now
+        self.session.add(
+            BankrollTransaction(
+                bankroll_id=bankroll.id,
+                slip_id=slip.id,
+                transaction_type="slip_cancellation",
+                amount=refund,
+                balance_before=before,
+                balance_after=bankroll.current_balance,
+                description=f"Estorno do bilhete cancelado {slip.id}",
+            )
+        )
+        self.session.commit()
+        return self.get(slip.id)
+
     def _finalize(self, slip: BetSlip, now: datetime) -> None:
         if slip.status != "pending":
             return
