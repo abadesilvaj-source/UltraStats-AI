@@ -305,6 +305,13 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .model-metrics span { display: block; color: #657196; font-size: 11px; }
 .model-metrics strong { display: block; margin-top: 7px; color: #eef0f9; font-family: 'JetBrains Mono', monospace; }
 .data-empty { padding: 34px; color: #7a88b0; text-align: center; }
+.settle-button {
+  padding: 5px 8px; border: 0; border-radius: 5px; cursor: pointer;
+  font-size: 10px; font-weight: 700;
+}
+.settle-button.won { color: #00c853; background: rgba(0,200,83,.15); }
+.settle-button.lost { color: #ff1744; background: rgba(255,23,68,.15); }
+.settle-button.void { color: #7a88b0; background: rgba(122,136,176,.15); }
 
 @media (max-width: 900px) {
   .sidebar {

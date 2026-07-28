@@ -10,7 +10,7 @@ import {
   Target, TrendingUp, Wallet, X, Zap,
 } from 'lucide-react'
 import {
-  BankrollView, BetSlipDrawer, FavoritesView, HomeView, MatchView,
+  BankrollView, BetsView, BetSlipDrawer, FavoritesView, HomeView, MatchView,
   SystemView,
 } from '../App'
 import type { BetSelection, Match, PlacedBet } from '../data'
@@ -278,16 +278,14 @@ function UltraStatsApp() {
           } />
           <Route path="/bets" element={
             <FeaturePage title="MINHAS APOSTAS" subtitle="Histórico, pendências e liquidação manual">
-              <BankrollView
+              <BetsView
                 bets={placedBets}
                 setBets={setPlacedBets}
-                bankroll={bankroll?.balance || 0}
-                bankrollId={bankroll?.id || null}
-                onBankrollCreated={() => queryClient.invalidateQueries({ queryKey: queryKeys.bankrolls })}
                 onError={setMessage}
-                onBalanceChanged={() => queryClient.invalidateQueries({ queryKey: queryKeys.bankrolls })}
-                wonTotal={0} lostTotal={0}
-                pending={placedBets.filter(item => item.status === 'pending').length}
+                onSettled={() => {
+                  queryClient.invalidateQueries({ queryKey: queryKeys.bets })
+                  queryClient.invalidateQueries({ queryKey: queryKeys.bankrolls })
+                }}
               />
             </FeaturePage>
           } />

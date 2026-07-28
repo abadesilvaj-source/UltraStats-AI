@@ -1346,6 +1346,90 @@ export function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCr
   )
 }
 
+export function BetsView({ bets, setBets, onError, onSettled }: {
+  bets: PlacedBet[]
+  setBets: (bets: PlacedBet[]) => void
+  onError: (message: string) => void
+  onSettled: () => void
+}) {
+  const [status, setStatus] = useState<'all' | PlacedBet['status']>('all')
+  const visible = status === 'all' ? bets : bets.filter(item => item.status === status)
+  const settle = async (slipId: string, legId: string, result: 'won' | 'lost' | 'void') => {
+    try {
+      await settleBetLeg(slipId, legId, result)
+      setBets(await loadBetSlips())
+      onSettled()
+    } catch (error: any) {
+      onError(error.message)
+    }
+  }
+  const labels: Record<PlacedBet['status'], { label: string; color: string }> = {
+    pending: { label: 'Pendente', color: '#fbbf24' },
+    won: { label: 'Ganhou', color: '#00c853' },
+    lost: { label: 'Perdeu', color: '#ff1744' },
+    void: { label: 'Anulada', color: '#7a88b0' },
+    partial: { label: 'Parcial', color: '#4f8ef7' },
+  }
+  return (
+    <div className="animate-fade-in">
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 16 }}>
+        {([
+          ['all', 'Todas'], ['pending', 'Pendentes'], ['won', 'Ganhas'],
+          ['lost', 'Perdidas'], ['void', 'Anuladas'], ['partial', 'Parciais'],
+        ] as const).map(([value, label]) => (
+          <button key={value} onClick={() => setStatus(value)}
+            style={{ padding: '8px 12px', borderRadius: 7, border: `1px solid ${status === value ? '#00e887' : '#1e2438'}`, background: status === value ? 'rgba(0,232,135,.1)' : '#0f1119', color: status === value ? '#00e887' : '#7a88b0', cursor: 'pointer' }}>
+            {label} ({value === 'all' ? bets.length : bets.filter(item => item.status === value).length})
+          </button>
+        ))}
+      </div>
+      {visible.length === 0 && (
+        <Card style={{ padding: 40, textAlign: 'center', color: '#7a88b0' }}>
+          Nenhuma aposta encontrada nesta categoria.
+        </Card>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {visible.map(bet => {
+          const cfg = labels[bet.status]
+          return (
+            <Card key={bet.id} style={{ overflow: 'hidden' }}>
+              <div style={{ padding: '11px 16px', borderBottom: '1px solid #1e2438', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <span style={{ color: cfg.color, fontWeight: 700 }}>{cfg.label}</span>
+                  <span style={{ color: '#5a6480', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{bet.date}</span>
+                </div>
+                <strong style={{ color: '#eef0f9', fontFamily: "'JetBrains Mono', monospace" }}>{bet.totalOdds.toFixed(2)}x</strong>
+              </div>
+              <div style={{ padding: '8px 16px 14px' }}>
+                {bet.selections.map(selection => (
+                  <div key={selection.id} style={{ padding: '10px 0', borderBottom: '1px solid #1e2438', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <strong style={{ display: 'block', color: '#eef0f9', fontSize: 13 }}>{selection.matchName}</strong>
+                      <span style={{ color: '#7a88b0', fontSize: 12 }}>{selection.market} · {selection.option}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <strong style={{ color: '#00e887', fontFamily: "'JetBrains Mono', monospace" }}>{selection.odds.toFixed(2)}</strong>
+                      {selection.status === 'pending' && <>
+                        <button onClick={() => settle(bet.id, selection.id, 'won')} className="settle-button won">Ganhou</button>
+                        <button onClick={() => settle(bet.id, selection.id, 'lost')} className="settle-button lost">Perdeu</button>
+                        <button onClick={() => settle(bet.id, selection.id, 'void')} className="settle-button void">Anular</button>
+                      </>}
+                    </div>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, paddingTop: 11, color: '#7a88b0', fontSize: 12 }}>
+                  <span>Apostado: <strong style={{ color: '#eef0f9' }}>R$ {bet.stake.toFixed(2)}</strong></span>
+                  <span>Retorno potencial: <strong style={{ color: '#eef0f9' }}>R$ {bet.potentialReturn.toFixed(2)}</strong></span>
+                </div>
+              </div>
+            </Card>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function FavoritesView({ matches, favorites, onMatchClick, onToggleFavorite }: {
   matches: Match[]; favorites: string[]; onMatchClick: (m: Match) => void; onToggleFavorite: (id: string) => void
 }) {
