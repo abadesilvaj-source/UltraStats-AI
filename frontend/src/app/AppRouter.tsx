@@ -321,7 +321,7 @@ function MatchRoute({
     queryKey: ['match', matchId],
     queryFn: () => loadMatch(matchId),
     enabled: Boolean(matchId),
-    initialData: fallback,
+    placeholderData: fallback,
     staleTime: 15_000,
   })
   if (query.isPending || !query.data) return <LoadingScreen compact />
