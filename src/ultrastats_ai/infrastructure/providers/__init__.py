@@ -29,6 +29,7 @@ from ultrastats_ai.infrastructure.providers.multisource import (
     DataCapability,
     DataSource,
     FootballDataUKSource,
+    GoalApiSource,
     JsonDataSource,
     MultiSourceEngine,
     OddsSnapshot,
@@ -39,6 +40,7 @@ from ultrastats_ai.infrastructure.providers.multisource import (
     StatsBombOpenDataSource,
     TheOddsApiSource,
     TheSportsDBSource,
+    ZafronixSource,
     build_multi_source_engine,
 )
 
@@ -67,6 +69,7 @@ __all__ = [
     "DataCapability",
     "DataSource",
     "FootballDataUKSource",
+    "GoalApiSource",
     "JsonDataSource",
     "MultiSourceEngine",
     "OddsSnapshot",
@@ -77,5 +80,6 @@ __all__ = [
     "StatsBombOpenDataSource",
     "TheOddsApiSource",
     "TheSportsDBSource",
+    "ZafronixSource",
     "build_multi_source_engine",
 ]

@@ -623,6 +623,11 @@ class ApiQueries:
                 "injuries", "xg",
             ],
             "the_odds_api": ["odds", "scores"],
+            "goal_api": ["fixtures", "live", "scores", "venues"],
+            "zafronix": [
+                "fixtures", "live", "scores", "statistics", "events",
+                "lineups", "weather",
+            ],
         }
         for row in health_rows:
             if row.provider in seen:

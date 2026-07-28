@@ -108,6 +108,14 @@ class MultiProviderSyncService:
                     "sportmonks": {
                         "date": parameters["date"],
                     },
+                    "goal_api": {
+                        "date": parameters["date"],
+                        "limit": 100,
+                    },
+                    "zafronix": {
+                        "year": int(parameters["season"][:4]),
+                        "limit": 200,
+                    },
                 },
             )
             failures.update(report.failed_sources)

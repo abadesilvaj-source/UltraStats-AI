@@ -187,6 +187,105 @@ class ApiFootballSource(JsonDataSource):
         )
 
 
+class GoalApiSource(JsonDataSource):
+    """Agenda complementar da GOAL API normalizada no contrato canônico."""
+
+    name = "goal_api"
+    capabilities = frozenset({DataCapability.FIXTURES, DataCapability.LIVE})
+
+    def __init__(
+        self,
+        config: SourceConfig,
+        *,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        if not config.api_key:
+            raise ProviderConfigurationError("GOAL_API_KEY é obrigatória.")
+        super().__init__(
+            config,
+            headers={"Authorization": f"Bearer {config.api_key}"},
+            transport=transport,
+        )
+
+    def _health_request(self) -> None:
+        self._get("/fixtures", {"limit": 1})
+
+    def collect(
+        self, capability: DataCapability, **params: Any
+    ) -> tuple[SourceObservation, ...]:
+        if capability not in self.capabilities:
+            raise ValueError(f"Capacidade não suportada: {capability}.")
+        query = dict(params)
+        if capability is DataCapability.LIVE:
+            query["live"] = query.get("live", "true")
+        payload = self._get("/fixtures", query)
+        rows = payload.get("data", []) if isinstance(payload, dict) else []
+        return tuple(
+            _observation(
+                self.name,
+                capability,
+                str(row.get("id") or row.get("apiId") or index),
+                _normalize_goal_fixture(row),
+            )
+            for index, row in enumerate(rows)
+            if isinstance(row, dict)
+        )
+
+
+class ZafronixSource(JsonDataSource):
+    """Copa do Mundo, escalações e estatísticas históricas/atuais."""
+
+    name = "zafronix"
+    capabilities = frozenset(
+        {
+            DataCapability.FIXTURES,
+            DataCapability.LIVE,
+            DataCapability.STATISTICS,
+            DataCapability.EVENTS,
+            DataCapability.LINEUPS,
+        }
+    )
+
+    def __init__(
+        self,
+        config: SourceConfig,
+        *,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        if not config.api_key:
+            raise ProviderConfigurationError(
+                "ZAFRONIX_API_KEY é obrigatória."
+            )
+        super().__init__(
+            config,
+            headers={"X-API-Key": config.api_key},
+            transport=transport,
+        )
+
+    def _health_request(self) -> None:
+        self._get("/health")
+
+    def collect(
+        self, capability: DataCapability, **params: Any
+    ) -> tuple[SourceObservation, ...]:
+        if capability not in self.capabilities:
+            raise ValueError(f"Capacidade não suportada: {capability}.")
+        query = dict(params)
+        endpoint = "/matches/live" if capability is DataCapability.LIVE else "/matches"
+        payload = self._get(endpoint, query)
+        rows = payload.get("data", []) if isinstance(payload, dict) else []
+        return tuple(
+            _observation(
+                self.name,
+                capability,
+                str(row.get("id") or index),
+                _normalize_zafronix_fixture(row),
+            )
+            for index, row in enumerate(rows)
+            if isinstance(row, dict)
+        )
+
+
 class OpenLigaDBSource(JsonDataSource):
     name = "openligadb"
     capabilities = frozenset({DataCapability.FIXTURES})
@@ -543,6 +642,36 @@ def build_multi_source_engine(
                 transport=injected.get("the_odds_api"),
             )
         )
+    goal_key = values.get("GOAL_API_KEY", "").strip()
+    if goal_key:
+        sources.append(
+            GoalApiSource(
+                SourceConfig(
+                    "goal_api",
+                    values.get(
+                        "GOAL_API_BASE_URL",
+                        "https://api.goal-api.com/v1",
+                    ),
+                    goal_key,
+                ),
+                transport=injected.get("goal_api"),
+            )
+        )
+    zafronix_key = values.get("ZAFRONIX_API_KEY", "").strip()
+    if zafronix_key:
+        sources.append(
+            ZafronixSource(
+                SourceConfig(
+                    "zafronix",
+                    values.get(
+                        "ZAFRONIX_BASE_URL",
+                        "https://api.zafronix.com/fifa/worldcup/v1",
+                    ),
+                    zafronix_key,
+                ),
+                transport=injected.get("zafronix"),
+            )
+        )
     sources.extend(
         (
             OpenLigaDBSource(
@@ -577,7 +706,7 @@ def build_multi_source_engine(
     configured = values.get(
         "PROVIDER_PRIORITY",
         "api_football,sportmonks,football_data,the_odds_api,thesportsdb,"
-        "statsbomb_open_data,football_data_uk,openligadb",
+        "goal_api,zafronix,statsbomb_open_data,football_data_uk,openligadb",
     )
     priority = {
         name.strip(): index for index, name in enumerate(configured.split(",")) if name.strip()
@@ -620,3 +749,104 @@ def _observation(
     values: Mapping[str, Any],
 ) -> SourceObservation:
     return SourceObservation(provider, capability, external_id, values, datetime.now(timezone.utc))
+
+
+def _normalize_goal_fixture(row: Mapping[str, Any]) -> dict[str, Any]:
+    status = str(row.get("matchStatus") or "").upper()
+    status_map = {
+        "NOT STARTED": "NS", "SCHEDULED": "NS", "TIMED": "NS",
+        "LIVE": "LIVE", "IN PLAY": "LIVE", "IN_PLAY": "LIVE",
+        "HALF TIME": "HT", "HALFTIME": "HT",
+        "FINISHED": "FT", "FT": "FT", "POSTPONED": "PST",
+        "CANCELLED": "CANC", "CANCELED": "CANC",
+    }
+    date = str(row.get("matchDate") or "")
+    time = str(row.get("matchTime") or "00:00:00")
+    kickoff = row.get("kickoffAt") or f"{date}T{time}"
+    return {
+        "fixture": {
+            "id": row.get("id") or row.get("apiId"),
+            "date": kickoff,
+            "status": {"short": status_map.get(status, status or "NS")},
+            "venue": {"name": row.get("matchStadium")},
+        },
+        "league": {
+            "id": row.get("leagueId"),
+            "name": row.get("leagueName"),
+            "country": row.get("countryName"),
+            "season": row.get("leagueYear"),
+        },
+        "teams": {
+            "home": {
+                "id": row.get("homeTeamId"),
+                "name": row.get("homeTeamName"),
+            },
+            "away": {
+                "id": row.get("awayTeamId"),
+                "name": row.get("awayTeamName"),
+            },
+        },
+        "goals": {
+            "home": row.get("homeTeamScore"),
+            "away": row.get("awayTeamScore"),
+        },
+        "_provider_payload": row,
+    }
+
+
+def _normalize_zafronix_fixture(row: Mapping[str, Any]) -> dict[str, Any]:
+    raw_status = str(row.get("status") or "").casefold()
+    if any(token in raw_status for token in ("final", "finished", "ft")):
+        status = "FT"
+    elif any(token in raw_status for token in ("live", "progress", "half")):
+        status = "LIVE"
+    elif "postpon" in raw_status:
+        status = "PST"
+    elif "cancel" in raw_status:
+        status = "CANC"
+    else:
+        status = "NS"
+
+    def team(value: Any, fallback: Any) -> dict[str, Any]:
+        if isinstance(value, dict):
+            return {
+                "id": value.get("id") or value.get("code") or fallback,
+                "name": value.get("name") or value.get("shortName") or fallback,
+            }
+        return {"id": fallback, "name": value or fallback}
+
+    home = team(row.get("homeTeam"), row.get("homeRef") or "home")
+    away = team(row.get("awayTeam"), row.get("awayRef") or "away")
+    kickoff = (
+        row.get("kickoffUtc")
+        or row.get("kickoff")
+        or row.get("date")
+    )
+    return {
+        "fixture": {
+            "id": row.get("id"),
+            "date": kickoff,
+            "status": {"short": status},
+            "venue": {"name": row.get("stadium")},
+        },
+        "league": {
+            "id": "WC",
+            "name": "FIFA World Cup",
+            "country": "International",
+            "season": row.get("year"),
+        },
+        "teams": {"home": home, "away": away},
+        "goals": {
+            "home": row.get("homeScore"),
+            "away": row.get("awayScore"),
+        },
+        "statistics": row.get("statistics"),
+        "events": {
+            "goals": row.get("goals"),
+            "cards": row.get("cards"),
+            "substitutions": row.get("substitutions"),
+        },
+        "lineups": row.get("lineups"),
+        "weather": row.get("weather"),
+        "_provider_payload": row,
+    }

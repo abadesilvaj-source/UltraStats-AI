@@ -123,7 +123,7 @@ class MaturityService:
         stats_eligible = {
             item.id for item in finished
             if providers_by_match.get(item.id, set())
-            & {"api_football", "sportmonks"}
+            & {"api_football", "sportmonks", "zafronix"}
         }
         odds_eligible = {
             item.id for item in active
@@ -136,7 +136,7 @@ class MaturityService:
             <= self._as_naive(item.kickoff_at)
             <= naive + timedelta(minutes=120)
             and providers_by_match.get(item.id, set())
-            & {"api_football", "sportmonks"}
+            & {"api_football", "sportmonks", "zafronix"}
         ]
         lineup_ids = self._lineup_match_ids(lineup_window, now)
 
@@ -258,7 +258,7 @@ class MaturityService:
                     IdentityDecisionRecord.candidate_id == f"match:{match.id}",
                     IdentityDecisionRecord.status == "matched",
                     IdentityDecisionRecord.provider.in_(
-                        ("api_football", "sportmonks")
+                        ("api_football", "sportmonks", "zafronix")
                     ),
                 )
             ).all()
@@ -269,7 +269,9 @@ class MaturityService:
                 )
                 for row in identities
             }
-            if match.source in {"api_football", "sportmonks"}:
+            if match.source in {
+                "api_football", "sportmonks", "zafronix"
+            }:
                 candidates.add((match.source, str(match.external_id)))
             for provider, external_id in candidates:
                 found = self.session.scalar(select(RawProviderPayloadRecord.id).where(

@@ -16,6 +16,8 @@ partidas apenas por semelhança de nomes.
 | StatsBomb Open Data | eventos, escalações históricas e xG validam/treinam modelos offline | conjunto histórico selecionado, não agenda mundial ao vivo |
 | TheSportsDB | agenda, resultados, equipes, estádios e metadados entram na fusão canônica | API v1 gratuita; livescore e alguns métodos são premium |
 | Sportmonks | agenda, eventos, estatísticas, escalações e xG entram na fusão/enriquecimento | sem token fica desativada; plano gratuito cobre Superliga Dinamarquesa e Premiership Escocesa |
+| GOAL API | agenda, status, placares, ligas e estádios entram no consenso canônico | plano gratuito autenticado; odds podem responder 403 conforme o nível da conta |
+| Zafronix | Copa do Mundo, placares, escalações, eventos, clima e estatísticas embutidas entram na coleta e fusão | franquia gratuita autenticada e concentrada nas competições disponibilizadas |
 | The Odds API | odds 1X2 e totais de múltiplas casas são associadas às partidas canônicas | sem chave fica desativada; consumo depende de mercados e regiões consultados |
 
 O endpoint `GET /api/v1/health` expõe disponibilidade, latência, última

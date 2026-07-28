@@ -330,6 +330,8 @@ class MatchFusionService:
                 return self._sportmonks(observation)
             if observation.provider == "the_odds_api":
                 return self._the_odds_api(observation)
+            if observation.provider in {"goal_api", "zafronix"}:
+                return self._normalized_fixture(observation)
         except (KeyError, TypeError, ValueError):
             return None
         return None
@@ -358,6 +360,40 @@ class MatchFusionService:
             str(row.get("league", {}).get("name") or ""),
             status_map.get(str(fixture.get("status", {}).get("short"))),
             self._int(goals.get("home")), self._int(goals.get("away")),
+            str(venue.get("name") or "") or None,
+            observation.observed_at,
+        )
+
+    def _normalized_fixture(
+        self, observation: SourceObservation
+    ) -> MatchContribution | None:
+        row = observation.values
+        fixture, teams = row.get("fixture", {}), row.get("teams", {})
+        if not fixture or not teams:
+            return None
+        status_map = {
+            "NS": "scheduled", "TBD": "scheduled",
+            "PST": "postponed", "CANC": "cancelled",
+            "ABD": "cancelled", "FT": "finished",
+            "AET": "finished", "PEN": "finished",
+            "1H": "in_progress", "HT": "in_progress",
+            "2H": "in_progress", "ET": "in_progress",
+            "LIVE": "in_progress",
+        }
+        goals = row.get("goals") or {}
+        venue = fixture.get("venue") or {}
+        return MatchContribution(
+            observation.provider,
+            str(fixture.get("id") or observation.external_id),
+            self._datetime(fixture.get("date")),
+            str(teams.get("home", {}).get("name") or ""),
+            str(teams.get("away", {}).get("name") or ""),
+            str(row.get("league", {}).get("name") or ""),
+            status_map.get(
+                str(fixture.get("status", {}).get("short"))
+            ),
+            self._int(goals.get("home")),
+            self._int(goals.get("away")),
             str(venue.get("name") or "") or None,
             observation.observed_at,
         )

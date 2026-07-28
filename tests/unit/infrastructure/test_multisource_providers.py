@@ -10,6 +10,7 @@ from ultrastats_ai.infrastructure.providers import (
     ApiFootballSource,
     DataCapability,
     FootballDataUKSource,
+    GoalApiSource,
     MultiSourceEngine,
     OddsSnapshot,
     OpenLigaDBSource,
@@ -20,6 +21,7 @@ from ultrastats_ai.infrastructure.providers import (
     StatsBombOpenDataSource,
     TheOddsApiSource,
     TheSportsDBSource,
+    ZafronixSource,
     build_multi_source_engine,
 )
 
@@ -73,6 +75,52 @@ def test_api_football_collects_all_contracts_and_health() -> None:
 def test_api_football_requires_key() -> None:
     with pytest.raises(ProviderConfigurationError):
         ApiFootballSource(config())
+
+
+def test_goal_api_normalizes_fixture_contract() -> None:
+    def handler(request):
+        assert request.headers["authorization"] == "Bearer secret"
+        return httpx.Response(200, json={"success": True, "data": [{
+            "id": "g-1", "matchDate": "2026-07-28",
+            "matchTime": "20:00:00", "matchStatus": "SCHEDULED",
+            "leagueId": 39, "leagueName": "Premier League",
+            "countryName": "England", "leagueYear": 2026,
+            "homeTeamId": 1, "homeTeamName": "Home",
+            "awayTeamId": 2, "awayTeamName": "Away",
+            "homeTeamScore": None, "awayTeamScore": None,
+            "matchStadium": "Arena",
+        }]})
+
+    source = GoalApiSource(
+        config(key="secret"), transport=transport(handler)
+    )
+    row = source.collect(DataCapability.FIXTURES, limit=1)[0]
+    assert row.provider == "goal_api"
+    assert row.values["league"]["name"] == "Premier League"
+    assert row.values["teams"]["home"]["name"] == "Home"
+    source.close()
+
+
+def test_zafronix_preserves_embedded_match_intelligence() -> None:
+    def handler(request):
+        return httpx.Response(200, json={"year": 2026, "data": [{
+            "id": "wc-1", "kickoffUtc": "2026-07-28T20:00:00Z",
+            "status": "final", "homeTeam": {"code": "BRA", "name": "Brazil"},
+            "awayTeam": {"code": "ARG", "name": "Argentina"},
+            "homeScore": 2, "awayScore": 1, "stadium": "Arena",
+            "statistics": {"possession": [55, 45]},
+            "lineups": {"home": []}, "weather": {"temperature": 22},
+        }]})
+
+    source = ZafronixSource(
+        config(key="secret"), transport=transport(handler)
+    )
+    row = source.collect(DataCapability.FIXTURES, year=2026)[0]
+    assert row.provider == "zafronix"
+    assert row.values["fixture"]["status"]["short"] == "FT"
+    assert row.values["statistics"]["possession"] == [55, 45]
+    assert row.values["weather"]["temperature"] == 22
+    source.close()
 
 
 def test_json_source_reports_http_network_json_and_health_failures() -> None:
