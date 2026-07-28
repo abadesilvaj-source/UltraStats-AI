@@ -406,7 +406,8 @@ function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }: {
         </Card>
       )}
       {Object.entries(byLeague(visible)).map(([l, ms]) => (
-        <LeagueGroup key={l} league={ms[0].league} logo={ms[0].leagueLogo} country={ms[0].country}>
+        <LeagueGroup key={l} league={ms[0].league} logo={ms[0].leagueLogo} country={ms[0].country}
+          group={ms[0].competitionGroup}>
           {ms.map(m => <MatchCard key={m.id} match={m} onClick={() => onMatchClick(m)} isFavorite={favorites.includes(m.id)} onToggleFavorite={() => onToggleFavorite(m.id)} />)}
         </LeagueGroup>
       ))}
@@ -426,13 +427,16 @@ function Section({ title, accent, icon, children }: { title: string; accent: str
   )
 }
 
-function LeagueGroup({ league, logo, country, children }: { league: string; logo: string; country: string; children: React.ReactNode }) {
+function LeagueGroup({ league, logo, country, group, children }: { league: string; logo: string; country: string; group?: Match['competitionGroup']; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', padding: '0 4px' }}>
         <span style={{ fontSize: '16px' }}>{logo}</span>
         <span style={{ fontSize: '12px', fontWeight: 600, color: '#7a88b0' }}>{league}</span>
         <span style={{ fontSize: '11px', color: '#2a3150' }}>· {country}</span>
+        <span style={{ marginLeft: 'auto', fontSize: '9px', color: group === 'observation' ? '#f59e0b' : '#00e89d', border: '1px solid currentColor', borderRadius: 10, padding: '2px 7px' }}>
+          {group === 'national_teams' ? 'SELEÇÕES' : group === 'core' ? 'NÚCLEO' : 'OBSERVAÇÃO'}
+        </span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>{children}</div>
     </div>

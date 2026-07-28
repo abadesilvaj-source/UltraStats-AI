@@ -136,7 +136,18 @@ class MultiProviderSyncService:
                             for key in self.environment.get(
                                 "THE_ODDS_API_SPORT_KEYS",
                                 "soccer_brazil_campeonato,"
-                                "soccer_epl,soccer_uefa_champs_league",
+                                "soccer_brazil_serie_b,"
+                                "soccer_conmebol_copa_libertadores,"
+                                "soccer_conmebol_copa_sudamericana,"
+                                "soccer_epl,soccer_spain_la_liga,"
+                                "soccer_germany_bundesliga,"
+                                "soccer_italy_serie_a,"
+                                "soccer_france_ligue_one,"
+                                "soccer_portugal_primeira_liga,"
+                                "soccer_netherlands_eredivisie,"
+                                "soccer_uefa_champs_league,"
+                                "soccer_uefa_europa_league,"
+                                "fifa_world_cup",
                             ).split(",")
                             if key.strip()
                         ),

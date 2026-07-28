@@ -60,6 +60,9 @@ export interface Match {
   league: string
   leagueLogo: string
   country: string
+  competitionCode?: string
+  competitionGroup?: 'core' | 'national_teams' | 'observation'
+  recommendationsEnabled?: boolean
   status: MatchStatus
   minute?: number
   startTime: string

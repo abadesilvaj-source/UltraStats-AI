@@ -23,6 +23,7 @@ from app.models import (
     Team,
 )
 from app.core.football_market_catalog import FOOTBALL_MARKETS
+from app.core.competition_catalog import competition_policy
 from app.services.post_match_service import PostMatchService
 from app.utils.betting_math import (
     calculate_expected_value,
@@ -305,9 +306,19 @@ class OperationalPipelineService:
             )
         )
         if competition is None:
+            policy = competition_policy(
+                str(league.get("name") or ""),
+                str(league.get("country") or "") or None,
+            )
             competition = Competition(
-                name=str(league.get("name") or f"League {external_id}"),
-                country=str(league.get("country") or "") or None,
+                name=(
+                    policy.name if policy
+                    else str(league.get("name") or f"League {external_id}")
+                ),
+                country=(
+                    policy.country if policy
+                    else str(league.get("country") or "") or None
+                ),
                 season=str(league.get("season") or "") or None,
                 sport="football",
                 source="api_football",
@@ -503,6 +514,14 @@ class OperationalPipelineService:
         ).ratio()
 
     def _predict(self, match: Match, markets: dict[str, Market]) -> int:
+        competition = self.session.get(Competition, match.competition_id)
+        if (
+            competition is None
+            or competition_policy(
+                competition.name, competition.country
+            ) is None
+        ):
+            return 0
         home = self.session.get(Team, match.home_team_id)
         away = self.session.get(Team, match.away_team_id)
         if home is None or away is None:

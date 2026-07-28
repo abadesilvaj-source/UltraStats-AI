@@ -19,6 +19,7 @@ from app.models import (
 from app.models.sync_run import SyncRun
 from backend.serializers import iso_local
 from app.services.maturity_service import MaturityService
+from app.core.competition_catalog import competition_metadata
 from ultrastats_ai.infrastructure.database.models import (
     FusionResultRecord,
     IdentityDecisionRecord,
@@ -97,6 +98,9 @@ class ApiQueries:
                     "id": competition.id,
                     "name": competition.name,
                     "country": competition.country,
+                    **competition_metadata(
+                        competition.name, competition.country
+                    ),
                 },
                 "home_team": {"id": h.id, "name": h.name},
                 "away_team": {"id": a.id, "name": a.name},
