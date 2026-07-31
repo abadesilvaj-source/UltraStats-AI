@@ -12,6 +12,7 @@ export interface Player {
   number: number
   name: string
   position: string
+  grid?: string
 }
 
 export interface Lineup {
@@ -107,6 +108,13 @@ export interface Recommendation {
   noBet?: boolean
   primary?: boolean
   recommendationType?: string
+  marketOddsAvailable?: boolean
+  probability?: number
+  calibratedProbability?: number
+  recommendationTier?: 'high_confidence' | 'statistical_value' | 'experimental'
+  probabilityInterval?: { low: number; high: number }
+  fractionalKelly?: number
+  selectiveCoverage?: number | null
   confidence: 'Alta' | 'Média' | 'Baixa'
   odds: number
   reasoning: string

@@ -1,267 +1,18 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { type Match, type BetSelection, type PlacedBet, type OddsMarket, type OddsOption } from './data'
 import {
-  analyzeBetSlip, cancelBetSlip, createBankroll, depositBankroll, loadBankrolls, loadMatch,
-  loadBetSlips, loadMatches, loadMaturity, placeBet, settleBetLeg,
+  cancelBetSlip, createBankroll, depositBankroll, loadBankrolls,
+  loadBetSlips, settleBetLeg,
   withdrawBankroll,
 } from './api'
 import {
-  Home, TrendingUp, Star, Wallet, ChevronRight, ChevronLeft,
-  Circle, Zap, Activity, BarChart3, Users, BookOpen,
+  TrendingUp, Star, ChevronRight, ChevronLeft,
+  Circle, Activity, BarChart3, Users, BookOpen,
   Trash2, CheckCircle2, XCircle, Clock,
-  AlertTriangle, Target, X, Menu, Filter, Grid3X3
+  AlertTriangle, Target, X, Filter
 } from 'lucide-react'
 
-type View = 'home' | 'match' | 'bankroll' | 'favorites' | 'system'
 type MatchTab = 'live' | 'lineup' | 'stats' | 'analysis' | 'markets' | 'h2h'
-
-export default function App() {
-  const [matches, setMatches] = useState<Match[]>([])
-  const [loadError, setLoadError] = useState('')
-  const [view, setView] = useState<View>('home')
-  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
-  const [betSlip, setBetSlip] = useState<BetSelection[]>([])
-  const [betSlipOpen, setBetSlipOpen] = useState(false)
-  const [placedBets, setPlacedBets] = useState<PlacedBet[]>([])
-  const [favorites, setFavorites] = useState<string[]>(['m1', 'm3'])
-  const [bankrollAmount, setBankrollAmount] = useState(0)
-  const [bankrollId, setBankrollId] = useState<number | null>(null)
-  const [navOpen, setNavOpen] = useState(false)
-  const [maturity, setMaturity] = useState<any>(null)
-
-  useEffect(() => {
-    loadMatches().then(setMatches).catch(error => setLoadError(error.message))
-    loadBankrolls().then(items => {
-      const active = items.find(item => item.active)
-      if (active) {
-        setBankrollId(active.id)
-        setBankrollAmount(active.balance)
-      }
-    }).catch(error => setLoadError(error.message))
-    loadBetSlips().then(setPlacedBets).catch(error => setLoadError(error.message))
-    loadMaturity().then(setMaturity).catch(error => setLoadError(error.message))
-    const timer = window.setInterval(
-      () => loadMatches().then(setMatches).catch(() => undefined),
-      60_000,
-    )
-    return () => window.clearInterval(timer)
-  }, [])
-
-  const openMatch = useCallback((match: Match) => {
-    setSelectedMatch(match)
-    setView('match')
-    loadMatch(match.id).then(setSelectedMatch).catch(error => setLoadError(error.message))
-  }, [])
-
-  const addToBetSlip = useCallback((matchId: string, matchName: string, market: string, option: string, odds: number) => {
-    setBetSlip(prev => {
-      const id = `${matchId}-${market}-${option}`
-      if (prev.find(b => b.id === id)) return prev.filter(b => b.id !== id)
-      const source = selectedMatch?.id === matchId
-        ? selectedMatch
-        : matches.find(item => item.id === matchId)
-      const marketId = Number(source?.markets.find(item => item.name === market)?.id)
-      return [...prev, {
-        id, matchId, matchName, market, marketId, option,
-        odds, sourceOdds: odds,
-      }]
-    })
-    setBetSlipOpen(true)
-  }, [matches, selectedMatch])
-
-  const removeBet = useCallback((id: string) => setBetSlip(prev => prev.filter(b => b.id !== id)), [])
-  const updateBetOdds = useCallback((id: string, odds: number) => {
-    setBetSlip(prev => prev.map(item => (
-      item.id === id ? { ...item, odds } : item
-    )))
-  }, [])
-  const toggleFavorite = useCallback((id: string) => setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]), [])
-
-  const totalOdds = betSlip.reduce((acc, b) => acc * b.odds, 1)
-  const wonTotal = placedBets.filter(b => b.status === 'won').reduce((a, b) => a + b.potentialReturn - b.stake, 0)
-  const lostTotal = placedBets.filter(b => b.status === 'lost').reduce((a, b) => a + b.stake, 0)
-  const pendingCount = placedBets.filter(b => b.status === 'pending').length
-
-  return (
-    <div style={{ minHeight: '100vh', background: '#07080f', fontFamily: "'DM Sans', sans-serif" }}>
-      <Nav
-        view={view} setView={setView} betCount={betSlip.length}
-        onBetSlipOpen={() => setBetSlipOpen(true)} navOpen={navOpen}
-        setNavOpen={setNavOpen} clearMatch={() => setSelectedMatch(null)}
-      />
-
-      <main style={{ paddingTop: '56px', paddingBottom: '32px', maxWidth: '1200px', margin: '0 auto', padding: '56px 16px 32px' }}>
-        {loadError && <div style={{ marginTop: 16, padding: 12, border: '1px solid #ff1744', borderRadius: 8, color: '#ff1744' }}>{loadError}</div>}
-        {view === 'home' && <HomeView matches={matches} onMatchClick={openMatch} favorites={favorites} onToggleFavorite={toggleFavorite} />}
-        {view === 'match' && selectedMatch && (
-          <MatchView match={selectedMatch} betSlip={betSlip} onAddBet={addToBetSlip}
-            onBack={() => setView('home')} isFavorite={favorites.includes(selectedMatch.id)}
-            onToggleFavorite={() => toggleFavorite(selectedMatch.id)} />
-        )}
-        {view === 'bankroll' && (
-          <BankrollView bets={placedBets} setBets={setPlacedBets} bankroll={bankrollAmount}
-            bankrollId={bankrollId}
-            onBankrollCreated={(item) => {
-              setBankrollId(item.id)
-              setBankrollAmount(item.balance)
-              setLoadError('')
-            }}
-            onError={setLoadError}
-            onBalanceChanged={(balance) => {
-              setBankrollAmount(balance)
-              setLoadError('')
-            }}
-            wonTotal={wonTotal} lostTotal={lostTotal} pending={pendingCount} />
-        )}
-        {view === 'favorites' && (
-          <FavoritesView matches={matches} favorites={favorites} onMatchClick={openMatch} onToggleFavorite={toggleFavorite} />
-        )}
-        {view === 'system' && <SystemView maturity={maturity} />}
-      </main>
-
-      {betSlipOpen && (
-        <BetSlipDrawer selections={betSlip} onRemove={removeBet}
-          onOddsChange={updateBetOdds} onClose={() => setBetSlipOpen(false)}
-          totalOdds={totalOdds}
-          onPlace={async (stake) => {
-            if (!bankrollId) {
-              setLoadError('Crie e ative uma banca antes de confirmar o bilhete.')
-              setBetSlipOpen(false)
-              setSelectedMatch(null)
-              setView('bankroll')
-              return
-            }
-            try {
-              const payload = {
-                bankroll_id: bankrollId,
-                bookmaker: 'Odd informada pelo usuário',
-                stake_amount: stake,
-                legs: betSlip.map(item => ({
-                  match_id: Number(item.matchId),
-                  market_id: item.marketId,
-                  market_name: item.market,
-                  selection: item.option,
-                  odd_value: item.odds,
-                })),
-              }
-              const assessment = await analyzeBetSlip(payload)
-              const manualMarkets = assessment.unavailable_markets || []
-              if (!assessment.approved && manualMarkets.length === 0) {
-                setLoadError(
-                  `Bilhete bloqueado pelo risco: ${assessment.warnings.join(', ') || 'valor conservador insuficiente'}.`
-                )
-                return
-              }
-            await placeBet(payload)
-            } catch (error: any) {
-              setLoadError(error.message)
-              return
-            }
-            const newBet: PlacedBet = {
-              id: `bet-${Date.now()}`,
-              selections: betSlip.map(s => ({ ...s, status: 'pending' })),
-              stake, potentialReturn: parseFloat((stake * totalOdds).toFixed(2)),
-              totalOdds: parseFloat(totalOdds.toFixed(3)),
-              date: new Date().toLocaleDateString('pt-BR'), status: 'pending',
-            }
-            setPlacedBets(prev => [newBet, ...prev])
-            setBankrollAmount(value => Math.max(0, value - stake))
-            setBetSlip([])
-            setBetSlipOpen(false)
-          }}
-        />
-      )}
-
-      {betSlip.length > 0 && !betSlipOpen && (
-        <button onClick={() => setBetSlipOpen(true)}
-          style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 40, display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderRadius: '12px', background: '#00e887', color: '#07080f', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer', boxShadow: '0 8px 32px rgba(0,232,135,0.3)', transition: 'transform 0.15s' }}
-          onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')}
-          onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-        >
-          <Target size={18} />
-          <span>Bilhete ({betSlip.length})</span>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>{totalOdds.toFixed(2)}x</span>
-        </button>
-      )}
-    </div>
-  )
-}
-
-function Nav({ view, setView, betCount, onBetSlipOpen, navOpen, setNavOpen, clearMatch }: {
-  view: View; setView: (v: View) => void; betCount: number
-  onBetSlipOpen: () => void; navOpen: boolean; setNavOpen: (v: boolean) => void; clearMatch: () => void
-}) {
-  const navItems = [
-    { id: 'home' as View, label: 'Hoje', icon: Home },
-    { id: 'favorites' as View, label: 'Favoritos', icon: Star },
-    { id: 'bankroll' as View, label: 'Banca', icon: Wallet },
-    { id: 'system' as View, label: 'Sistema', icon: Activity },
-  ]
-
-  const s: Record<string, React.CSSProperties> = {
-    header: { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50, background: '#0f1119', borderBottom: '1px solid #1e2438', height: '56px' },
-    inner: { maxWidth: '1200px', margin: '0 auto', padding: '0 16px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-    logo: { display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: 'none', border: 'none' },
-    logoIcon: { width: '32px', height: '32px', borderRadius: '8px', background: '#00e887', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    logoText: { fontFamily: "'Russo One', sans-serif", fontSize: '18px', color: '#eef0f9', letterSpacing: '0.05em' },
-    nav: { display: 'flex', alignItems: 'center', gap: '4px' },
-    betBtn: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', background: '#00e887', color: '#07080f', fontWeight: 700, fontSize: '13px', border: 'none', cursor: 'pointer' },
-  }
-
-  return (
-    <header style={s.header}>
-      <div style={s.inner}>
-        <button style={s.logo} onClick={() => { setView('home'); clearMatch() }}>
-          <div style={s.logoIcon}><Zap size={16} color="#07080f" fill="#07080f" /></div>
-          <span style={s.logoText}>ULTRASTATS AI</span>
-        </button>
-
-        <nav style={{ ...s.nav, display: 'none', ...{ ['@media (min-width:768px)']: { display: 'flex' } } }} className="hidden md:flex">
-          {navItems.map(({ id, label, icon: Icon }) => (
-            <button key={id} onClick={() => { setView(id); clearMatch() }}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, background: view === id ? '#1e2438' : 'transparent', color: view === id ? '#00e887' : '#7a88b0', border: 'none', cursor: 'pointer', transition: 'all 0.15s' }}
-            >
-              <Icon size={14} />{label}
-            </button>
-          ))}
-        </nav>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={() => { setView('bankroll'); clearMatch() }}
-            title="Gestão de banca, risco, apostas, liquidação, operações e modelos"
-            style={{ ...s.betBtn, background: '#1e2438', color: '#eef0f9' }}
-          >
-            <Grid3X3 size={14} />
-            <span className="hidden sm:inline">Funcionalidades</span>
-          </button>
-          {betCount > 0 && (
-            <button onClick={onBetSlipOpen} style={s.betBtn}>
-              <Target size={14} />
-              <span className="hidden sm:inline">Bilhete</span>
-              <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#07080f', color: '#00e887', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{betCount}</span>
-            </button>
-          )}
-          <button className="md:hidden" onClick={() => setNavOpen(!navOpen)}
-            style={{ background: 'none', border: 'none', color: '#7a88b0', cursor: 'pointer', padding: '8px' }}>
-            <Menu size={20} />
-          </button>
-        </div>
-      </div>
-
-      {navOpen && (
-        <div className="md:hidden" style={{ background: '#0f1119', borderTop: '1px solid #1e2438', padding: '8px 16px', display: 'flex', gap: '4px' }}>
-          {navItems.map(({ id, label, icon: Icon }) => (
-            <button key={id} onClick={() => { setView(id); setNavOpen(false); clearMatch() }}
-              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '8px', borderRadius: '8px', fontSize: '11px', fontWeight: 500, background: view === id ? '#1e2438' : 'transparent', color: view === id ? '#00e887' : '#7a88b0', border: 'none', cursor: 'pointer' }}>
-              <Icon size={18} />{label}
-            </button>
-          ))}
-        </div>
-      )}
-    </header>
-  )
-}
 
 function LiveBadge({ minute }: { minute?: number }) {
   return (
@@ -368,7 +119,11 @@ export function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }:
 }) {
   const [scope, setScope] = useState<'live' | 'today' | 'next' | 'finished'>('live')
   const [league, setLeague] = useState('all')
-  const live = matches.filter(m => m.status === 'live')
+  const liveCutoff = Date.now() - 3 * 60 * 60 * 1000
+  const live = matches.filter(m =>
+    m.status === 'live' && Boolean(m.kickoffAt) &&
+    new Date(m.kickoffAt as string).getTime() >= liveCutoff
+  )
   const todayKey = new Date().toLocaleDateString('en-CA')
   const upcomingToday = matches.filter(m =>
     m.status === 'upcoming' && m.kickoffAt &&
@@ -565,7 +320,9 @@ function LiveTab({ match }: { match: Match }) {
           </Card>
         ) : match.events.length === 0 ? (
           <Card style={{ padding: '32px', textAlign: 'center' }}>
-            <p style={{ fontSize: '13px', color: '#5a6480', margin: 0 }}>Nenhum evento ainda</p>
+            <p style={{ fontSize: '13px', color: '#5a6480', margin: 0 }}>
+              Nenhum evento disponibilizado pelos provedores até o momento.
+            </p>
           </Card>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -643,6 +400,7 @@ function LineupTab({ match }: { match: Match }) {
   const [side, setSide] = useState<'home' | 'away'>('home')
   const lineup = side === 'home' ? match.homeLineup : match.awayLineup
   const team = side === 'home' ? match.homeTeam : match.awayTeam
+  const lineupAvailable = lineup.players.length > 0
 
   const coordsMap: Record<string, { x: number; y: number }[]> = {
     GK: [{ x: 50, y: 90 }],
@@ -650,12 +408,45 @@ function LineupTab({ match }: { match: Match }) {
     MID: [{ x: 20, y: 50 }, { x: 50, y: 48 }, { x: 80, y: 50 }],
     FWD: [{ x: 20, y: 26 }, { x: 50, y: 18 }, { x: 80, y: 26 }],
   }
+  const normalizedPosition: Record<string, keyof typeof coordsMap> = {
+    G: 'GK', GK: 'GK',
+    D: 'DEF', DEF: 'DEF',
+    M: 'MID', MID: 'MID',
+    F: 'FWD', FWD: 'FWD',
+  }
+  const parsedGrid = lineup.players.map(player => {
+    const [row, column] = (player.grid || '').split(':').map(Number)
+    return {
+      player,
+      row: Number.isFinite(row) && row > 0 ? row : null,
+      column: Number.isFinite(column) && column > 0 ? column : null,
+    }
+  })
+  const maxGridRow = Math.max(1, ...parsedGrid.flatMap(item => item.row === null ? [] : [item.row]))
+  const columnsByRow = parsedGrid.reduce<Record<number, number>>((acc, item) => {
+    if (item.row !== null && item.column !== null) {
+      acc[item.row] = Math.max(acc[item.row] || 0, item.column)
+    }
+    return acc
+  }, {})
   const posCount: Record<string, number> = {}
-  const positioned = lineup.players.map(p => {
-    const idx = posCount[p.position] || 0
-    posCount[p.position] = idx + 1
-    const coords = (coordsMap[p.position] || [{ x: 50, y: 50 }])[idx] || { x: 50, y: 50 }
-    return { ...p, coords }
+  const positioned = parsedGrid.map(({ player, row, column }) => {
+    if (row !== null && column !== null) {
+      const columns = columnsByRow[row] || 1
+      return {
+        ...player,
+        coords: {
+          x: columns === 1 ? 50 : 12 + ((column - 1) * 76) / (columns - 1),
+          y: maxGridRow === 1 ? 50 : 90 - ((row - 1) * 70) / (maxGridRow - 1),
+        },
+      }
+    }
+    const position = normalizedPosition[player.position.toUpperCase()] || 'MID'
+    const idx = posCount[position] || 0
+    posCount[position] = idx + 1
+    const options = coordsMap[position]
+    const coords = options[Math.min(idx, options.length - 1)]
+    return { ...player, coords }
   })
 
   return (
@@ -669,21 +460,26 @@ function LineupTab({ match }: { match: Match }) {
         ))}
       </div>
 
-      <Card style={{ overflow: 'hidden', marginBottom: '16px' }}>
+      {!lineupAvailable ? (
+        <Card style={{ padding: 32, marginBottom: 16, textAlign: 'center', color: '#7a88b0' }}>
+          Escalação ainda não disponibilizada pelos provedores para esta partida.
+          O sistema continuará consultando automaticamente.
+        </Card>
+      ) : <Card style={{ overflow: 'hidden', marginBottom: '16px' }}>
         <div style={{ position: 'relative', paddingBottom: '58%', background: 'linear-gradient(180deg, #081408 0%, #0c200c 50%, #081408 100%)' }}>
           <div style={{ position: 'absolute', inset: '12px 20px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px' }} />
           <div style={{ position: 'absolute', left: '50%', top: '12px', bottom: '12px', width: '1px', background: 'rgba(255,255,255,0.06)', transform: 'translateX(-50%)' }} />
           <div style={{ position: 'absolute', left: '50%', top: '50%', width: '48px', height: '48px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.06)', transform: 'translate(-50%,-50%)' }} />
-          {positioned.map(p => (
-            <div key={p.number} style={{ position: 'absolute', left: `${p.coords.x}%`, top: `${p.coords.y}%`, transform: 'translate(-50%,-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+          {positioned.map((p, index) => (
+            <div key={`${p.number}-${p.name}-${index}`} style={{ position: 'absolute', left: `${p.coords.x}%`, top: `${p.coords.y}%`, transform: 'translate(-50%,-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
               <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: `2px solid ${team.color}`, background: '#0f1119', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#eef0f9' }}>{p.number}</div>
               <div style={{ padding: '1px 4px', borderRadius: '3px', background: 'rgba(7,8,15,0.9)', color: '#eef0f9', fontSize: '9px', fontWeight: 600, whiteSpace: 'nowrap', maxWidth: '56px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name.split(' ').pop()}</div>
             </div>
           ))}
         </div>
-      </Card>
+      </Card>}
 
-      <SectionLabel>Banco de Reservas</SectionLabel>
+      {lineupAvailable && <SectionLabel>Banco de Reservas</SectionLabel>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '8px' }}>
         {lineup.bench.map(p => (
           <Card key={p.number} style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -815,9 +611,13 @@ function AnalysisTab({ match, onAddBet }: { match: Match; onAddBet: (market: str
     {} as Record<string, typeof match.analysis.recommendations>,
   )
   const categories = Object.keys(grouped)
-  const best = match.analysis.recommendations.find(
+  const primaryRecommendations = match.analysis.recommendations.filter(
     item => item.primary && !item.noBet
-  ) || match.analysis.recommendations.find(item => !item.noBet)
+  )
+  const recommended = primaryRecommendations.length
+    ? primaryRecommendations
+    : match.analysis.recommendations.filter(item => !item.noBet).slice(0, 1)
+  const best = recommended[0]
   const [selectedCategory, setSelectedCategory] = useState(
     best?.category || categories[0] || 'other'
   )
@@ -865,24 +665,35 @@ function AnalysisTab({ match, onAddBet }: { match: Match; onAddBet: (market: str
       {match.analysis.recommendations.length > 0 && (
         <div>
           <SectionLabel>Análise dos Mercados</SectionLabel>
-          {best && (
-            <Card style={{ padding: '16px', marginBottom: 12, borderColor: '#00e887', background: 'rgba(0,232,135,.04)' }}>
+          {recommended.map((item, index) => (
+            <Card key={`${item.market}:${item.tip}`} style={{ padding: '16px', marginBottom: 12, borderColor: '#00e887', background: 'rgba(0,232,135,.04)' }}>
               <div style={{ fontSize: 10, color: '#00e887', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.12em', marginBottom: 7 }}>
-                Melhor aposta indicada pelo modelo
+                {index === 0
+                  ? 'Melhor aposta indicada pelo modelo'
+                  : `Recomendação adicional do modelo ${index + 1}`}
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
                 <div>
-                  <div style={{ color: '#eef0f9', fontWeight: 700 }}>{best.tip}</div>
-                  <div style={{ color: '#7a88b0', fontSize: 12 }}>{best.market} · {categoryLabels[best.category || 'other'] || best.category}</div>
-                  <div style={{ color: '#7a88b0', fontSize: 11, marginTop: 4 }}>{best.reasoning}</div>
+                      <div style={{ color: '#eef0f9', fontWeight: 700 }}>{item.tip}</div>
+                      <div style={{ color: '#7a88b0', fontSize: 12 }}>{item.market} · {categoryLabels[item.category || 'other'] || item.category}</div>
+                      <div style={{ color: '#4f8ef7', fontSize: 11, marginTop: 4 }}>
+                        Probabilidade calibrada: {((item.calibratedProbability ?? item.probability ?? 0) * 100).toFixed(1)}%
+                      </div>
+                      <div style={{ color: '#7a88b0', fontSize: 10, marginTop: 3 }}>
+                        {item.recommendationTier === 'high_confidence' ? 'Alta confiança' : item.recommendationTier === 'statistical_value' ? 'Valor estatístico' : 'Experimental'}
+                        {item.probabilityInterval ? ` · intervalo ${(item.probabilityInterval.low * 100).toFixed(0)}%–${(item.probabilityInterval.high * 100).toFixed(0)}%` : ''}
+                        {item.fractionalKelly != null ? ` · exposição ${(item.fractionalKelly * 100).toFixed(2)}%` : ''}
+                      </div>
+                      <div style={{ color: '#7a88b0', fontSize: 11, marginTop: 4 }}>{item.reasoning}</div>
                 </div>
-                <button onClick={() => onAddBet(best.market, best.tip, best.odds)}
+                <button onClick={() => onAddBet(item.market, item.tip, item.odds)}
+                  aria-label={`Adicionar ${item.market}: ${item.tip} ao bilhete`}
                   style={{ flexShrink: 0, padding: '9px 12px', borderRadius: 8, border: '1px solid #00e887', background: 'rgba(0,232,135,.1)', color: '#00e887', fontWeight: 700, cursor: 'pointer' }}>
-                  {best.odds.toFixed(2)}
+                  {item.odds.toFixed(2)}
                 </button>
               </div>
             </Card>
-          )}
+          ))}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 12 }}>
             {categories.map(category => (
               <button key={category} onClick={() => setSelectedCategory(category)}
@@ -904,10 +715,22 @@ function AnalysisTab({ match, onAddBet }: { match: Match; onAddBet: (market: str
                         Aposta não recomendada pelo modelo
                       </div>
                     )}
+                    <div style={{ fontSize: '11px', color: '#4f8ef7', marginTop: 4 }}>
+                      Probabilidade calibrada: {((rec.calibratedProbability ?? rec.probability ?? 0) * 100).toFixed(1)}%
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#7a88b0', marginTop: 3 }}>
+                      {rec.recommendationTier === 'high_confidence' ? 'Alta confiança' : rec.recommendationTier === 'statistical_value' ? 'Valor estatístico' : 'Experimental'}
+                      {rec.probabilityInterval ? ` · intervalo ${(rec.probabilityInterval.low * 100).toFixed(0)}%–${(rec.probabilityInterval.high * 100).toFixed(0)}%` : ''}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                     <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: bg, color, fontWeight: 600 }}>{rec.confidence}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '18px', color: '#00e887' }}>{rec.odds.toFixed(2)}</span>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ display: 'block', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '18px', color: '#00e887' }}>{rec.odds.toFixed(2)}</span>
+                      <span style={{ display: 'block', fontSize: 9, color: rec.marketOddsAvailable ? '#7a88b0' : '#fbbf24', textTransform: 'uppercase' }}>
+                        {rec.marketOddsAvailable ? 'Odd de mercado' : 'Odd justa do modelo'}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <p style={{ fontSize: '12px', color: '#7a88b0', marginBottom: '12px' }}>{rec.reasoning}</p>
@@ -916,7 +739,7 @@ function AnalysisTab({ match, onAddBet }: { match: Match; onAddBet: (market: str
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,232,135,0.16)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,232,135,0.08)' }}
                 >
-                  + Adicionar ao Bilhete ({rec.odds.toFixed(2)})
+                  + Adicionar ao Bilhete ({rec.marketOddsAvailable ? '' : 'odd justa '}{rec.odds.toFixed(2)})
                 </button>
               </Card>
             )
@@ -1184,6 +1007,13 @@ export function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCr
     lost: { label: 'Perdeu', bg: 'rgba(255,23,68,0.15)', color: '#ff1744', icon: <XCircle size={13} /> },
     void: { label: 'Anulada', bg: 'rgba(122,136,176,0.15)', color: '#7a88b0', icon: <Circle size={13} /> },
     partial: { label: 'Parcial', bg: 'rgba(79,142,247,0.15)', color: '#4f8ef7', icon: <AlertTriangle size={13} /> },
+    canceled: { label: 'Cancelada', bg: 'rgba(122,136,176,0.15)', color: '#7a88b0', icon: <XCircle size={13} /> },
+  }
+  const unknownStatus = {
+    label: 'Status desconhecido',
+    bg: 'rgba(122,136,176,0.15)',
+    color: '#7a88b0',
+    icon: <AlertTriangle size={13} />,
   }
 
   return (
@@ -1308,7 +1138,7 @@ export function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCr
       <SectionLabel>Histórico de Apostas</SectionLabel>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {bets.map(bet => {
-          const cfg = stCfg[bet.status]
+          const cfg = stCfg[bet.status] ?? unknownStatus
           return (
             <Card key={bet.id} style={{ overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid #1e2438' }}>

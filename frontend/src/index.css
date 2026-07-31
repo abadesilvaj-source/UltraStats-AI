@@ -293,6 +293,41 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 }
 .risk-badge.safe { color: #7fffc0 !important; background: #123b2b; }
 .risk-badge.blocked { color: #ff8298 !important; background: #3b1420; }
+.risk-confirmation-backdrop {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
+  padding: 20px; background: rgba(3, 5, 12, .82); backdrop-filter: blur(5px);
+}
+.risk-confirmation-dialog {
+  width: min(560px, 100%); max-height: calc(100vh - 40px); overflow-y: auto;
+  padding: 22px; color: #eef0f9; background: #0f1119;
+  border: 1px solid #553c16; border-radius: 14px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .55);
+}
+.risk-confirmation-heading { display: flex; gap: 12px; color: #fbbf24; }
+.risk-confirmation-heading h2 { margin: 0 0 6px; font-size: 19px; }
+.risk-confirmation-heading p, .risk-confirmation-disclaimer {
+  margin: 0; color: #aeb7cf; font-size: 13px; line-height: 1.5;
+}
+.risk-confirmation-metrics {
+  display: grid; gap: 7px; margin: 18px 0; padding: 12px;
+  color: #aeb7cf; background: #161b26; border-radius: 9px; font-size: 13px;
+}
+.risk-confirmation-metrics strong { color: #eef0f9; }
+.risk-confirmation-dialog ul {
+  margin: 0 0 16px; padding-left: 20px; color: #f5ca63;
+  font-size: 13px; line-height: 1.55;
+}
+.risk-confirmation-actions {
+  display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;
+}
+.risk-confirmation-actions button {
+  padding: 10px 14px; color: #d8dced; background: #1b2130;
+  border: 1px solid #2a3150; border-radius: 8px; cursor: pointer; font-weight: 700;
+}
+.risk-confirmation-actions .confirm-risk {
+  color: #07080f; background: #fbbf24; border-color: #fbbf24;
+}
+.risk-confirmation-actions button:disabled { cursor: wait; opacity: .6; }
 .risk-badge.projection { color: #ffd56a !important; background: #3b2e12; }
 .coverage-list, .model-metrics {
   padding: 18px; border: 1px solid #1e2438; border-radius: 11px; background: #0f1119;

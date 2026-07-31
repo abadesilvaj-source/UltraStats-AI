@@ -24,7 +24,7 @@ Versão estável atual: `v0.1.0`.
 
 ## G16 — Homologação em staging
 
-- [x] ambiente isolado, migrations, scheduler e dashboard;
+- [x] ambiente isolado, migrations, scheduler, API e frontend;
 - [x] carga, backup/restore, rollback e controles de segurança;
 - [x] coleta real de OpenLigaDB, Football-Data.co.uk e StatsBomb Open Data;
 - [x] API-Football homologada com fixtures, odds e estatísticas reais;

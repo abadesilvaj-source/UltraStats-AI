@@ -1,0 +1,413 @@
+from datetime import datetime, timezone
+from decimal import Decimal
+import re
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
+
+from app.models import (
+    Bankroll,
+    BankrollTransaction,
+    BetLeg,
+    BetSlip,
+    Market,
+    Match,
+    Odd,
+    Prediction,
+)
+from app.utils.market_evaluator import evaluate_market
+
+
+class BetSlipService:
+    """Registra e liquida bilhetes simples e múltiplos."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    @staticmethod
+    def _leg_odd(item: dict, collected_odd: Odd | None) -> Decimal:
+        submitted = item.get("odd_value")
+        if submitted in (None, ""):
+            if collected_odd is None:
+                raise ValueError("Odd atual não encontrada.")
+            return Decimal(str(collected_odd.odd_value))
+        try:
+            value = Decimal(str(submitted))
+        except Exception as exc:
+            raise ValueError("A odd manual deve ser numérica.") from exc
+        if not value.is_finite() or value <= 1 or value > 1000:
+            raise ValueError("A odd manual deve ser maior que 1 e até 1000.")
+        return value.quantize(Decimal(".0001"))
+
+    def _resolve_market(self, item: dict) -> Market:
+        market = None
+        if item.get("market_id"):
+            market = self.session.get(Market, int(item["market_id"]))
+        market_name = str(
+            item.get("market_name") or "Mercado informado manualmente"
+        ).strip()
+        if market is None and market_name:
+            market = self.session.scalar(
+                select(Market).where(Market.name == market_name)
+            )
+        if market is not None:
+            return market
+        slug = re.sub(
+            r"[^a-z0-9]+", "_", market_name.casefold()
+        ).strip("_")[:70] or "mercado"
+        code = f"manual_{slug}"
+        suffix = 1
+        while self.session.scalar(
+            select(Market).where(Market.code == code)
+        ):
+            suffix += 1
+            code = f"manual_{slug}_{suffix}"
+        market = Market(
+            code=code,
+            name=market_name,
+            category="manual",
+            active=True,
+        )
+        self.session.add(market)
+        self.session.flush()
+        return market
+
+    def analyze(self, payload: dict) -> dict[str, object]:
+        items = payload.get("legs") or []
+        if not 1 <= len(items) <= 20:
+            raise ValueError("O bilhete deve conter entre 1 e 20 seleções.")
+        combined_odds = Decimal("1")
+        joint_probability = 1.0
+        matches: dict[int, int] = {}
+        missing_predictions = 0
+        unavailable_markets = []
+        for index, item in enumerate(items, start=1):
+            match_id = int(item["match_id"])
+            market_id = (
+                int(item["market_id"]) if item.get("market_id") else None
+            )
+            selection = str(item["selection"]).strip()
+            odd = self.session.scalar(
+                select(Odd)
+                .where(
+                    Odd.match_id == match_id,
+                    Odd.market_id == market_id,
+                    Odd.selection == selection,
+                )
+                .order_by(Odd.collected_at.desc())
+            ) if market_id else None
+            leg_odd = self._leg_odd(item, odd)
+            prediction = self.session.scalar(
+                select(Prediction)
+                .where(
+                    Prediction.match_id == match_id,
+                    Prediction.market_id == market_id,
+                    Prediction.selection == selection,
+                )
+                .order_by(Prediction.created_at.desc())
+            ) if market_id else None
+            if market_id is None:
+                unavailable_markets.append({
+                    "leg": index,
+                    "market": str(
+                        item.get("market_name") or "Mercado não identificado"
+                    ),
+                    "selection": selection,
+                })
+            combined_odds *= leg_odd
+            if prediction is None:
+                missing_predictions += 1
+                joint_probability *= 1 / float(leg_odd)
+            else:
+                joint_probability *= prediction.probability
+            matches[match_id] = matches.get(match_id, 0) + 1
+        correlated_pairs = sum(
+            max(0, amount - 1) for amount in matches.values()
+        )
+        adjusted_probability = joint_probability * (
+            0.85 ** correlated_pairs
+        )
+        expected_value = (
+            adjusted_probability * float(combined_odds) - 1
+        )
+        warnings = []
+        if correlated_pairs:
+            warnings.append("correlated_legs")
+        if missing_predictions:
+            warnings.append("missing_predictions")
+        if len(items) > 5:
+            warnings.append("high_leg_count")
+        return {
+            "legs": len(items),
+            "combined_odds": float(combined_odds),
+            "joint_probability": joint_probability,
+            "correlation_adjusted_probability":
+                adjusted_probability,
+            "expected_value": expected_value,
+            "correlated_pairs": correlated_pairs,
+            "recommended_max_bankroll_percentage": (
+                0.5 if correlated_pairs or len(items) > 5 else 1.0
+            ),
+            "warnings": warnings,
+            "unavailable_markets": unavailable_markets,
+            "approved": expected_value >= 0.02
+            and missing_predictions == 0,
+        }
+
+    def create(self, payload: dict) -> BetSlip:
+        items = payload.get("legs") or []
+        if not 1 <= len(items) <= 20:
+            raise ValueError("O bilhete deve conter entre 1 e 20 seleções.")
+        bankroll = self.session.get(Bankroll, int(payload["bankroll_id"]))
+        stake = Decimal(str(payload["stake_amount"])).quantize(Decimal(".01"))
+        if (
+            bankroll is None
+            or not bankroll.active
+            or stake <= 0
+            or bankroll.current_balance < stake
+        ):
+            raise ValueError("Banca, stake ou saldo inválido.")
+
+        resolved = []
+        seen_selections: set[tuple[int, int, str]] = set()
+        markets_per_match: dict[int, set[int]] = {}
+        combined = Decimal("1")
+        for item in items:
+            match = self.session.get(Match, int(item["match_id"]))
+            market = self._resolve_market(item)
+            manual_odd = item.get("odd_value") not in (None, "")
+            if (
+                match is None
+                or market is None
+                or (not market.active and not manual_odd)
+                or match.status not in {"scheduled", "not_started", "in_progress"}
+            ):
+                label = str(
+                    item.get("market_name") or getattr(
+                        market, "name", "não identificado"
+                    )
+                )
+                raise ValueError(
+                    f"Partida ou mercado indisponível: {label}."
+                )
+            selection = str(item["selection"]).strip()
+            identity = (match.id, market.id, selection.casefold())
+            if identity in seen_selections:
+                raise ValueError(
+                    "A mesma seleção não pode ser repetida no bilhete."
+                )
+            if market.id in markets_per_match.get(match.id, set()):
+                raise ValueError(
+                    "Seleções do mesmo mercado na mesma partida são incompatíveis."
+                )
+            seen_selections.add(identity)
+            markets_per_match.setdefault(match.id, set()).add(market.id)
+            odd = self.session.scalar(
+                select(Odd)
+                .where(
+                    Odd.match_id == match.id,
+                    Odd.market_id == market.id,
+                    Odd.selection == selection,
+                )
+                .order_by(Odd.collected_at.desc())
+            )
+            leg_odd = self._leg_odd(item, odd)
+            prediction = self.session.scalar(
+                select(Prediction)
+                .where(
+                    Prediction.match_id == match.id,
+                    Prediction.market_id == market.id,
+                    Prediction.selection == selection,
+                )
+                .order_by(Prediction.created_at.desc())
+            )
+            combined *= leg_odd
+            resolved.append(
+                (match, market, prediction, leg_odd, selection)
+            )
+
+        slip = BetSlip(
+            bankroll_id=bankroll.id,
+            bookmaker=str(payload.get("bookmaker") or "Não informada"),
+            kind="single" if len(resolved) == 1 else "multiple",
+            stake_amount=stake,
+            total_odds=combined,
+            potential_return=(stake * combined).quantize(Decimal(".01")),
+            status="pending",
+        )
+        self.session.add(slip)
+        self.session.flush()
+        for match, market, prediction, leg_odd, selection in resolved:
+            self.session.add(
+                BetLeg(
+                    slip_id=slip.id,
+                    match_id=match.id,
+                    market_id=market.id,
+                    prediction_id=prediction.id if prediction else None,
+                    selection=selection,
+                    odd_value=leg_odd,
+                    status="pending",
+                )
+            )
+        before = Decimal(str(bankroll.current_balance))
+        bankroll.current_balance = before - stake
+        self.session.add(
+            BankrollTransaction(
+                bankroll_id=bankroll.id,
+                slip_id=slip.id,
+                transaction_type="slip_stake",
+                amount=-stake,
+                balance_before=before,
+                balance_after=bankroll.current_balance,
+                description=f"Stake do bilhete {slip.id}",
+            )
+        )
+        self.session.commit()
+        return self.get(slip.id)
+
+    def get(self, slip_id: int) -> BetSlip:
+        result = self.session.scalar(
+            select(BetSlip)
+            .where(BetSlip.id == slip_id)
+            .options(selectinload(BetSlip.legs))
+        )
+        if result is None:
+            raise ValueError("Bilhete não encontrado.")
+        return result
+
+    def list_all(self) -> list[BetSlip]:
+        return list(
+            self.session.scalars(
+                select(BetSlip)
+                .options(selectinload(BetSlip.legs))
+                .order_by(BetSlip.placed_at.desc())
+            ).all()
+        )
+
+    def settle_match(self, match: Match, statistics) -> int:
+        legs = self.session.scalars(
+            select(BetLeg).where(
+                BetLeg.match_id == match.id, BetLeg.status == "pending"
+            )
+        ).all()
+        affected: set[int] = set()
+        now = datetime.now(timezone.utc)
+        for leg in legs:
+            market = self.session.get(Market, leg.market_id)
+            result = evaluate_market(
+                market.code,
+                leg.selection,
+                int(match.home_score or 0),
+                int(match.away_score or 0),
+                statistics.corners_home,
+                statistics.corners_away,
+                statistics.yellow_cards_home,
+                statistics.yellow_cards_away,
+                statistics.red_cards_home,
+                statistics.red_cards_away,
+            )
+            if result == "unsupported":
+                continue
+            leg.result, leg.status, leg.settled_at = result, "settled", now
+            affected.add(leg.slip_id)
+        for slip_id in affected:
+            self._finalize(self.get(slip_id), now)
+        return len(affected)
+
+    def settle_leg_manually(
+        self, slip_id: int, leg_id: int, result: str
+    ) -> BetSlip:
+        normalized = result.strip().lower()
+        if normalized not in {"won", "lost", "void"}:
+            raise ValueError(
+                "Resultado manual deve ser won, lost ou void."
+            )
+        slip = self.get(slip_id)
+        if slip.status != "pending":
+            raise ValueError("Este bilhete já foi liquidado.")
+        leg = next(
+            (item for item in slip.legs if item.id == leg_id), None
+        )
+        if leg is None:
+            raise ValueError("Seleção não pertence ao bilhete informado.")
+        if leg.status != "pending":
+            raise ValueError("Esta seleção já foi liquidada.")
+        now = datetime.now(timezone.utc)
+        leg.result = normalized
+        leg.status = "settled"
+        leg.settled_at = now
+        self._finalize(slip, now)
+        self.session.commit()
+        return self.get(slip.id)
+
+    def cancel(self, slip_id: int) -> BetSlip:
+        slip = self.get(slip_id)
+        if slip.status != "pending":
+            raise ValueError(
+                "Somente bilhetes pendentes podem ser cancelados."
+            )
+        if any(leg.status != "pending" for leg in slip.legs):
+            raise ValueError(
+                "Bilhetes parcialmente liquidados não podem ser cancelados."
+            )
+        bankroll = self.session.get(Bankroll, slip.bankroll_id)
+        if bankroll is None:
+            raise ValueError("Banca do bilhete não encontrada.")
+        now = datetime.now(timezone.utc)
+        refund = Decimal(str(slip.stake_amount)).quantize(Decimal(".01"))
+        before = Decimal(str(bankroll.current_balance))
+        bankroll.current_balance = before + refund
+        slip.status = "canceled"
+        slip.payout_amount = refund
+        slip.settled_at = now
+        for leg in slip.legs:
+            leg.status = "canceled"
+            leg.result = "void"
+            leg.settled_at = now
+        self.session.add(
+            BankrollTransaction(
+                bankroll_id=bankroll.id,
+                slip_id=slip.id,
+                transaction_type="slip_cancellation",
+                amount=refund,
+                balance_before=before,
+                balance_after=bankroll.current_balance,
+                description=f"Estorno do bilhete cancelado {slip.id}",
+            )
+        )
+        self.session.commit()
+        return self.get(slip.id)
+
+    def _finalize(self, slip: BetSlip, now: datetime) -> None:
+        if slip.status != "pending":
+            return
+        if any(leg.status == "pending" for leg in slip.legs):
+            return
+        effective = Decimal("1")
+        if any(leg.result == "lost" for leg in slip.legs):
+            slip.status, payout = "lost", Decimal("0")
+        else:
+            for leg in slip.legs:
+                if leg.result == "won":
+                    effective *= Decimal(str(leg.odd_value))
+            payout = (Decimal(str(slip.stake_amount)) * effective).quantize(
+                Decimal(".01")
+            )
+            slip.status = "void" if effective == 1 else "won"
+        slip.payout_amount, slip.settled_at = payout, now
+        if payout <= 0:
+            return
+        bankroll = self.session.get(Bankroll, slip.bankroll_id)
+        before = Decimal(str(bankroll.current_balance))
+        bankroll.current_balance = before + payout
+        self.session.add(
+            BankrollTransaction(
+                bankroll_id=bankroll.id,
+                slip_id=slip.id,
+                transaction_type="slip_settlement",
+                amount=payout,
+                balance_before=before,
+                balance_after=bankroll.current_balance,
+                description=f"Liquidação do bilhete {slip.id}",
+            )
+        )

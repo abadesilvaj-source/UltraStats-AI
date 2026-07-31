@@ -5,8 +5,8 @@
 **Homologação concluída e aprovada para promoção estável.**
 
 O ambiente isolado `ultrastats-g16` foi levantado em Docker com PostgreSQL 17,
-migrations, scheduler e dashboard. A evidência estruturada está em
-`release/staging-acceptance-v0.1.0-rc.2.json`.
+migrations, scheduler, API e frontend. A evidência histórica está em
+`backend/release_artifacts/staging-acceptance-v0.1.0-rc.2.json`.
 
 ## Evidências aprovadas
 
@@ -15,8 +15,8 @@ migrations, scheduler e dashboard. A evidência estruturada está em
 | PostgreSQL | saudável |
 | Alembic | `b8151a2c9e10 (head)` |
 | Scheduler | saudável, heartbeat de 10 segundos |
-| Dashboard | HTTP 200 e health check saudável |
-| Filesystem do dashboard | read-only |
+| API e frontend | HTTP 200 e health checks saudáveis |
+| Filesystem dos serviços | somente diretórios necessários graváveis |
 | Diretório temporário | `/tmp` em tmpfs |
 | Carga | 100 requisições, 0 falhas |
 | Latência média/máxima | 45,65 ms / 733,53 ms |

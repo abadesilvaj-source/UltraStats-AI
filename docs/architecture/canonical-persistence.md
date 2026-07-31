@@ -7,7 +7,7 @@ relacional. O domínio não importa SQLAlchemy: serializers e deserializers são
 injetados no repository, preservando a separação entre domínio e infraestrutura.
 
 O modelo legado em `app` continua operacional e não foi alterado. A nova base
-`CanonicalBase`, em `src/ultrastats_ai`, é registrada junto da metadata legada
+`CanonicalBase`, em `backend/src/ultrastats_ai`, é registrada junto da metadata legada
 no Alembic.
 
 ## Estrutura

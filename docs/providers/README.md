@@ -1,5 +1,13 @@
 # Providers
 
+## API-Football Ultra
+
+A integração Ultra inclui fixtures, livescore, eventos, estatísticas,
+escalações, lesões, estatísticas de jogadores e equipes, previsões do provedor,
+odds pré-jogo e odds ao vivo. A política de frequência, franquia e backfill
+está documentada em
+[`docs/operations/api-football-ultra.md`](../operations/api-football-ultra.md).
+
 ## Operação agendada
 
 O scheduler usa `SYNC_PROVIDER=multi_provider` para consultar API-Football,
@@ -13,8 +21,8 @@ eventos/xG orientadas por partida, pois seu contrato exige um `match_id`.
 
 ### Pipeline operacional
 
-A coleta de fixtures API-Football é promovida para as tabelas consumidas pelo
-dashboard. O processo resolve competição e equipes pelos identificadores
+A coleta de fixtures é promovida para as tabelas consumidas pela API e pelo
+frontend. O processo resolve competição e equipes pelos identificadores
 externos, atualiza o ciclo de vida das partidas, garante os mercados principais,
 vincula odds disponíveis e produz previsões Poisson idempotentes.
 

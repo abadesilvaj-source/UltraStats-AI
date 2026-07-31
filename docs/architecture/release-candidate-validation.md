@@ -36,10 +36,10 @@ O workflow roda em pull requests, na branch da G15 e em tags de RC.
 
 ## Staging
 
-`docker-compose.staging.yml` separa banco, migrations, scheduler e dashboard.
-Credenciais são obrigatórias e vêm de `.env.staging`; o dashboard usa
-filesystem read-only e health check. Migrations precisam terminar antes dos
-serviços.
+`docker-compose.staging.yml` separa banco, migrations, scheduler, API e
+frontend. Credenciais são obrigatórias e vêm do arquivo de ambiente local; os
+containers usam health checks e somente os diretórios estritamente necessários
+são graváveis. Migrations precisam terminar antes dos serviços.
 
 ## Integração E2E
 

@@ -1,0 +1,12 @@
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.coverage
+htmlcov
+.env
+.env.*
+logs
+exports
+reports
+release_artifacts

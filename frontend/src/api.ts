@@ -1,4 +1,5 @@
 import type { Match, MatchAnalysis, MatchStats, Lineup, OddsMarket, PlacedBet } from './data'
+import type { IntelligenceStatus } from './api-contract'
 
 const API = import.meta.env.VITE_API_URL || '/api/v1'
 
@@ -45,12 +46,69 @@ function lineup(rows: any[], teamName: string): Lineup {
     number: Number(player.number || 0),
     name: player.name || 'Jogador não informado',
     position: player.pos || '—',
+    grid: typeof player.grid === 'string' ? player.grid : undefined,
   }))
   return {
     formation: row.formation || '—',
     players: players(row.start_xi || []),
     bench: players(row.substitutes || []),
   }
+}
+
+function nonRecommendedReason(row: any): string {
+  const reasons = new Set<string>(row.blocked_reasons || [])
+  const warnings = new Set<string>(row.warnings || [])
+  const percentage = (value: unknown) =>
+    `${(Number(value || 0) * 100).toFixed(1)}%`
+
+  if (reasons.has('missing_odds')) {
+    return 'Motivo: os provedores integrados não entregaram odd atual para esta seleção nesta partida.'
+  }
+  if (reasons.has('stale_odds')) {
+    return 'Motivo: a odd disponível está desatualizada e pode não representar o mercado atual.'
+  }
+  if (reasons.has('missing_expected_value')) {
+    return 'Motivo: faltam dados de mercado para calcular o retorno esperado com segurança.'
+  }
+  if (reasons.has('insufficient_conservative_edge')) {
+    const conservative = row.conservative_expected_value
+    return conservative == null
+      ? 'Motivo: a vantagem estimada desaparece após considerar a incerteza do modelo.'
+      : `Motivo: o valor esperado conservador é ${percentage(conservative)}, abaixo do mínimo exigido.`
+  }
+  if (reasons.has('competition_market_validation_failed')) {
+    return 'Motivo: este mercado ainda não atingiu desempenho confiável nesta competição.'
+  }
+  if (reasons.has('market_validation_failed')) {
+    return 'Motivo: o histórico recente deste mercado ficou abaixo do padrão mínimo de validação.'
+  }
+  if (reasons.has('model_validation_failed')) {
+    return 'Motivo: a versão atual do modelo não passou integralmente pelos critérios de validação.'
+  }
+  if (reasons.has('correlated_market_exposure')) {
+    return 'Motivo: esta seleção é muito correlacionada com outra recomendação mais forte da partida.'
+  }
+  if (warnings.has('low_evidence') || row.evidence === 'low') {
+    return 'Motivo: há poucos dados confiáveis para sustentar esta projeção.'
+  }
+  if (Number(row.probability_margin || 0) < .08) {
+    return `Motivo: os cenários estão muito próximos — diferença de apenas ${percentage(row.probability_margin)}.`
+  }
+  return 'Motivo: a seleção não atingiu simultaneamente os critérios de valor, evidência e segurança.'
+}
+
+function modelTraceReason(row: any): string | null {
+  const trace = row.model_trace
+  if (!trace) return null
+  const favorable = (trace.favorable_factors || [])
+    .slice(0, 2).map((value: string) => value.split('_').join(' '))
+  const adverse = (trace.adverse_factors || [])
+    .slice(0, 2).map((value: string) => value.split('_').join(' '))
+  const parts = [
+    favorable.length ? `A favor: ${favorable.join(', ')}` : '',
+    adverse.length ? `Atenção: ${adverse.join(', ')}` : '',
+  ].filter(Boolean)
+  return parts.length ? parts.join(' · ') : null
 }
 
 function adapt(item: any): Match {
@@ -76,12 +134,21 @@ function adapt(item: any): Match {
     noBet: Boolean(row.no_bet),
     primary: Boolean(row.is_primary_recommendation),
     recommendationType: row.recommendation_type,
+    marketOddsAvailable: row.implied_probability != null,
+    probability: Number(row.probability || 0),
+    calibratedProbability: Number(row.calibrated_probability ?? row.probability ?? 0),
+    recommendationTier: row.recommendation_tier || 'experimental',
+    probabilityInterval: row.probability_interval || undefined,
+    fractionalKelly: row.fractional_kelly == null ? undefined : Number(row.fractional_kelly),
+    selectiveCoverage: row.selective_coverage == null ? null : Number(row.selective_coverage),
     confidence: row.confidence >= .75 ? 'Alta' : row.confidence >= .55 ? 'Média' : 'Baixa',
     odds: row.implied_probability
       ? 1 / row.implied_probability
       : 1 / Math.max(row.probability, .01),
     reasoning: row.no_bet
-      ? `Aposta não recomendada · margem entre cenários ${((row.probability_margin || 0) * 100).toFixed(1)}%`
+      ? nonRecommendedReason(row)
+      : modelTraceReason(row)
+      ? modelTraceReason(row)!
       : row.recommendation_type === 'model_pick'
       ? `Melhor projeção disponível para a partida · ainda sem valor estatístico confirmado`
       : row.conservative_expected_value != null
@@ -120,7 +187,19 @@ function adapt(item: any): Match {
     awayScore: item.score?.away ?? undefined,
     homeLineup: lineup(lineups, item.home_team.name),
     awayLineup: lineup(lineups, item.away_team.name),
-    events: [],
+    events: (item.events || []).map((event: any) => ({
+      id: String(event.id),
+      minute: Number(event.minute || 0),
+      type: String(event.type || '').toLowerCase() === 'card'
+        ? String(event.detail || '').toLowerCase().includes('red') ? 'red' : 'yellow'
+        : String(event.type || '').toLowerCase() === 'subst' ? 'substitution'
+        : String(event.type || '').toLowerCase() === 'goal' ? 'goal'
+        : String(event.type || '').toLowerCase() === 'var' ? 'var'
+        : 'var',
+      team: event.side || 'home',
+      player: event.player?.name || 'Jogador não informado',
+      detail: [event.detail, event.comments].filter(Boolean).join(' · '),
+    })),
     statsAvailable: availableStats.length > 0,
     availableStats,
     stats: stats ? {
@@ -288,6 +367,15 @@ export type RecommendationDto = PredictionDto & {
   warnings: string[]
   recommendation_score: number | null
   conservative_expected_value: number | null
+  calibrated_probability: number
+  recommendation_tier: 'high_confidence' | 'statistical_value' | 'experimental'
+  probability_interval: { low: number; high: number } | null
+  fractional_kelly: number | null
+  selective_coverage: number | null
+  selection_threshold: number | null
+  ensemble_weights: Record<string, number>
+  odds_movement: Record<string, unknown>
+  calibration_segment: Record<string, unknown> | null
 }
 
 export async function loadPredictions(): Promise<PredictionDto[]> {
@@ -298,6 +386,6 @@ export async function loadRecommendations(): Promise<RecommendationDto[]> {
   return request('/recommendations?primary_only=true&limit=200')
 }
 
-export async function loadIntelligence(): Promise<any> {
-  return request('/intelligence/status')
+export async function loadIntelligence(): Promise<IntelligenceStatus> {
+  return request<IntelligenceStatus>('/intelligence/status')
 }

@@ -26,6 +26,38 @@ type Bankroll = {
   active: boolean
 }
 
+type RiskAssessment = {
+  approved: boolean
+  expected_value: number
+  correlation_adjusted_probability: number
+  correlated_pairs: number
+  recommended_max_bankroll_percentage: number
+  warnings: string[]
+  unavailable_markets: Array<{
+    leg: number
+    market: string
+    selection: string
+  }>
+}
+
+type BetPlacementPayload = {
+  bankroll_id: number
+  bookmaker: string
+  stake_amount: number
+  legs: Array<{
+    match_id: number
+    market_id?: number
+    market_name: string
+    selection: string
+    odd_value: number
+  }>
+}
+
+type PendingRiskConfirmation = {
+  payload: BetPlacementPayload
+  assessment: RiskAssessment
+}
+
 const navigation = [
   { to: '/', label: 'Central de partidas', icon: Home },
   { to: '/favorites', label: 'Favoritos', icon: Star },
@@ -68,6 +100,87 @@ function useStoredFavorites() {
   return { favorites, toggle }
 }
 
+const riskWarningLabels: Record<string, string> = {
+  correlated_legs: 'O bilhete combina mercados correlacionados.',
+  missing_predictions: 'Uma ou mais seleções não possuem previsão estatística completa.',
+  high_leg_count: 'O bilhete possui muitas seleções e maior variância.',
+}
+
+function RiskConfirmationDialog({
+  assessment, stake, busy, onCancel, onConfirm,
+}: {
+  assessment: RiskAssessment
+  stake: number
+  busy: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const warnings = assessment.warnings?.map(
+    warning => riskWarningLabels[warning] || warning.replace(/_/g, ' '),
+  ) || []
+  if (!assessment.approved) {
+    warnings.unshift(
+      'O motor de risco não encontrou vantagem estatística conservadora suficiente.',
+    )
+  }
+  for (const item of assessment.unavailable_markets || []) {
+    warnings.push(
+      `${item.market} — ${item.selection}: sem validação automática de disponibilidade.`,
+    )
+  }
+  const uniqueWarnings = [...new Set(warnings)]
+  const ev = Number.isFinite(assessment.expected_value)
+    ? `${(assessment.expected_value * 100).toFixed(1)}%`
+    : 'indisponível'
+
+  return (
+    <div className="risk-confirmation-backdrop" role="presentation">
+      <section
+        className="risk-confirmation-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="risk-confirmation-title"
+      >
+        <div className="risk-confirmation-heading">
+          <AlertTriangle size={24} />
+          <div>
+            <h2 id="risk-confirmation-title">Confirmar bilhete com riscos?</h2>
+            <p>A gestão de risco recomenda cautela, mas não impedirá sua decisão.</p>
+          </div>
+        </div>
+        <div className="risk-confirmation-metrics">
+          <span>Valor: <strong>R$ {stake.toFixed(2)}</strong></span>
+          <span>EV estimado: <strong>{ev}</strong></span>
+          <span>
+            Limite sugerido: <strong>
+              {assessment.recommended_max_bankroll_percentage.toFixed(1)}% da banca
+            </strong>
+          </span>
+        </div>
+        <ul>
+          {uniqueWarnings.map(warning => <li key={warning}>{warning}</li>)}
+        </ul>
+        <p className="risk-confirmation-disclaimer">
+          Ao continuar, você reconhece que a aposta pode resultar na perda integral do valor.
+        </p>
+        <div className="risk-confirmation-actions">
+          <button type="button" onClick={onCancel} disabled={busy}>
+            Revisar bilhete
+          </button>
+          <button
+            type="button"
+            className="confirm-risk"
+            onClick={onConfirm}
+            disabled={busy}
+          >
+            {busy ? 'Registrando…' : 'Criar mesmo assim'}
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
 export default function AppRouter() {
   return (
     <BrowserRouter>
@@ -78,12 +191,26 @@ export default function AppRouter() {
 
 function UltraStatsApp() {
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const { favorites, toggle } = useStoredFavorites()
   const [betSlip, setBetSlip] = useState<BetSelection[]>([])
   const [betSlipOpen, setBetSlipOpen] = useState(false)
   const [message, setMessage] = useState('')
   const [placedBets, setPlacedBets] = useState<PlacedBet[]>([])
+  const [riskConfirmation, setRiskConfirmation] =
+    useState<PendingRiskConfirmation | null>(null)
+  const [placingBet, setPlacingBet] = useState(false)
+  const needsMaturity = [
+    '/system', '/statistics', '/models', '/providers',
+  ].includes(location.pathname)
+  const needsPredictions = location.pathname === '/analysis'
+  const needsRecommendations = [
+    '/risk', '/recommendations',
+  ].includes(location.pathname)
+  const needsIntelligence = [
+    '/statistics', '/models',
+  ].includes(location.pathname)
 
   const matchesQuery = useQuery({
     queryKey: queryKeys.matches,
@@ -105,24 +232,28 @@ function UltraStatsApp() {
   const maturityQuery = useQuery({
     queryKey: queryKeys.maturity,
     queryFn: loadMaturity,
+    enabled: needsMaturity,
     refetchInterval: 120_000,
     staleTime: 60_000,
   })
   const predictionsQuery = useQuery({
     queryKey: queryKeys.predictions,
     queryFn: loadPredictions,
+    enabled: needsPredictions,
     staleTime: 60_000,
     refetchInterval: 120_000,
   })
   const recommendationsQuery = useQuery({
     queryKey: queryKeys.recommendations,
     queryFn: loadRecommendations,
+    enabled: needsRecommendations,
     staleTime: 60_000,
     refetchInterval: 120_000,
   })
   const intelligenceQuery = useQuery({
     queryKey: queryKeys.intelligence,
     queryFn: loadIntelligence,
+    enabled: needsIntelligence,
     staleTime: 60_000,
     refetchInterval: 120_000,
   })
@@ -163,6 +294,25 @@ function UltraStatsApp() {
     setBetSlipOpen(true)
   }, [matches])
 
+  const finishBetPlacement = async (payload: BetPlacementPayload) => {
+    setPlacingBet(true)
+    try {
+      await placeBet(payload)
+      setBetSlip([])
+      setBetSlipOpen(false)
+      setRiskConfirmation(null)
+      setMessage('Bilhete registrado com sucesso.')
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.bets }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.bankrolls }),
+      ])
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Falha ao registrar bilhete.')
+    } finally {
+      setPlacingBet(false)
+    }
+  }
+
   const placeCurrentBet = async (stake: number) => {
     if (!bankroll) {
       setMessage('Crie e ative uma banca antes de confirmar o bilhete.')
@@ -183,23 +333,12 @@ function UltraStatsApp() {
       })),
     }
     try {
-      const assessment = await analyzeBetSlip(payload)
-      if (!assessment.approved && !(assessment.unavailable_markets || []).length) {
-        setMessage(
-          `Bilhete bloqueado pelo risco: ${
-            assessment.warnings?.join(', ') || 'valor conservador insuficiente'
-          }.`,
-        )
+      const assessment = await analyzeBetSlip(payload) as RiskAssessment
+      if (!assessment.approved || assessment.warnings?.length) {
+        setRiskConfirmation({ payload, assessment })
         return
       }
-      await placeBet(payload)
-      setBetSlip([])
-      setBetSlipOpen(false)
-      setMessage('Bilhete registrado com sucesso.')
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.bets }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bankrolls }),
-      ])
+      await finishBetPlacement(payload)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Falha ao registrar bilhete.')
     }
@@ -207,7 +346,7 @@ function UltraStatsApp() {
 
   const isLoading = (
     matchesQuery.isPending || bankrollQuery.isPending
-    || betsQuery.isPending || maturityQuery.isPending
+    || betsQuery.isPending
   )
   const queryError = [
     matchesQuery.error, bankrollQuery.error, betsQuery.error, maturityQuery.error,
@@ -229,6 +368,15 @@ function UltraStatsApp() {
           message={queryError instanceof Error ? queryError.message : 'Falha de comunicação.'}
           onClose={() => queryClient.invalidateQueries()}
           retry
+        />
+      )}
+      {riskConfirmation && (
+        <RiskConfirmationDialog
+          assessment={riskConfirmation.assessment}
+          stake={riskConfirmation.payload.stake_amount}
+          busy={placingBet}
+          onCancel={() => setRiskConfirmation(null)}
+          onConfirm={() => finishBetPlacement(riskConfirmation.payload)}
         />
       )}
       {isLoading && !matchesQuery.data ? <LoadingScreen /> : (
@@ -363,6 +511,8 @@ function MatchRoute({
     enabled: Boolean(matchId),
     placeholderData: fallback,
     staleTime: 15_000,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
   })
   if (query.isPending || !query.data) return <LoadingScreen compact />
   if (query.error) {
@@ -584,6 +734,24 @@ function StatisticsPage({ maturity, intelligence }: { maturity: any; intelligenc
         ['Estatísticas pós-jogo', coverage.statistics], ['Odds', coverage.odds],
         ['Previsões', coverage.predictions], ['Escalações', raw.lineups],
       ]} />
+      <section className="insight-panel">
+        <div><Activity size={20} /><strong>Cobertura por competição</strong></div>
+        <p>Mercados sem amostra suficiente permanecem como projeção, com aviso explícito de evidência limitada.</p>
+      </section>
+      <DataList empty="Nenhuma competição prioritária disponível nesta janela.">
+        {(maturity?.competition_coverage || []).map((item: any) => (
+          <div className="data-row" key={item.code}>
+            <div>
+              <strong>{item.name}</strong>
+              <span>{item.finished} encerradas · {item.active} ativas</span>
+            </div>
+            <span>
+              Estatísticas {percent(item.statistics)} · Odds {percent(item.odds)}
+              {' · '}Previsões {percent(item.predictions)}
+            </span>
+          </div>
+        ))}
+      </DataList>
     </FeaturePage>
   )
 }
@@ -592,6 +760,14 @@ function ModelsPage({ maturity, intelligence }: { maturity: any; intelligence: a
   const learning = intelligence?.learning || {}
   const validation = learning.latest_validation
   const metrics = validation?.metrics || {}
+  const financial = metrics.financial || {}
+  const platform = intelligence?.platform || {}
+  const platformModels = platform.models || {}
+  const backtesting = platform.backtesting || {}
+  const featureStore = platform.feature_store || {}
+  const quality = platform.quality || {}
+  const taskQueue = platform.task_queue || {}
+  const decisionControl = platform.decision_control || {}
   return (
     <FeaturePage title="MODELOS E APRENDIZADO" subtitle="Auditoria, validação e evolução do modelo preditivo.">
       <div className="engine-grid">
@@ -607,11 +783,61 @@ function ModelsPage({ maturity, intelligence }: { maturity: any; intelligence: a
         <p>{validation?.evaluated_at ? `Avaliado em ${formatDateTime(validation.evaluated_at)}` : 'O pipeline precisa acumular evidência auditada para uma validação conclusiva.'}</p>
       </section>
       <div className="model-metrics">
-        {Object.entries(metrics).slice(0, 12).map(([key, value]) => (
+        {Object.entries(metrics)
+          .filter(([, value]) => typeof value !== 'object')
+          .slice(0, 12).map(([key, value]) => (
           <div key={key}><span>{humanize(key)}</span><strong>{formatMetric(value)}</strong></div>
         ))}
         {!Object.keys(metrics).length && <p>Nenhuma métrica de validação consolidada disponível.</p>}
       </div>
+      <section className="insight-panel">
+        <div><TrendingUp size={20} /><strong>Desempenho financeiro auditado</strong></div>
+        <p>
+          ROI {financial.roi == null ? 'ainda sem amostra' : percent(financial.roi)}
+          {' · '}Taxa de acerto {financial.win_rate == null ? 'ainda sem amostra' : percent(financial.win_rate)}
+          {' · '}CLV médio {financial.average_clv == null ? 'aguardando odds de fechamento' : percent(financial.average_clv)}
+          {' · '}{financial.clv_samples ?? 0} amostras de fechamento.
+        </p>
+      </section>
+      <div className="engine-grid">
+        <MetricCard label="Famílias especializadas" value={String(platformModels.families?.length ?? '—')} />
+        <MetricCard label="Desafiantes em shadow" value={String(platformModels.shadow_challengers ?? '—')} />
+        <MetricCard label="Backtests temporais" value={String(backtesting.runs ?? '—')} />
+        <MetricCard label="Previsões explicadas" value={String(platform.explainability?.predictions_explained ?? '—')} />
+        <MetricCard label="Políticas calibradas" value={String(decisionControl.active_policies ?? '—')} />
+        <MetricCard label="Segmentos calibrados" value={String(decisionControl.calibrated_segments ?? '—')} />
+        <MetricCard label="Segmentos com drift" value={String(decisionControl.drifted_segments ?? '—')} />
+        <MetricCard label="Meta seletiva" value={decisionControl.target_accuracy == null ? '—' : percent(decisionControl.target_accuracy)} />
+      </div>
+      <section className="insight-panel success">
+        <div><CheckCircle2 size={20} /><strong>Plataforma científica e operacional</strong></div>
+        <p>
+          Feature store: {featureStore.snapshots ?? 0} snapshots, corte estritamente anterior ao jogo.
+          {' · '}Validação: {humanize(backtesting.method || 'não executada')}.
+          {' · '}Famílias aprovadas: {(backtesting.passed_families || []).map(humanize).join(', ') || 'aguardando amostra'}.
+        </p>
+      </section>
+      <section className={`insight-panel ${quality.critical ? 'warning' : 'success'}`}>
+        <div>{quality.critical ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />}
+          <strong>Qualidade dos dados e fila persistente</strong>
+        </div>
+        <p>
+          {quality.open_incidents ?? 0} incidentes abertos ({quality.critical ?? 0} críticos).
+          {' · '}Fila: {taskQueue.pending ?? 0} pendentes, {taskQueue.failed ?? 0} falhas e {taskQueue.completed ?? 0} concluídas.
+          {quality.by_kind && ` · ${Object.entries(quality.by_kind).map(
+            ([key, value]) => `${humanize(key)}: ${value}`
+          ).join(' · ')}`}
+        </p>
+      </section>
+      <section className={`insight-panel ${decisionControl.drifted_segments ? 'warning' : 'success'}`}>
+        <div>{decisionControl.drifted_segments ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />}
+          <strong>Calibração e cobertura seletiva</strong>
+        </div>
+        <p>
+          Políticas condicionadas por competição, mercado, faixa de odd e antecedência.
+          {' · '}O motor sinaliza incerteza sem transformar baixa evidência em falsa confiança.
+        </p>
+      </section>
     </FeaturePage>
   )
 }
@@ -621,8 +847,13 @@ function RecommendationsPage({ recommendations, onOpenMatch }: {
 }) {
   const [filter, setFilter] = useState('primary')
   const primary = recommendations.filter(item => item.is_primary_recommendation)
-  const visible = filter === 'value'
-    ? recommendations.filter(item => item.actionable) : primary
+  const visible = filter === 'high'
+    ? recommendations.filter(item => item.recommendation_tier === 'high_confidence')
+    : filter === 'value'
+    ? recommendations.filter(item => item.recommendation_tier === 'statistical_value')
+    : filter === 'experimental'
+    ? recommendations.filter(item => item.recommendation_tier === 'experimental')
+    : primary
   return (
     <FeaturePage title="RECOMENDAÇÕES" subtitle="Melhor sugestão por partida, com indicação explícita de segurança.">
       <div className="engine-grid">
@@ -632,7 +863,7 @@ function RecommendationsPage({ recommendations, onOpenMatch }: {
         <MetricCard label="Projeções exibidas" value={String(recommendations.length)} />
       </div>
       <div className="segmented-control">
-        {[['primary', 'Melhores por partida'], ['value', 'Valor confirmado']].map(([id, label]) => (
+        {[['primary', 'Melhores por partida'], ['high', 'Alta confiança'], ['value', 'Valor estatístico'], ['experimental', 'Experimental']].map(([id, label]) => (
           <button key={id} className={filter === id ? 'active' : ''} onClick={() => setFilter(id)}>{label}</button>
         ))}
       </div>
@@ -641,7 +872,7 @@ function RecommendationsPage({ recommendations, onOpenMatch }: {
           <button className="recommendation-row" key={`${item.match_id}-${item.market_id}`} onClick={() => onOpenMatch(item.match_id)}>
             <div className="recommendation-icon"><TrendingUp size={17} /></div>
             <div><strong>{item.match}</strong><span>{item.market} · {item.selection}</span></div>
-            <div className="recommendation-score"><strong>{Math.round(item.probability * 100)}%</strong><RiskBadge item={item} /></div>
+            <div className="recommendation-score"><strong>{Math.round((item.calibrated_probability ?? item.probability) * 100)}%</strong><RiskBadge item={item} /></div>
           </button>
         ))}
       </DataList>
@@ -675,6 +906,12 @@ function ProvidersPage({ maturity }: { maturity: any }) {
               {(item.capabilities || []).map((capability: string) => <span key={capability}>{humanize(capability)}</span>)}
             </div>
             <small>Último dado: {item.last_payload_at ? formatDateTime(item.last_payload_at) : 'ainda não registrado'}</small>
+            {item.quota && (
+              <small>
+                Franquia diária: {item.quota['x-ratelimit-requests-remaining'] ?? '—'} de{' '}
+                {item.quota['x-ratelimit-requests-limit'] ?? '—'} requisições restantes
+              </small>
+            )}
           </article>
         ))}
         {!providers.length && <div className="data-empty">Diagnóstico dos provedores indisponível.</div>}
@@ -689,7 +926,10 @@ function DataList({ children, empty }: { children: React.ReactNode; empty: strin
 }
 
 function RiskBadge({ item }: { item: RecommendationDto }) {
-  const label = item.actionable ? 'Valor confirmado'
+  const label = item.recommendation_tier === 'high_confidence' ? 'Alta confiança'
+    : item.recommendation_tier === 'statistical_value' ? 'Valor estatístico'
+    : item.recommendation_tier === 'experimental' ? 'Experimental'
+    : item.actionable ? 'Valor confirmado'
     : item.recommendation_type === 'model_pick' ? 'Melhor projeção' : 'Não recomendada'
   return <span className={`risk-badge ${item.actionable ? 'safe' : item.no_bet ? 'blocked' : 'projection'}`}>{label}</span>
 }

@@ -40,6 +40,8 @@ reports/generated/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.pnpm-store/
+*.tsbuildinfo
 
 # Coverage
 .coverage
