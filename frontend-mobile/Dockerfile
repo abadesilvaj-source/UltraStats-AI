@@ -6,7 +6,9 @@ RUN corepack enable && pnpm install --frozen-lockfile --shamefully-hoist
 COPY frontend ./frontend
 COPY frontend-mobile ./frontend-mobile
 WORKDIR /web/frontend-mobile
-RUN ../node_modules/.bin/tsc --noEmit && ../node_modules/.bin/vite build
+RUN node scripts/prepare-shared.mjs \
+    && ../node_modules/.bin/tsc --noEmit \
+    && ../node_modules/.bin/vite build
 
 FROM nginx:1.29-alpine
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
