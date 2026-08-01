@@ -35,6 +35,7 @@ class BankrollService:
         initial_balance: float,
         currency: str = "BRL",
         unit_percentage: float = 1.0,
+        user_id: str = "legacy",
     ) -> Bankroll:
         name = name.strip()
         if not name:
@@ -59,7 +60,8 @@ class BankrollService:
 
         existing_bankroll = (
             self.bankroll_repository.find_by_name(
-                name
+                name,
+                user_id,
             )
         )
 
@@ -74,6 +76,7 @@ class BankrollService:
 
         try:
             bankroll = Bankroll(
+                user_id=user_id,
                 name=name,
                 currency=currency.upper(),
                 initial_balance=balance,
@@ -116,6 +119,7 @@ class BankrollService:
     def get_bankroll(
         self,
         bankroll_id: int,
+        user_id: str | None = None,
     ) -> Bankroll:
         bankroll = (
             self.bankroll_repository.find_by_id(
@@ -123,7 +127,7 @@ class BankrollService:
             )
         )
 
-        if not bankroll:
+        if not bankroll or (user_id and bankroll.user_id != user_id):
             raise ValueError(
                 "Banca não encontrada."
             )
@@ -132,8 +136,9 @@ class BankrollService:
 
     def list_bankrolls(
         self,
+        user_id: str | None = None,
     ) -> list[Bankroll]:
-        return self.bankroll_repository.list_all()
+        return self.bankroll_repository.list_all(user_id)
 
     def calculate_unit_value(
         self,

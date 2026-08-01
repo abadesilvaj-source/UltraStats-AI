@@ -24,6 +24,7 @@ logger = logging.getLogger(
 
 backfill_lock = threading.Lock()
 odds_sync_lock = threading.Lock()
+live_sync_lock = threading.Lock()
 
 
 def mark_stale_runs() -> int:
@@ -258,7 +259,10 @@ def run_scheduled_sync() -> None:
 
 def run_scheduled_live_sync() -> None:
     """Executa o coletor leve de placares sem bloquear o pipeline completo."""
-    lock_acquired = scheduler_lock.acquire(blocking=False)
+    # O feed ao vivo tem SLA próprio e não pode ficar parado durante coleta
+    # completa, backfill ou odds. A trava dedicada impede apenas sobreposição
+    # de dois ciclos ao vivo.
+    lock_acquired = live_sync_lock.acquire(blocking=False)
     if not lock_acquired:
         logger.info(
             "Atualização ao vivo adiada: outra sincronização está ativa."
@@ -289,7 +293,7 @@ def run_scheduled_live_sync() -> None:
     finally:
         if session is not None:
             session.close()
-        scheduler_lock.release()
+        live_sync_lock.release()
 
 
 def run_scheduled_backfill() -> None:

@@ -1,13 +1,16 @@
 import os
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.database.session import SessionLocal
-from app.models import Market, Match, Team
+from app.models import Bankroll, BetSlip, Market, Match, Team, User
 from app.services import BankrollService, BetSlipService
+from app.services.auth_service import (
+    AuthService, COOKIE_NAME, SESSION_TTL, create_session_token, session_user_id,
+)
 from api.queries import ApiQueries
 from ultrastats_ai.domain.experience import Favorite
 from ultrastats_ai.infrastructure.experience import ExperienceStore
@@ -28,7 +31,7 @@ app.add_middleware(
         ).split(",")
         if value.strip()
     ],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
@@ -53,6 +56,59 @@ def queries(request: Request) -> ApiQueries:
         "timezone", os.getenv("DEFAULT_USER_TIMEZONE", "America/Sao_Paulo")
     )
     return ApiQueries(request.state.session, timezone_name)
+
+
+def current_user(request: Request) -> User:
+    user_id = session_user_id(request.cookies.get(COOKIE_NAME))
+    user = request.state.session.get(User, user_id) if user_id else None
+    if user is None or not user.active:
+        raise HTTPException(status_code=401, detail="Autenticação necessária.")
+    return user
+
+
+def public_user(user: User) -> dict:
+    return {"id": user.id, "email": user.email, "display_name": user.display_name}
+
+
+def set_session(response: Response, user: User) -> None:
+    response.set_cookie(
+        COOKIE_NAME, create_session_token(user.id), max_age=SESSION_TTL,
+        httponly=True, samesite="lax", secure=os.getenv("COOKIE_SECURE") == "true",
+        path="/",
+    )
+
+
+@app.post("/api/v1/auth/register", status_code=201)
+async def register(request: Request, response: Response):
+    payload = await request.json()
+    user = AuthService(request.state.session).register(
+        str(payload.get("email", "")), str(payload.get("password", "")),
+        str(payload.get("display_name", "")),
+    )
+    set_session(response, user)
+    return public_user(user)
+
+
+@app.post("/api/v1/auth/login")
+async def login(request: Request, response: Response):
+    payload = await request.json()
+    user = AuthService(request.state.session).authenticate(
+        str(payload.get("email", "")), str(payload.get("password", "")),
+    )
+    if user is None:
+        raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
+    set_session(response, user)
+    return public_user(user)
+
+
+@app.get("/api/v1/auth/me")
+def me(request: Request):
+    return public_user(current_user(request))
+
+
+@app.post("/api/v1/auth/logout", status_code=204)
+def logout(response: Response):
+    response.delete_cookie(COOKIE_NAME, path="/")
 
 
 @app.get("/api/v1/health")
@@ -119,7 +175,10 @@ def recommendations(
 
 @app.get("/api/v1/bankrolls")
 def bankrolls(request: Request):
-    return queries(request).bankrolls()
+    user = current_user(request)
+    return [serialize_bankroll(item) for item in BankrollService(
+        request.state.session
+    ).list_bankrolls(user.id)]
 
 
 def serialize_bankroll(item) -> dict:
@@ -136,9 +195,11 @@ def serialize_bankroll(item) -> dict:
 
 @app.post("/api/v1/bankrolls", status_code=201)
 async def create_bankroll(request: Request):
+    user = current_user(request)
     payload = await request.json()
     return serialize_bankroll(
         BankrollService(request.state.session).create_bankroll(
+            user_id=user.id,
             name=str(payload.get("name", "")).strip(),
             initial_balance=float(payload.get("initial_balance", 0)),
             currency=str(payload.get("currency", "BRL")).strip() or "BRL",
@@ -162,6 +223,8 @@ def serialize_bankroll_transaction(item) -> dict:
 
 @app.post("/api/v1/bankrolls/{bankroll_id}/deposit", status_code=201)
 async def deposit_bankroll(bankroll_id: int, request: Request):
+    user = current_user(request)
+    BankrollService(request.state.session).get_bankroll(bankroll_id, user.id)
     payload = await request.json()
     return serialize_bankroll_transaction(
         BankrollService(request.state.session).deposit(
@@ -174,6 +237,8 @@ async def deposit_bankroll(bankroll_id: int, request: Request):
 
 @app.post("/api/v1/bankrolls/{bankroll_id}/withdraw", status_code=201)
 async def withdraw_bankroll(bankroll_id: int, request: Request):
+    user = current_user(request)
+    BankrollService(request.state.session).get_bankroll(bankroll_id, user.id)
     payload = await request.json()
     return serialize_bankroll_transaction(
         BankrollService(request.state.session).withdraw(
@@ -226,15 +291,21 @@ def serialize_slip(slip, session) -> dict:
 
 @app.get("/api/v1/bet-slips")
 def list_bet_slips(request: Request):
+    user = current_user(request)
     return [
         serialize_slip(item, request.state.session)
         for item in BetSlipService(request.state.session).list_all()
+        if request.state.session.get(Bankroll, item.bankroll_id).user_id == user.id
     ]
 
 
 @app.post("/api/v1/bet-slips", status_code=201)
 async def create_bet_slip(request: Request):
+    user = current_user(request)
     payload = await request.json()
+    BankrollService(request.state.session).get_bankroll(
+        int(payload.get("bankroll_id", 0)), user.id
+    )
     return serialize_slip(
         BetSlipService(request.state.session).create(payload),
         request.state.session,
@@ -243,7 +314,11 @@ async def create_bet_slip(request: Request):
 
 @app.post("/api/v1/bet-slips/analyze")
 async def analyze_bet_slip(request: Request):
+    user = current_user(request)
     payload = await request.json()
+    BankrollService(request.state.session).get_bankroll(
+        int(payload.get("bankroll_id", 0)), user.id
+    )
     return BetSlipService(request.state.session).analyze(payload)
 
 
@@ -251,7 +326,12 @@ async def analyze_bet_slip(request: Request):
 async def settle_bet_slip_leg(
     slip_id: int, leg_id: int, request: Request
 ):
+    user = current_user(request)
     payload = await request.json()
+    slip = request.state.session.get(BetSlip, slip_id)
+    if slip is None:
+        raise ValueError("Bilhete não encontrado.")
+    BankrollService(request.state.session).get_bankroll(slip.bankroll_id, user.id)
     slip = BetSlipService(
         request.state.session
     ).settle_leg_manually(
@@ -262,12 +342,18 @@ async def settle_bet_slip_leg(
 
 @app.post("/api/v1/bet-slips/{slip_id}/cancel")
 def cancel_bet_slip(slip_id: int, request: Request):
+    user = current_user(request)
+    owned_slip = request.state.session.get(BetSlip, slip_id)
+    if owned_slip is None:
+        raise ValueError("Bilhete não encontrado.")
+    BankrollService(request.state.session).get_bankroll(owned_slip.bankroll_id, user.id)
     slip = BetSlipService(request.state.session).cancel(slip_id)
     return serialize_slip(slip, request.state.session)
 
 
 @app.get("/api/v1/favorites")
-def favorites(request: Request, user_id: str = "default"):
+def favorites(request: Request):
+    user_id = current_user(request).id
     return [
         {
             "entity_type": item.entity_type,
@@ -280,10 +366,11 @@ def favorites(request: Request, user_id: str = "default"):
 
 @app.post("/api/v1/favorites", status_code=201)
 async def add_favorite(request: Request):
+    user_id = current_user(request).id
     payload = await request.json()
     record = ExperienceStore(request.state.session).add_favorite(
         Favorite(
-            str(payload.get("user_id") or "default"),
+            user_id,
             str(payload["entity_type"]),
             str(payload["entity_id"]),
             str(payload["label"]),

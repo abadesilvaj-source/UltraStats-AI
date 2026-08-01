@@ -1,11 +1,12 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.database.base import Base
-from app.models import SyncRun
+from app.models import Competition, Match, SyncRun, Team
+from app.services.match_fusion_service import MatchFusionService
 from app.services.multi_provider_sync_service import (
     MultiProviderSyncService,
     _sportmonks_match_statistics,
@@ -190,6 +191,110 @@ def test_real_sync_can_succeed_degraded_without_football_data():
     ).run()
     assert result["status"] == "success"
     assert not result["failures"]
+
+
+def test_odds_worker_rotates_a_bounded_number_of_competitions():
+    session = database_session()
+    keys = ("league_a", "league_b", "league_c", "league_d", "league_e")
+    service = MultiProviderSyncService(
+        session,
+        environment={
+            "THE_ODDS_API_SPORT_KEYS": ",".join(keys),
+            "THE_ODDS_API_KEYS_PER_CYCLE": "2",
+            "ODDS_SYNC_INTERVAL_MINUTES": "15",
+        },
+        engine_factory=lambda _: FakeEngine(),
+    )
+
+    selected = service._rotating_odds_sport_keys()
+
+    assert len(selected) == 2
+    assert len(set(selected)) == 2
+    assert set(selected).issubset(keys)
+
+
+def test_recent_raw_fixtures_recovers_latest_unique_observation():
+    session = database_session()
+    session.add_all([
+        RawProviderPayloadRecord(
+            provider="api_football", resource="fixtures",
+            external_id="fixture-1", fingerprint="old",
+            payload={"version": "old"},
+            collected_at=NOW - timedelta(hours=2),
+        ),
+        RawProviderPayloadRecord(
+            provider="api_football", resource="fixtures",
+            external_id="fixture-1", fingerprint="new",
+            payload={"version": "new"}, collected_at=NOW,
+        ),
+        RawProviderPayloadRecord(
+            provider="api_football", resource="odds",
+            external_id="fixture-1", fingerprint="odds",
+            payload={}, collected_at=NOW,
+        ),
+    ])
+    session.commit()
+
+    recovered = MultiProviderSyncService(
+        session, environment={}, engine_factory=lambda _: FakeEngine()
+    )._recent_raw_fixtures(hours=36)
+
+    assert len(recovered) == 1
+    assert recovered[0].external_id == "fixture-1"
+    assert recovered[0].values == {"version": "new"}
+    recovered_odds = MultiProviderSyncService(
+        session, environment={}, engine_factory=lambda _: FakeEngine()
+    )._recent_raw_odds(hours=12)
+    assert len(recovered_odds) == 1
+    assert recovered_odds[0].capability is DataCapability.ODDS
+
+
+def test_sportmonks_developer_state_is_recognized_as_live():
+    db = database_session()
+    observation = SourceObservation(
+        "sportmonks", DataCapability.LIVE, "live-1",
+        {
+            "id": "live-1", "starting_at": NOW.isoformat(),
+            "state": {"developer_name": "INPLAY_1ST_HALF"},
+            "participants": [
+                {"id": 1, "name": "Home", "meta": {"location": "home"}},
+                {"id": 2, "name": "Away", "meta": {"location": "away"}},
+            ],
+            "league": {"name": "League"},
+        }, NOW,
+    )
+
+    adapted = MatchFusionService(db)._adapt(observation)
+
+    assert adapted is not None
+    assert adapted.status == "in_progress"
+
+
+def test_stale_reconciliation_preserves_match_present_in_live_feed():
+    db = database_session()
+    competition = Competition(name="League", sport="football")
+    home, away = Team(name="Home"), Team(name="Away")
+    db.add_all((competition, home, away))
+    db.flush()
+    match = Match(
+        competition_id=competition.id,
+        home_team_id=home.id,
+        away_team_id=away.id,
+        kickoff_at=NOW.replace(tzinfo=None) - timedelta(hours=4),
+        status="in_progress", source="api_football", external_id="live-1",
+    )
+    db.add(match)
+    db.commit()
+    observation = SourceObservation(
+        "api_football", DataCapability.LIVE, "live-1", {}, NOW
+    )
+
+    changed = MultiProviderSyncService(
+        db, environment={}, engine_factory=lambda _: FakeEngine()
+    )._reconcile_stale_matches((observation,))
+
+    assert changed == 0
+    assert match.status == "in_progress"
 
 
 def test_partial_provider_failure_is_persisted_as_degraded():

@@ -120,6 +120,29 @@ class OperationalPipelineService:
                 counters["predictions"] += self._predict(match, markets)
         return counters
 
+    def promote_fixtures_only(
+        self, fixtures: tuple[SourceObservation, ...]
+    ) -> dict[str, int]:
+        """Restaura agenda sem executar o custo preditivo do pipeline completo."""
+        counters = {
+            "competitions": 0, "teams": 0, "matches": 0,
+        }
+        promoted = 0
+        for observation in fixtures:
+            if (
+                observation.provider != "api_football"
+                or observation.capability is not DataCapability.FIXTURES
+            ):
+                continue
+            if self._canonical_match(
+                observation.provider, observation.external_id
+            ) is not None:
+                continue
+            if self._promote_fixture(observation.values, counters) is not None:
+                promoted += 1
+        self.session.flush()
+        return {**counters, "promoted": promoted}
+
     def reprocess_raw_odds(self, *, limit: int = 5000) -> dict[str, int]:
         """Promove novamente odds brutas após evoluções no catálogo."""
         rows = self.session.scalars(
@@ -180,11 +203,44 @@ class OperationalPipelineService:
             )
             if match is not None:
                 matches[f"{observation.provider}:{observation.external_id}"] = match
+        api_fixture_ids = {
+            str(fixture.get("id"))
+            for observation in odds
+            if observation.provider == "api_football"
+            and isinstance(observation.values, dict)
+            and isinstance(
+                fixture := observation.values.get("fixture"), dict
+            )
+            and fixture.get("id") is not None
+        }
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        if api_fixture_ids:
+            # Resolver o lote em uma consulta evita milhares de lookups e
+            # descarta odds históricas que não podem alimentar o painel atual.
+            for match in self.session.scalars(select(Match).where(
+                Match.source == "api_football",
+                Match.external_id.in_(api_fixture_ids),
+                Match.status.in_(("scheduled", "in_progress")),
+                Match.kickoff_at >= now - timedelta(hours=6),
+                Match.kickoff_at <= now + timedelta(days=14),
+            )).all():
+                matches[f"api_football:{match.external_id}"] = match
+        promotable_odds = tuple(
+            observation
+            for observation in odds
+            if observation.provider != "api_football"
+            or (
+                isinstance(observation.values, dict)
+                and isinstance(observation.values.get("fixture"), dict)
+                and f"api_football:{observation.values['fixture'].get('id')}"
+                in matches
+            )
+        )
         collected_after = min(
-            (item.observed_at for item in odds),
+            (item.observed_at for item in promotable_odds),
             default=datetime.now(timezone.utc),
         ).replace(tzinfo=None) - timedelta(seconds=1)
-        created = self._promote_odds(odds, matches, markets)
+        created = self._promote_odds(promotable_odds, matches, markets)
         self.session.flush()
         affected_ids = set(self.session.scalars(
             select(Odd.match_id).where(
@@ -316,6 +372,17 @@ class OperationalPipelineService:
             xg_away=_float_stat(away_stats, "expected_goals"),
             commit=False,
         )
+        record = self.session.scalar(
+            select(MatchStatistics).where(MatchStatistics.match_id == match.id)
+        )
+        if record is not None:
+            for field, value in _extended_fixture_statistics(
+                home_stats, away_stats
+            ).items():
+                if value is not None:
+                    setattr(record, field, value)
+            record.updated_at = datetime.now()
+            self.session.flush()
         return {
             "statistics": 1,
             "settled_bets": len(result["settled_bets"]),
@@ -373,6 +440,7 @@ class OperationalPipelineService:
             ),
             "xg_home": _float_stat(home_stats, "expected_goals"),
             "xg_away": _float_stat(away_stats, "expected_goals"),
+            **_extended_fixture_statistics(home_stats, away_stats),
         }
         record = self.session.scalar(
             select(MatchStatistics).where(
@@ -572,10 +640,33 @@ class OperationalPipelineService:
                 )
             ).all()
         }
+        snapshot_cutoff = min(
+            (self._as_aware_utc(item.observed_at) for item in observations),
+            default=datetime.now(timezone.utc),
+        ) - timedelta(seconds=1)
+        existing_snapshot_keys: set[tuple[str, str, str, str, str, datetime]] = set()
+        if inspect(self.session.connection()).has_table(
+            OddsSnapshotRecord.__tablename__
+        ):
+            existing_snapshot_keys = {
+                (provider, match_id, bookmaker, market, selection, captured_at)
+                for provider, match_id, bookmaker, market, selection, captured_at
+                in self.session.execute(select(
+                    OddsSnapshotRecord.provider,
+                    OddsSnapshotRecord.match_id,
+                    OddsSnapshotRecord.bookmaker,
+                    OddsSnapshotRecord.market,
+                    OddsSnapshotRecord.selection,
+                    OddsSnapshotRecord.captured_at,
+                ).where(
+                    OddsSnapshotRecord.captured_at >= snapshot_cutoff
+                )).all()
+            }
         for observation in observations:
             if observation.provider == "the_odds_api":
                 created += self._promote_the_odds_api(
-                    observation, markets
+                    observation, markets, existing_keys,
+                    existing_snapshot_keys,
                 )
                 continue
             if observation.provider != "api_football":
@@ -606,6 +697,7 @@ class OperationalPipelineService:
                             selection=selection,
                             value=value,
                             captured_at=observation.observed_at,
+                            existing_keys=existing_snapshot_keys,
                         )
                         key = (
                             match.id,
@@ -623,6 +715,9 @@ class OperationalPipelineService:
                                     selection=selection,
                                     odd_value=value,
                                     is_closing=False,
+                                    collected_at=self._as_naive_utc(
+                                        observation.observed_at
+                                    ),
                                 )
                             )
                             existing_keys.add(key)
@@ -633,6 +728,10 @@ class OperationalPipelineService:
         self,
         observation: SourceObservation,
         markets: dict[str, Market],
+        existing_odd_keys: set[tuple[int, int, str, str, Decimal]],
+        existing_snapshot_keys: set[
+            tuple[str, str, str, str, str, datetime]
+        ],
     ) -> int:
         row = observation.values
         match = self._canonical_match(
@@ -696,17 +795,13 @@ class OperationalPipelineService:
                         selection=selection,
                         value=value,
                         captured_at=observation.observed_at,
+                        existing_keys=existing_snapshot_keys,
                     )
-                    exists = self.session.scalar(
-                        select(Odd.id).where(
-                            Odd.match_id == match.id,
-                            Odd.market_id == market.id,
-                            Odd.bookmaker == bookmaker_name,
-                            Odd.selection == selection,
-                            Odd.odd_value == value,
-                        )
+                    key = (
+                        match.id, market.id, bookmaker_name,
+                        selection, value,
                     )
-                    if exists is None:
+                    if key not in existing_odd_keys:
                         self.session.add(
                             Odd(
                                 match_id=match.id,
@@ -715,8 +810,12 @@ class OperationalPipelineService:
                                 selection=selection,
                                 odd_value=value,
                                 is_closing=False,
+                                collected_at=self._as_naive_utc(
+                                    observation.observed_at
+                                ),
                             )
                         )
+                        existing_odd_keys.add(key)
                         created += 1
         return created
 
@@ -730,6 +829,9 @@ class OperationalPipelineService:
         selection: str,
         value: Decimal,
         captured_at: datetime,
+        existing_keys: set[
+            tuple[str, str, str, str, str, datetime]
+        ] | None = None,
     ) -> None:
         """Mantém a série temporal usada para movimento, fechamento e CLV."""
         if not inspect(self.session.connection()).has_table(
@@ -738,17 +840,22 @@ class OperationalPipelineService:
             # Bancos mínimos usados por integrações legadas podem não carregar
             # a base canônica; a promoção da odd continua funcional.
             return
-        exists = self.session.scalar(
-            select(OddsSnapshotRecord.id).where(
+        normalized_capture = self._as_aware_utc(captured_at)
+        key = (
+            provider, str(match_id), bookmaker, market, selection,
+            normalized_capture,
+        )
+        exists = key in existing_keys if existing_keys is not None else bool(
+            self.session.scalar(select(OddsSnapshotRecord.id).where(
                 OddsSnapshotRecord.provider == provider,
                 OddsSnapshotRecord.match_id == str(match_id),
                 OddsSnapshotRecord.bookmaker == bookmaker,
                 OddsSnapshotRecord.market == market,
                 OddsSnapshotRecord.selection == selection,
-                OddsSnapshotRecord.captured_at == captured_at,
-            )
+                OddsSnapshotRecord.captured_at == normalized_capture,
+            ))
         )
-        if exists is None:
+        if not exists:
             self.session.add(OddsSnapshotRecord(
                 provider=provider,
                 match_id=str(match_id),
@@ -756,8 +863,10 @@ class OperationalPipelineService:
                 market=market,
                 selection=selection,
                 decimal_odds=str(value),
-                captured_at=captured_at,
+                captured_at=normalized_capture,
             ))
+            if existing_keys is not None:
+                existing_keys.add(key)
 
     @staticmethod
     def _team_similarity(left: str, right: str) -> float:
@@ -774,6 +883,21 @@ class OperationalPipelineService:
         return SequenceMatcher(
             None, normalize(left), normalize(right)
         ).ratio()
+
+    @staticmethod
+    def _as_naive_utc(value: datetime) -> datetime:
+        return (
+            value.astimezone(timezone.utc).replace(tzinfo=None)
+            if value.tzinfo is not None else value
+        )
+
+    @staticmethod
+    def _as_aware_utc(value: datetime) -> datetime:
+        return (
+            value.astimezone(timezone.utc)
+            if value.tzinfo is not None
+            else value.replace(tzinfo=timezone.utc)
+        )
 
     def _predict(self, match: Match, markets: dict[str, Market]) -> int:
         competition = self.session.get(Competition, match.competition_id)
@@ -1846,6 +1970,33 @@ def _float_stat(values: dict[str, Any], key: str) -> float | None:
 
 def _percentage_stat(values: dict[str, Any], key: str) -> float | None:
     return _float_stat(values, key)
+
+
+def _extended_fixture_statistics(
+    home: dict[str, Any], away: dict[str, Any]
+) -> dict[str, int | float | None]:
+    """Mapeia apenas as estatísticas documentadas no feed de partidas.
+
+    Valores ausentes permanecem nulos para que a interface nunca confunda
+    indisponibilidade do provedor com um zero esportivo real.
+    """
+    integer_fields = {
+        "shots_off_target": "Shots off Goal",
+        "blocked_shots": "Blocked Shots",
+        "shots_inside_box": "Shots insidebox",
+        "shots_outside_box": "Shots outsidebox",
+        "fouls": "Fouls",
+        "goalkeeper_saves": "Goalkeeper Saves",
+        "passes": "Total passes",
+        "passes_accurate": "Passes accurate",
+    }
+    result: dict[str, int | float | None] = {}
+    for field, provider_key in integer_fields.items():
+        result[f"{field}_home"] = _integer_stat(home, provider_key)
+        result[f"{field}_away"] = _integer_stat(away, provider_key)
+    result["pass_accuracy_home"] = _percentage_stat(home, "Passes %")
+    result["pass_accuracy_away"] = _percentage_stat(away, "Passes %")
+    return result
 
 
 def _mapped_odds(bet: dict[str, Any]) -> tuple[tuple[str, str, Decimal], ...]:

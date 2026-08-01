@@ -60,6 +60,25 @@ class MatchStatistics(Base):
         nullable=True,
     )
 
+    shots_off_target_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    shots_off_target_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    blocked_shots_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    blocked_shots_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    shots_inside_box_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    shots_inside_box_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    shots_outside_box_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    shots_outside_box_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fouls_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fouls_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    goalkeeper_saves_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    goalkeeper_saves_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    passes_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    passes_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    passes_accurate_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    passes_accurate_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    pass_accuracy_home: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pass_accuracy_away: Mapped[float | None] = mapped_column(Float, nullable=True)
+
     offsides_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
     offsides_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

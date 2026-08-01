@@ -462,7 +462,8 @@ class MatchFusionService:
             return None
         state = row.get("state") or {}
         state_name = str(
-            state.get("short_name") or state.get("name") or ""
+            state.get("developer_name") or state.get("short_name")
+            or state.get("name") or ""
         ).casefold()
         if any(token in state_name for token in ("finished", "ft")):
             status = "finished"

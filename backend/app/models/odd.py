@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
@@ -11,6 +11,12 @@ class Odd(Base):
     """Representa uma cotação oferecida por uma casa de apostas."""
 
     __tablename__ = "odds"
+    __table_args__ = (
+        Index(
+            "ix_odds_match_collected_market",
+            "match_id", "collected_at", "market_id",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         Integer,

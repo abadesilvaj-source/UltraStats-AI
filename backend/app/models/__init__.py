@@ -18,6 +18,7 @@ from app.models.sync_run import SyncRun
 from app.models.scheduler_heartbeat import (
     SchedulerHeartbeat,
 )
+from app.models.user import User
 
 __all__ = [
     "Audit",
@@ -35,5 +36,6 @@ __all__ = [
     "BankrollTransaction",
     "SyncRun",
     "SchedulerHeartbeat",
+    "User",
     
 ]

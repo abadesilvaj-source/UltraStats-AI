@@ -1,4 +1,4 @@
-import type { Match, MatchAnalysis, MatchStats, Lineup, OddsMarket, PlacedBet } from './data'
+import type { Match, MatchAnalysis, MatchStats, Lineup, OddsMarket, PlacedBet, H2HMatch } from './data'
 import type { IntelligenceStatus } from './api-contract'
 
 const API = import.meta.env.VITE_API_URL || '/api/v1'
@@ -6,25 +6,65 @@ const API = import.meta.env.VITE_API_URL || '/api/v1'
 const emptyLineup = (): Lineup => ({ formation: '—', players: [], bench: [] })
 const emptyStats = (): MatchStats => ({
   possession: [0, 0], shots: [0, 0], shotsOnTarget: [0, 0],
+  shotsOffTarget: [0, 0], blockedShots: [0, 0],
+  shotsInsideBox: [0, 0], shotsOutsideBox: [0, 0],
   corners: [0, 0], fouls: [0, 0], yellowCards: [0, 0],
   redCards: [0, 0], offsides: [0, 0], passes: [0, 0],
-  passAccuracy: [0, 0], xG: [0, 0],
+  passesAccurate: [0, 0], passAccuracy: [0, 0],
+  goalkeeperSaves: [0, 0], xG: [0, 0],
 })
 const emptyAnalysis = (): MatchAnalysis => ({
   summary: 'Nenhuma análise preditiva disponível para esta partida.',
-  homeForm: [], awayForm: [], keyFactors: [], recommendations: [],
+  homeForm: [], awayForm: [], homeRecent: [], awayRecent: [],
+  keyFactors: [], recommendations: [],
 })
+
+function historicalMatch(row: any): H2HMatch {
+  return {
+    id: String(row.id),
+    date: new Date(row.kickoff_at).toLocaleDateString('pt-BR'),
+    homeTeam: row.home_team,
+    awayTeam: row.away_team,
+    homeScore: Number(row.home_score),
+    awayScore: Number(row.away_score),
+    competition: row.competition,
+    statisticsAvailable: Boolean(row.statistics_available),
+    result: row.result,
+  }
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API}${path}`, {
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     ...init,
   })
   if (!response.ok) {
     const body = await response.json().catch(() => ({ error: response.statusText }))
-    throw new Error(body.error || 'Falha na API')
+    throw new Error(body.error || body.detail || 'Falha na API')
   }
+  return response.status === 204 ? undefined as T : response.json()
+}
+
+export type AuthUser = { id: string; email: string; display_name: string }
+
+export async function loadCurrentUser(): Promise<AuthUser | null> {
+  const response = await fetch(`${API}/auth/me`, { credentials: 'include' })
+  if (response.status === 401) return null
+  if (!response.ok) throw new Error('Não foi possível validar sua sessão.')
   return response.json()
+}
+
+export async function loginUser(email: string, password: string): Promise<AuthUser> {
+  return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+}
+
+export async function registerUser(display_name: string, email: string, password: string): Promise<AuthUser> {
+  return request('/auth/register', { method: 'POST', body: JSON.stringify({ display_name, email, password }) })
+}
+
+export async function logoutUser(): Promise<void> {
+  await request('/auth/logout', { method: 'POST' })
 }
 
 function team(item: any, home: boolean) {
@@ -160,14 +200,16 @@ function adapt(item: any): Match {
   if (analysis.recommendations.length) {
     analysis.summary = 'Projeções calculadas pelo motor estatístico com os dados atualmente disponíveis.'
   }
-  if (item.data_fusion?.provenance) {
-    analysis.keyFactors = Object.entries(item.data_fusion.provenance).map(
-      ([field, detail]: [string, any]) =>
-        `${field}: ${detail.provider} · ${detail.contributors?.length || 1} fonte(s)`
-    )
-    analysis.summary = item.data_fusion.conflicts?.length
-      ? `Dados conciliados com ${item.data_fusion.conflicts.length} divergência(s) resolvida(s) por qualidade, atualidade e consenso.`
-      : 'Dados conciliados entre os provedores disponíveis, sem divergências relevantes.'
+  const context = item.analysis_context
+  if (context) {
+    analysis.summary = context.summary || analysis.summary
+    const homeRecent: H2HMatch[] = (context.home_recent || []).map((row: any) => historicalMatch(row))
+    const awayRecent: H2HMatch[] = (context.away_recent || []).map((row: any) => historicalMatch(row))
+    analysis.homeRecent = homeRecent
+    analysis.awayRecent = awayRecent
+    analysis.homeForm = homeRecent.map(row => row.result || 'E')
+    analysis.awayForm = awayRecent.map(row => row.result || 'E')
+    analysis.keyFactors = context.key_factors || []
   }
   const lineups = item.lineups || []
   return {
@@ -207,10 +249,19 @@ function adapt(item: any): Match {
       possession: [stats.possession_home || 0, stats.possession_away || 0],
       shots: [stats.shots_home || 0, stats.shots_away || 0],
       shotsOnTarget: [stats.shots_on_target_home || 0, stats.shots_on_target_away || 0],
+      shotsOffTarget: [stats.shots_off_target_home || 0, stats.shots_off_target_away || 0],
+      blockedShots: [stats.blocked_shots_home || 0, stats.blocked_shots_away || 0],
+      shotsInsideBox: [stats.shots_inside_box_home || 0, stats.shots_inside_box_away || 0],
+      shotsOutsideBox: [stats.shots_outside_box_home || 0, stats.shots_outside_box_away || 0],
       corners: [stats.corners_home || 0, stats.corners_away || 0],
       yellowCards: [stats.yellow_cards_home || 0, stats.yellow_cards_away || 0],
       redCards: [stats.red_cards_home || 0, stats.red_cards_away || 0],
       offsides: [stats.offsides_home || 0, stats.offsides_away || 0],
+      fouls: [stats.fouls_home || 0, stats.fouls_away || 0],
+      passes: [stats.passes_home || 0, stats.passes_away || 0],
+      passesAccurate: [stats.passes_accurate_home || 0, stats.passes_accurate_away || 0],
+      passAccuracy: [stats.pass_accuracy_home || 0, stats.pass_accuracy_away || 0],
+      goalkeeperSaves: [stats.goalkeeper_saves_home || 0, stats.goalkeeper_saves_away || 0],
       xG: [stats.xg_home || 0, stats.xg_away || 0],
     } : emptyStats(),
     markets: (item.markets || []).map((market: any): OddsMarket => ({
@@ -222,16 +273,19 @@ function adapt(item: any): Match {
         odds: option.odd,
       })),
     })),
-    h2h: [],
+    h2h: (context?.h2h || []).map(historicalMatch),
     analysis,
   }
 }
 
 export async function loadMatches(): Promise<Match[]> {
-  const [activeRows, finishedRows] = await Promise.all([
-    request<any[]>('/matches?status=scheduled,in_progress&limit=500'),
+  const [activePages, finishedRows] = await Promise.all([
+    Promise.all([0, 500, 1000, 1500].map(offset =>
+      request<any[]>(`/matches?status=scheduled,in_progress&limit=500&offset=${offset}`)
+    )),
     request<any[]>('/matches?status=finished&limit=200'),
   ])
+  const activeRows = activePages.flat()
   const rowsById = new Map<string, any>()
   for (const row of [...activeRows, ...finishedRows]) {
     const id = String(row.id)

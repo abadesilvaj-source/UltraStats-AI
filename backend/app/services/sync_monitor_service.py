@@ -1,6 +1,7 @@
 from datetime import datetime
 import json
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import SyncRun
@@ -35,10 +36,31 @@ class SyncMonitorService:
                 "A fonte da sincronização é obrigatória."
             )
 
+        # Uma execução ainda marcada como iniciada quando o próximo ciclo da
+        # mesma fonte começa pertence a um processo encerrado ou reiniciado.
+        # Fechá-la evita jobs "eternamente ativos" no painel e nas métricas.
+        now = datetime.now()
+        orphaned = self.session.scalars(
+            select(SyncRun).where(
+                SyncRun.source == source.strip(),
+                SyncRun.status == "started",
+            )
+        ).all()
+        for previous in orphaned:
+            previous.status = "failed"
+            previous.finished_at = now
+            previous.duration_seconds = max(
+                0.0, (now - previous.started_at).total_seconds()
+            )
+            previous.error_message = (
+                "Execução anterior interrompida antes da conclusão; "
+                "fechada automaticamente pelo ciclo seguinte."
+            )
+
         sync_run = SyncRun(
             source=source.strip(),
             status="started",
-            started_at=datetime.now(),
+            started_at=now,
             finished_at=None,
             duration_seconds=None,
             competitions_created=0,

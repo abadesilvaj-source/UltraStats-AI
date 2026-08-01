@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
@@ -10,6 +11,7 @@ from app.core.config import settings
 from app.models import Competition, Match, MatchStatistics, Odd, Prediction
 from ultrastats_ai.infrastructure.database.models import (
     IdentityDecisionRecord,
+    FusionResultRecord,
     LiveSnapshotRecord,
     OperationalAlertRecord,
     OperationalMetricRecord,
@@ -141,7 +143,10 @@ class MaturityService:
             )
         ).all())
         odds_ids = set(self.session.scalars(
-            select(Odd.match_id).where(Odd.match_id.in_(active_ids)).distinct()
+            select(Odd.match_id).where(
+                Odd.match_id.in_(active_ids),
+                Odd.collected_at >= naive - timedelta(hours=8),
+            ).distinct()
         ).all())
         prediction_ids = set(self.session.scalars(
             select(Prediction.match_id)
@@ -155,31 +160,90 @@ class MaturityService:
             ),
         )).all()
         providers_by_match: dict[int, set[str]] = {}
+        provider_ids_by_match: dict[int, dict[str, str]] = {}
         for row in identities:
             try:
                 match_id = int(row.candidate_id.removeprefix("match:"))
             except (TypeError, ValueError):
                 continue
             providers_by_match.setdefault(match_id, set()).add(row.provider)
+            provider_ids_by_match.setdefault(match_id, {})[row.provider] = (
+                row.external_id.removeprefix("match:")
+            )
         for item in active + finished:
             if item.source and item.external_id:
                 providers_by_match.setdefault(item.id, set()).add(item.source)
+                provider_ids_by_match.setdefault(item.id, {})[item.source] = str(
+                    item.external_id
+                ).removeprefix("match:")
 
-        stats_eligible = {
+        stats_candidates = {
             item.id for item in finished
-            if providers_by_match.get(item.id, set())
-            & {"api_football", "sportmonks"}
+            if (
+                (competition := competitions.get(item.competition_id))
+                and competition_policy(
+                    competition.name, competition.country
+                ) is not None
+                and providers_by_match.get(item.id, set())
+                & {"api_football", "sportmonks"}
+            )
         }
+        api_fixture_ids = {
+            providers["api_football"]
+            for match_id, providers in provider_ids_by_match.items()
+            if match_id in stats_candidates and "api_football" in providers
+        }
+        attempt_rows = self.session.scalars(
+            select(RawProviderPayloadRecord).where(
+                RawProviderPayloadRecord.provider == "api_football",
+                RawProviderPayloadRecord.resource == "statistics_attempt",
+                RawProviderPayloadRecord.external_id.in_(
+                    api_fixture_ids or {"-1"}
+                ),
+            ).order_by(RawProviderPayloadRecord.collected_at.desc())
+        ).all()
+        latest_attempt_by_fixture: dict[str, RawProviderPayloadRecord] = {}
+        for row in attempt_rows:
+            latest_attempt_by_fixture.setdefault(row.external_id, row)
+        statistics_confirmed_unavailable = {
+            match_id
+            for match_id in stats_candidates - stats_ids
+            if (
+                "sportmonks" not in providers_by_match.get(match_id, set())
+                and (
+                    fixture_id := provider_ids_by_match.get(match_id, {}).get(
+                        "api_football"
+                    )
+                ) is not None
+                and (
+                    attempt := latest_attempt_by_fixture.get(fixture_id)
+                ) is not None
+                and (attempt.payload or {}).get("status") == "empty"
+            )
+        }
+        stats_eligible = stats_candidates - statistics_confirmed_unavailable
         odds_eligible = {
             item.id for item in active
-            if providers_by_match.get(item.id, set())
-            & {"api_football", "football_data_uk", "the_odds_api"}
+            if (
+                (competition := competitions.get(item.competition_id))
+                and competition_policy(
+                    competition.name, competition.country
+                ) is not None
+                and providers_by_match.get(item.id, set())
+                & {"api_football", "football_data_uk", "the_odds_api"}
+            )
         }
         lineup_window = [
             item for item in active
             if naive - timedelta(minutes=30)
             <= self._as_naive(item.kickoff_at)
             <= naive + timedelta(minutes=120)
+            and (
+                (competition := competitions.get(item.competition_id))
+                and competition_policy(
+                    competition.name, competition.country
+                ) is not None
+            )
             and providers_by_match.get(item.id, set())
             & {"api_football", "sportmonks"}
         ]
@@ -354,6 +418,28 @@ class MaturityService:
                     f"operacional de {live_freshness_minutes} minutos."
                 ),
             })
+        recent_fusions = self.session.scalars(
+            select(FusionResultRecord)
+            .where(FusionResultRecord.canonical_id.like("match:%"))
+            .order_by(FusionResultRecord.fused_at.desc())
+            .limit(1000)
+        ).all()
+        effective_contributions: Counter[str] = Counter()
+        candidate_contributions: Counter[str] = Counter()
+        for fusion in recent_fusions:
+            for detail in fusion.provenance.values():
+                if not isinstance(detail, dict):
+                    continue
+                selected = detail.get("provider")
+                if selected:
+                    effective_contributions[str(selected)] += 1
+                for provider in detail.get("contributors") or ():
+                    candidate_contributions[str(provider)] += 1
+        contribution_total = sum(effective_contributions.values())
+        concentration = (
+            max(effective_contributions.values()) / contribution_total
+            if contribution_total else 0.0
+        )
         return {
             "quality_score": quality,
             "score_definition": "operational_sla",
@@ -361,6 +447,12 @@ class MaturityService:
             "matches": {
                 "active": len(active), "finished": len(finished),
                 "statistics_eligible": len(stats_eligible),
+                "statistics_eligible_covered": len(stats_ids & stats_eligible),
+                "statistics_eligible_missing": len(stats_eligible - stats_ids),
+                "statistics_confirmed_unavailable": len(
+                    statistics_confirmed_unavailable
+                ),
+                "statistics_available_recent": len(stats_ids),
                 "odds_eligible": len(odds_eligible),
                 "predictions_eligible": len(prediction_eligible),
                 "lineups_eligible": len(lineup_window),
@@ -397,6 +489,9 @@ class MaturityService:
                 "base_weight": 1.0,
                 "decision": "field_consensus_then_recency",
                 "multi_provider_identity_coverage": multi_source,
+                "effective_contributions": dict(effective_contributions),
+                "candidate_contributions": dict(candidate_contributions),
+                "largest_provider_share": round(concentration, 4),
                 "capabilities": self.capabilities,
             },
             "providers": provider_status,
@@ -512,7 +607,10 @@ class MaturityService:
 
     @staticmethod
     def _ratio(numerator: int, denominator: int) -> float:
-        return round(numerator / denominator, 4) if denominator else 1.0
+        # Ausência de amostra não é cobertura perfeita. Reportar zero evita
+        # indicadores enganosos; a quantidade elegível permanece disponível
+        # no relatório para distinguir "sem amostra" de "falha total".
+        return round(numerator / denominator, 4) if denominator else 0.0
 
     @staticmethod
     def _as_aware(value: datetime) -> datetime:

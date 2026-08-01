@@ -1,0 +1,12 @@
+.git
+.github
+.venv
+.pytest_cache
+.pnpm-store
+**/node_modules
+**/dist
+**/__pycache__
+*.log
+.coverage
+logs
+docs

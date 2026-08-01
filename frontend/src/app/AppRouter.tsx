@@ -6,7 +6,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity, AlertTriangle, BarChart3, BrainCircuit, CheckCircle2, Database, FlaskConical,
-  Grid3X3, Home, Menu, Receipt, RefreshCw, ShieldCheck, Star,
+  Grid3X3, Home, LogOut, Menu, Receipt, RefreshCw, ShieldCheck, Star,
   Target, TrendingUp, Wallet, X, Zap,
 } from 'lucide-react'
 import {
@@ -15,10 +15,11 @@ import {
 } from '../App'
 import type { BetSelection, Match, PlacedBet } from '../data'
 import {
-  analyzeBetSlip, loadBankrolls, loadBetSlips, loadMatch, loadMatches,
+  analyzeBetSlip, loadBankrolls, loadBetSlips, loadCurrentUser, loadMatch, loadMatches,
+  loginUser, logoutUser, registerUser,
   loadIntelligence, loadMaturity, loadPredictions, loadRecommendations, placeBet,
 } from '../api'
-import type { PredictionDto, RecommendationDto } from '../api'
+import type { AuthUser, PredictionDto, RecommendationDto } from '../api'
 
 type Bankroll = {
   id: number
@@ -81,17 +82,18 @@ const queryKeys = {
   intelligence: ['intelligence'] as const,
 }
 
-function useStoredFavorites() {
+function useStoredFavorites(userId: string) {
+  const storageKey = `ultrastats:favorites:${userId}`
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem('ultrastats:favorites') || '[]')
+      return JSON.parse(localStorage.getItem(storageKey) || '[]')
     } catch {
       return []
     }
   })
   useEffect(() => {
-    localStorage.setItem('ultrastats:favorites', JSON.stringify(favorites))
-  }, [favorites])
+    localStorage.setItem(storageKey, JSON.stringify(favorites))
+  }, [favorites, storageKey])
   const toggle = useCallback((id: string) => {
     setFavorites(current => current.includes(id)
       ? current.filter(item => item !== id)
@@ -184,16 +186,65 @@ function RiskConfirmationDialog({
 export default function AppRouter() {
   return (
     <BrowserRouter>
-      <UltraStatsApp />
+      <AuthGate />
     </BrowserRouter>
   )
 }
 
-function UltraStatsApp() {
+function AuthGate() {
+  const queryClient = useQueryClient()
+  const [user, setUser] = useState<AuthUser | null | undefined>(undefined)
+  useEffect(() => { loadCurrentUser().then(setUser).catch(() => setUser(null)) }, [])
+  if (user === undefined) return <div className="auth-page"><div className="auth-card">Validando sessão…</div></div>
+  if (!user) return <AuthScreen onAuthenticated={setUser} />
+  return <UltraStatsApp user={user} onLogout={async () => {
+    await logoutUser()
+    queryClient.clear()
+    setUser(null)
+  }} />
+}
+
+function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void }) {
+  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault(); setBusy(true); setError('')
+    try {
+      onAuthenticated(mode === 'login'
+        ? await loginUser(email, password)
+        : await registerUser(name, email, password))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Não foi possível entrar.')
+    } finally { setBusy(false) }
+  }
+  return <main className="auth-page">
+    <section className="auth-card">
+      <div className="auth-logo"><Zap size={20} fill="currentColor" /> ULTRASTATS AI</div>
+      <h1>{mode === 'login' ? 'Acesse sua conta' : 'Crie sua conta'}</h1>
+      <p>Seus dados de banca e apostas ficam separados e protegidos.</p>
+      <form onSubmit={submit}>
+        {mode === 'register' && <label>Nome<input required minLength={2} autoComplete="name" value={name} onChange={e => setName(e.target.value)} /></label>}
+        <label>E-mail<input required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} /></label>
+        <label>Senha<input required minLength={8} type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={e => setPassword(e.target.value)} /></label>
+        {error && <div className="auth-error" role="alert">{error}</div>}
+        <button disabled={busy} type="submit">{busy ? 'Aguarde…' : mode === 'login' ? 'Entrar' : 'Criar conta'}</button>
+      </form>
+      <button className="auth-switch" type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}>
+        {mode === 'login' ? 'Ainda não tenho uma conta' : 'Já tenho uma conta'}
+      </button>
+    </section>
+  </main>
+}
+
+function UltraStatsApp({ user, onLogout }: { user: AuthUser; onLogout: () => Promise<void> }) {
   const navigate = useNavigate()
   const location = useLocation()
   const queryClient = useQueryClient()
-  const { favorites, toggle } = useStoredFavorites()
+  const { favorites, toggle } = useStoredFavorites(user.id)
   const [betSlip, setBetSlip] = useState<BetSelection[]>([])
   const [betSlipOpen, setBetSlipOpen] = useState(false)
   const [message, setMessage] = useState('')
@@ -355,6 +406,8 @@ function UltraStatsApp() {
 
   return (
     <AppShell
+      user={user}
+      onLogout={onLogout}
       betCount={betSlip.length}
       onBetSlipOpen={() => setBetSlipOpen(true)}
       refreshing={matchesQuery.isFetching}
@@ -460,7 +513,11 @@ function UltraStatsApp() {
           } />
           <Route path="/recommendations" element={
             recommendationsQuery.isPending ? <LoadingScreen compact /> :
-            <RecommendationsPage recommendations={recommendationsQuery.data || []} onOpenMatch={id => navigate(`/matches/${id}`)} />
+            <RecommendationsPage
+              recommendations={recommendationsQuery.data || []}
+              maturity={maturityQuery.data}
+              onOpenMatch={id => navigate(`/matches/${id}`)}
+            />
           } />
           <Route path="/providers" element={<ProvidersPage maturity={maturityQuery.data} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -531,13 +588,15 @@ function MatchRoute({
 }
 
 function AppShell({
-  children, betCount, onBetSlipOpen, refreshing, onRefresh,
+  children, betCount, onBetSlipOpen, refreshing, onRefresh, user, onLogout,
 }: {
   children: React.ReactNode
   betCount: number
   onBetSlipOpen: () => void
   refreshing: boolean
   onRefresh: () => void
+  user: AuthUser
+  onLogout: () => Promise<void>
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
@@ -551,6 +610,10 @@ function AppShell({
             <span>ULTRASTATS AI</span>
           </NavLink>
           <div className="topbar-actions">
+            <span className="current-user">{user.display_name}</span>
+            <button className="icon-button" onClick={onLogout} aria-label="Sair da conta" title="Sair">
+              <LogOut size={16} />
+            </button>
             <button className="icon-button" onClick={onRefresh}
               aria-label="Atualizar dados">
               <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
@@ -727,6 +790,15 @@ function StatisticsPage({ maturity, intelligence }: { maturity: any; intelligenc
         <MetricCard label="Tentativas em 24h" value={String(statistics.recent_attempts ?? '—')} />
       </div>
       <section className="insight-panel">
+        <div><Activity size={20} /><strong>Como a cobertura é calculada</strong></div>
+        <p>
+          Elegível: {maturity?.matches?.statistics_eligible_covered ?? 0} de {maturity?.matches?.statistics_eligible ?? 0}
+          {' · '}pendentes: {maturity?.matches?.statistics_eligible_missing ?? 0}
+          {' · '}indisponíveis no provedor: {maturity?.matches?.statistics_confirmed_unavailable ?? 0}
+          {' · '}bruta: {maturity?.matches?.statistics_available_recent ?? 0} de {maturity?.matches?.finished ?? 0} partidas encerradas nos últimos {maturity?.window_days ?? 14} dias.
+        </p>
+      </section>
+      <section className="insight-panel">
         <div><Activity size={20} /><strong>Última atualização estatística</strong></div>
         <p>{statistics.last_update ? formatDateTime(statistics.last_update) : 'Nenhuma atualização registrada.'}</p>
       </section>
@@ -842,8 +914,9 @@ function ModelsPage({ maturity, intelligence }: { maturity: any; intelligence: a
   )
 }
 
-function RecommendationsPage({ recommendations, onOpenMatch }: {
-  recommendations: RecommendationDto[]; onOpenMatch: (id: number) => void
+function RecommendationsPage({ recommendations, maturity, onOpenMatch }: {
+  recommendations: RecommendationDto[]; maturity: any
+  onOpenMatch: (id: number) => void
 }) {
   const [filter, setFilter] = useState('primary')
   const primary = recommendations.filter(item => item.is_primary_recommendation)
@@ -856,10 +929,20 @@ function RecommendationsPage({ recommendations, onOpenMatch }: {
     : primary
   return (
     <FeaturePage title="RECOMENDAÇÕES" subtitle="Melhor sugestão por partida, com indicação explícita de segurança.">
+      {maturity?.freshness?.odds_stale && (
+        <section className="insight-panel warning" role="status">
+          <div><AlertTriangle size={20} /><strong>Odds atuais insuficientes</strong></div>
+          <p>
+            As probabilidades do modelo continuam disponíveis, mas recomendações de valor
+            dependem de uma cotação recente. Odds justas não devem ser confundidas com odds
+            oferecidas por uma casa de apostas.
+          </p>
+        </section>
+      )}
       <div className="engine-grid">
         <MetricCard label="Partidas cobertas" value={String(new Set(recommendations.map(item => item.match_id)).size)} />
         <MetricCard label="Sugestões principais" value={String(primary.length)} />
-        <MetricCard label="Apostas de valor" value={String(recommendations.filter(item => item.actionable).length)} />
+        <MetricCard label="Valor confirmado" value={String(recommendations.filter(item => item.actionable).length)} />
         <MetricCard label="Projeções exibidas" value={String(recommendations.length)} />
       </div>
       <div className="segmented-control">
@@ -883,6 +966,8 @@ function RecommendationsPage({ recommendations, onOpenMatch }: {
 function ProvidersPage({ maturity }: { maturity: any }) {
   const providers = Object.entries(maturity?.providers || {}) as [string, any][]
   const available = providers.filter(([, item]) => item.available).length
+  const effective = maturity?.neutrality?.effective_contributions || {}
+  const candidates = maturity?.neutrality?.candidate_contributions || {}
   return (
     <FeaturePage title="PROVEDORES E QUALIDADE" subtitle="Disponibilidade, latência, capacidades e atualidade de cada fonte.">
       <div className="engine-grid">
@@ -890,6 +975,7 @@ function ProvidersPage({ maturity }: { maturity: any }) {
         <MetricCard label="Disponíveis" value={String(available)} />
         <MetricCard label="Indisponíveis" value={String(providers.length - available)} />
         <MetricCard label="Neutralidade de identidade" value={percent(maturity?.neutrality?.multi_provider_identity_coverage)} />
+        <MetricCard label="Maior participação efetiva" value={percent(maturity?.neutrality?.largest_provider_share)} />
       </div>
       <div className="provider-grid">
         {providers.map(([name, item]) => (
@@ -902,6 +988,10 @@ function ProvidersPage({ maturity }: { maturity: any }) {
               </span>
             </div>
             <p>{item.latency_ms == null ? 'Latência não informada' : `${item.latency_ms} ms`} · peso base {item.base_weight ?? 1}</p>
+            <p>
+              {effective[name] ?? 0} campo(s) selecionado(s)
+              {' · '}{candidates[name] ?? 0} contribuição(ões) candidata(s)
+            </p>
             <div className="capability-list">
               {(item.capabilities || []).map((capability: string) => <span key={capability}>{humanize(capability)}</span>)}
             </div>

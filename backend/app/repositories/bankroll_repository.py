@@ -31,18 +31,22 @@ class BankrollRepository:
     def find_by_name(
         self,
         name: str,
+        user_id: str | None = None,
     ) -> Bankroll | None:
         statement = select(
             Bankroll
         ).where(
-            Bankroll.name == name
+            Bankroll.name == name,
+            *([Bankroll.user_id == user_id] if user_id else []),
         )
 
         return self.session.scalar(statement)
 
-    def list_all(self) -> list[Bankroll]:
+    def list_all(self, user_id: str | None = None) -> list[Bankroll]:
         statement = select(
             Bankroll
+        ).where(
+            *([Bankroll.user_id == user_id] if user_id else []),
         ).order_by(
             Bankroll.name
         )

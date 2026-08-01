@@ -19,7 +19,9 @@ def test_reports_coverage_and_persists_operational_metrics():
     Base.metadata.create_all(engine)
     CanonicalBase.metadata.create_all(engine)
     with Session(engine) as session:
-        competition = Competition(name="Liga", sport="football")
+        competition = Competition(
+            name="Premier League", country="England", sport="football"
+        )
         home, away = Team(name="Casa"), Team(name="Fora")
         market = Market(
             code="match_winner", name="Resultado", category="result"
@@ -32,6 +34,7 @@ def test_reports_coverage_and_persists_operational_metrics():
             away_team_id=away.id,
             kickoff_at=datetime.now(timezone.utc) + timedelta(hours=2),
             status="scheduled",
+            source="api_football",
             external_id="quality-1",
         )
         session.add(match)
@@ -109,3 +112,13 @@ def test_provider_availability_follows_sync_cadence_and_recent_payload():
         assert providers["football_data"]["available"] is True
         assert providers["football_data"]["availability_evidence"] == "payload"
         assert providers["openligadb"]["available"] is False
+
+
+def test_empty_eligible_population_is_not_reported_as_full_coverage():
+    assert MaturityService._ratio(0, 0) == 0.0
+    assert MaturityService._ratio(9, 10) == 0.9
+
+
+def test_empty_eligible_population_is_not_reported_as_full_coverage():
+    assert MaturityService._ratio(0, 0) == 0.0
+    assert MaturityService._ratio(9, 10) == 0.9

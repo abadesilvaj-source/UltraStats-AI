@@ -310,6 +310,10 @@ class RecommendationOpportunityRecord(CanonicalBase):
     __table_args__ = (
         UniqueConstraint("match_id", "market", "selection", "evaluated_at", name="uq_recommendation_snapshot"),
         Index("ix_recommendation_safe_score", "safe", "score"),
+        Index(
+            "ix_recommendation_evaluated_match_safe",
+            "evaluated_at", "match_id", "safe",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)

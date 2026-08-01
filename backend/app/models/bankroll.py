@@ -24,10 +24,13 @@ class Bankroll(Base):
         autoincrement=True,
     )
 
+    user_id: Mapped[str] = mapped_column(
+        String(36), nullable=False, index=True, default="legacy"
+    )
+
     name: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
-        unique=True,
         index=True,
     )
 

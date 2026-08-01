@@ -1,7 +1,7 @@
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import and_, func, inspect, or_, select
+from sqlalchemy import Float, and_, cast, func, inspect, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from app.models import (
@@ -73,12 +73,18 @@ class ApiQueries:
         if "in_progress" in statuses:
             conditions.append(and_(
                 Match.status == "in_progress",
-                Match.kickoff_at >= now - timedelta(days=30),
+                Match.kickoff_at >= now - timedelta(hours=12),
             ))
         if "finished" in statuses:
             conditions.append(and_(
-                Match.status == "finished",
                 Match.kickoff_at >= now - timedelta(days=30),
+                or_(
+                    Match.status == "finished",
+                    and_(
+                        Match.status == "in_progress",
+                        Match.kickoff_at < now - MAX_LIVE_MATCH_AGE,
+                    ),
+                ),
             ))
         terminal = set(statuses) & {"postponed", "cancelled"}
         if terminal:
@@ -143,6 +149,15 @@ class ApiQueries:
                     "shots_home", "shots_away", "shots_on_target_home",
                     "shots_on_target_away", "offsides_home", "offsides_away",
                     "possession_home", "possession_away", "xg_home", "xg_away",
+                    "shots_off_target_home", "shots_off_target_away",
+                    "blocked_shots_home", "blocked_shots_away",
+                    "shots_inside_box_home", "shots_inside_box_away",
+                    "shots_outside_box_home", "shots_outside_box_away",
+                    "fouls_home", "fouls_away",
+                    "goalkeeper_saves_home", "goalkeeper_saves_away",
+                    "passes_home", "passes_away",
+                    "passes_accurate_home", "passes_accurate_away",
+                    "pass_accuracy_home", "pass_accuracy_away",
                 )
             }
             if statistics else None
@@ -152,6 +167,7 @@ class ApiQueries:
         base["recommendations"] = self.recommendations(match_id=match_id)
         base["lineups"] = self.lineups(match_id)
         base["events"] = self.events(match_id)
+        base["analysis_context"] = self.analysis_context(match_id)
         fusion = self.session.scalar(
             select(FusionResultRecord)
             .where(FusionResultRecord.canonical_id == f"match:{match_id}")
@@ -167,6 +183,212 @@ class ApiQueries:
             if fusion else None
         )
         return base
+
+    def analysis_context(self, match_id: int) -> dict:
+        """Build a factual, pre-match context from previously finished games."""
+        target = self.session.get(Match, match_id)
+        if target is None:
+            return {}
+
+        home_alias, away_alias = aliased(Team), aliased(Team)
+
+        def recent(team_id: int, limit: int = 5) -> list[dict]:
+            statement = (
+                select(
+                    Match, home_alias, away_alias, Competition,
+                    MatchStatistics,
+                )
+                .join(home_alias, home_alias.id == Match.home_team_id)
+                .join(away_alias, away_alias.id == Match.away_team_id)
+                .join(Competition, Competition.id == Match.competition_id)
+                .outerjoin(
+                    MatchStatistics,
+                    MatchStatistics.match_id == Match.id,
+                )
+                .where(
+                    Match.id != match_id,
+                    Match.status == "finished",
+                    Match.kickoff_at < target.kickoff_at,
+                    or_(
+                        Match.home_team_id == team_id,
+                        Match.away_team_id == team_id,
+                    ),
+                    Match.home_score.is_not(None),
+                    Match.away_score.is_not(None),
+                )
+                .order_by(Match.kickoff_at.desc())
+                .limit(limit)
+            )
+            result = []
+            for game, home, away, competition, stats in self.session.execute(statement):
+                is_home = game.home_team_id == team_id
+                goals_for = game.home_score if is_home else game.away_score
+                goals_against = game.away_score if is_home else game.home_score
+                result.append({
+                    "id": game.id,
+                    "kickoff_at": iso_local(game.kickoff_at, self.timezone),
+                    "competition": competition.name,
+                    "home_team": home.name,
+                    "away_team": away.name,
+                    "home_score": game.home_score,
+                    "away_score": game.away_score,
+                    "result": (
+                        "V" if goals_for > goals_against
+                        else "E" if goals_for == goals_against else "D"
+                    ),
+                    "goals_for": goals_for,
+                    "goals_against": goals_against,
+                    "statistics_available": stats is not None,
+                    "corners": (
+                        (stats.corners_home if is_home else stats.corners_away)
+                        if stats else None
+                    ),
+                    "cards": (
+                        (
+                            (stats.yellow_cards_home or 0)
+                            + (stats.red_cards_home or 0)
+                        ) if stats and is_home else (
+                            (stats.yellow_cards_away or 0)
+                            + (stats.red_cards_away or 0)
+                        ) if stats else None
+                    ),
+                })
+            return result
+
+        home_recent = recent(target.home_team_id)
+        away_recent = recent(target.away_team_id)
+
+        h2h_statement = (
+            select(Match, home_alias, away_alias, Competition)
+            .join(home_alias, home_alias.id == Match.home_team_id)
+            .join(away_alias, away_alias.id == Match.away_team_id)
+            .join(Competition, Competition.id == Match.competition_id)
+            .where(
+                Match.id != match_id,
+                Match.status == "finished",
+                Match.kickoff_at < target.kickoff_at,
+                or_(
+                    and_(
+                        Match.home_team_id == target.home_team_id,
+                        Match.away_team_id == target.away_team_id,
+                    ),
+                    and_(
+                        Match.home_team_id == target.away_team_id,
+                        Match.away_team_id == target.home_team_id,
+                    ),
+                ),
+                Match.home_score.is_not(None),
+                Match.away_score.is_not(None),
+            )
+            .order_by(Match.kickoff_at.desc())
+            .limit(5)
+        )
+        h2h = [{
+            "id": game.id,
+            "kickoff_at": iso_local(game.kickoff_at, self.timezone),
+            "competition": competition.name,
+            "home_team": home.name,
+            "away_team": away.name,
+            "home_score": game.home_score,
+            "away_score": game.away_score,
+        } for game, home, away, competition in self.session.execute(h2h_statement)]
+
+        home_team = self.session.get(Team, target.home_team_id)
+        away_team = self.session.get(Team, target.away_team_id)
+
+        def metrics(games: list[dict]) -> dict:
+            count = len(games)
+            if not count:
+                return {"sample": 0}
+            wins = sum(game["result"] == "V" for game in games)
+            draws = sum(game["result"] == "E" for game in games)
+            losses = count - wins - draws
+            goals_for = sum(game["goals_for"] for game in games)
+            goals_against = sum(game["goals_against"] for game in games)
+            statistical = [game for game in games if game["statistics_available"]]
+            return {
+                "sample": count,
+                "wins": wins,
+                "draws": draws,
+                "losses": losses,
+                "win_rate": wins / count,
+                "unbeaten_rate": (wins + draws) / count,
+                "goals_for_average": goals_for / count,
+                "goals_against_average": goals_against / count,
+                "over_2_5_rate": sum(
+                    game["goals_for"] + game["goals_against"] > 2
+                    for game in games
+                ) / count,
+                "btts_rate": sum(
+                    game["goals_for"] > 0 and game["goals_against"] > 0
+                    for game in games
+                ) / count,
+                "statistics_sample": len(statistical),
+                "corners_average": (
+                    sum(game["corners"] for game in statistical) / len(statistical)
+                    if statistical and all(game["corners"] is not None for game in statistical)
+                    else None
+                ),
+                "cards_average": (
+                    sum(game["cards"] for game in statistical) / len(statistical)
+                    if statistical and all(game["cards"] is not None for game in statistical)
+                    else None
+                ),
+            }
+
+        home_metrics, away_metrics = metrics(home_recent), metrics(away_recent)
+        home_name = home_team.name if home_team else "Mandante"
+        away_name = away_team.name if away_team else "Visitante"
+        factors = []
+        for name, values in ((home_name, home_metrics), (away_name, away_metrics)):
+            sample = values.get("sample", 0)
+            if not sample:
+                continue
+            factors.append(
+                f"{name}: {values['wins']}V, {values['draws']}E e "
+                f"{values['losses']}D nos últimos {sample} jogos; média de "
+                f"{values['goals_for_average']:.1f} gol(s) marcado(s)."
+            )
+            if values["over_2_5_rate"] >= .6:
+                factors.append(
+                    f"{name}: mais de 2,5 gols ocorreu em "
+                    f"{values['over_2_5_rate'] * 100:.0f}% dessa amostra."
+                )
+            if values.get("corners_average") is not None:
+                factors.append(
+                    f"{name}: média de {values['corners_average']:.1f} "
+                    f"escanteio(s) em {values['statistics_sample']} jogo(s) com dados completos."
+                )
+        if h2h:
+            factors.append(
+                f"Há {len(h2h)} confronto(s) direto(s) anterior(es) disponível(is) para comparação."
+            )
+
+        if home_recent and away_recent:
+            summary = (
+                f"{home_name} recebe {away_name}. Nos últimos "
+                f"{len(home_recent)} jogos, o mandante somou "
+                f"{home_metrics['wins']} vitória(s) e marcou em média "
+                f"{home_metrics['goals_for_average']:.1f} gol(s); o visitante, "
+                f"em {len(away_recent)} jogos, obteve {away_metrics['wins']} vitória(s) "
+                f"e média de {away_metrics['goals_for_average']:.1f} gol(s). "
+                "A análise considera somente partidas anteriores a este confronto."
+            )
+        else:
+            summary = (
+                f"{home_name} enfrenta {away_name}. Ainda não há histórico encerrado "
+                "suficiente na base para produzir um resumo estatístico confiável."
+            )
+
+        return {
+            "summary": summary,
+            "home_recent": home_recent,
+            "away_recent": away_recent,
+            "home_metrics": home_metrics,
+            "away_metrics": away_metrics,
+            "key_factors": factors[:6],
+            "h2h": h2h,
+        }
 
     def events(self, match_id: int) -> list[dict]:
         match = self.session.get(Match, match_id)
@@ -521,15 +743,53 @@ class ApiQueries:
             )
             if has_opportunities else None
         )
-        opportunities = (
-            self.session.scalars(
-                select(RecommendationOpportunityRecord).where(
-                    RecommendationOpportunityRecord.evaluated_at
-                    == latest_evaluation
+        opportunities: list[RecommendationOpportunityRecord] = []
+        if latest_evaluation:
+            base = select(
+                RecommendationOpportunityRecord.id.label("opportunity_id"),
+                func.row_number().over(
+                    partition_by=RecommendationOpportunityRecord.match_id,
+                    order_by=(
+                        RecommendationOpportunityRecord.safe.desc(),
+                        cast(
+                            RecommendationOpportunityRecord.score,
+                            Float,
+                        ).desc(),
+                        RecommendationOpportunityRecord.id.desc(),
+                    ),
+                ).label("match_rank"),
+            ).where(
+                RecommendationOpportunityRecord.evaluated_at
+                == latest_evaluation
+            )
+            if primary_only and match_id is None:
+                ranked = base.subquery()
+                statement = (
+                    select(RecommendationOpportunityRecord)
+                    .join(
+                        ranked,
+                        ranked.c.opportunity_id
+                        == RecommendationOpportunityRecord.id,
+                    )
+                    .where(ranked.c.match_rank == 1)
+                    .order_by(
+                        RecommendationOpportunityRecord.safe.desc(),
+                        cast(
+                            RecommendationOpportunityRecord.score,
+                            Float,
+                        ).desc(),
+                    )
                 )
-            ).all()
-            if latest_evaluation else []
-        )
+                if limit is not None:
+                    statement = statement.limit(limit)
+                opportunities = list(self.session.scalars(statement).all())
+            else:
+                opportunities = list(self.session.scalars(
+                    select(RecommendationOpportunityRecord).where(
+                        RecommendationOpportunityRecord.evaluated_at
+                        == latest_evaluation
+                    )
+                ).all())
         if primary_only and match_id is None and opportunities:
             return self._primary_opportunities(
                 opportunities, limit=limit
@@ -1034,8 +1294,9 @@ class ApiQueries:
                     select(func.count())
                     .select_from(RawProviderPayloadRecord)
                     .where(
-                        RawProviderPayloadRecord.resource
-                        == "statistics_attempt",
+                        RawProviderPayloadRecord.resource.in_((
+                            "statistics_attempt", "backfill_statistics_attempt",
+                        )),
                         RawProviderPayloadRecord.collected_at
                         >= datetime.now(timezone.utc)
                         - timedelta(hours=24),

@@ -18,6 +18,7 @@ from app.models import (
 from app.services.learning_pipeline_service import LearningPipelineService
 from app.services.operational_pipeline_service import (
     OperationalPipelineService,
+    _extended_fixture_statistics,
     _mapped_odds,
 )
 from ultrastats_ai.infrastructure.providers import (
@@ -28,6 +29,35 @@ from ultrastats_ai.infrastructure.providers import (
 
 NOW = datetime.now(timezone.utc)
 FUTURE_KICKOFF = NOW + timedelta(days=7)
+
+
+def test_extended_fixture_statistics_preserve_supported_provider_fields():
+    values = _extended_fixture_statistics(
+        {
+            "Shots off Goal": 4,
+            "Blocked Shots": 3,
+            "Shots insidebox": 9,
+            "Fouls": 12,
+            "Goalkeeper Saves": 5,
+            "Total passes": 410,
+            "Passes accurate": 350,
+            "Passes %": "85%",
+        },
+        {
+            "Shots outsidebox": 6,
+            "Passes %": "72%",
+        },
+    )
+
+    assert values["shots_off_target_home"] == 4
+    assert values["blocked_shots_home"] == 3
+    assert values["shots_inside_box_home"] == 9
+    assert values["goalkeeper_saves_home"] == 5
+    assert values["passes_accurate_home"] == 350
+    assert values["shots_outside_box_away"] == 6
+    assert values["pass_accuracy_home"] == 85
+    assert values["pass_accuracy_away"] == 72
+    assert values["fouls_away"] is None
 
 
 def session():
@@ -103,6 +133,17 @@ def odds():
         },
         NOW,
     )
+
+
+def test_fixture_recovery_promotes_schedule_without_generating_predictions():
+    db = session()
+
+    result = OperationalPipelineService(db).promote_fixtures_only((fixture(),))
+    db.commit()
+
+    assert result["promoted"] == 1
+    assert db.scalar(select(func.count()).select_from(Match)) == 1
+    assert db.scalar(select(func.count()).select_from(Prediction)) == 0
 
 
 def external_odds():

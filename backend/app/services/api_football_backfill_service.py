@@ -207,13 +207,15 @@ class ApiFootballBackfillService:
                                 )),
                             )
                             retry_cutoff = (
-                                datetime.now(timezone.utc).replace(tzinfo=None)
+                                datetime.now(timezone.utc)
                                 - timedelta(hours=retry_hours)
                             )
                             waiting_for_retry = bool(
                                 latest_attempt
                                 and latest_status == "empty"
-                                and latest_attempt.collected_at >= retry_cutoff
+                                and self._as_aware(
+                                    latest_attempt.collected_at
+                                ) >= retry_cutoff
                             )
                             exhausted = (
                                 latest_status == "empty"
@@ -331,3 +333,10 @@ class ApiFootballBackfillService:
             }
         finally:
             engine.close()
+
+    @staticmethod
+    def _as_aware(value: datetime) -> datetime:
+        return (
+            value.replace(tzinfo=timezone.utc)
+            if value.tzinfo is None else value.astimezone(timezone.utc)
+        )

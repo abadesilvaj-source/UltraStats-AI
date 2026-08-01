@@ -7,10 +7,10 @@ from typing import Any
 from zoneinfo import ZoneInfo
 import os
 
-from sqlalchemy import exists, select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Audit, Bet, Match, MatchStatistics, Prediction
+from app.models import Audit, Bet, Competition, Match, MatchStatistics, Prediction
 from app.services.sync_monitor_service import SyncMonitorService
 from ultrastats_ai.infrastructure.providers import (
     DataCapability,
@@ -503,7 +503,9 @@ class MultiProviderSyncService:
             )
             reconciled = self._run_stage(
                 "stale_reconciliation",
-                self._reconcile_stale_matches,
+                lambda: self._reconcile_stale_matches(
+                    report.observations
+                ),
                 failures,
                 0,
             )
@@ -552,24 +554,38 @@ class MultiProviderSyncService:
     def run_backfill(self, *, triggered_by: str = "scheduler") -> dict[str, object]:
         """Executa o preenchimento histórico sem prender o ciclo esportivo."""
         sync_run = self.monitor.start_run("api_football_backfill", triggered_by)
+        engine = self.engine_factory(self.environment)
         try:
-            result = ApiFootballBackfillService(
-                self.session, self.environment
-            ).run(
-                seasons_per_league=max(
-                    1, int(self.environment.get("AUTO_BACKFILL_SEASONS", "3"))
-                ),
-                request_budget=max(
-                    1,
-                    int(self.environment.get(
-                        "AUTO_BACKFILL_REQUESTS_PER_CYCLE", "2500"
-                    )),
-                ),
-                include_statistics=True,
+            targeted_statistics, settled_bets = self._collect_post_match_statistics(
+                engine, (), unavailable_sources=frozenset()
             )
+            self.session.commit()
+            historical_budget = max(0, int(self.environment.get(
+                "AUTO_HISTORICAL_BACKFILL_PER_CYCLE", "50"
+            )))
+            result = {
+                "request_budget": historical_budget, "requests_used": 0,
+                "batches_completed": 0, "fixtures_saved": 0,
+                "statistics_saved": 0, "player_statistics_saved": 0,
+                "failures": [], "resumable": True,
+            }
+            if historical_budget:
+                result = ApiFootballBackfillService(
+                    self.session, self.environment
+                ).run(
+                    seasons_per_league=max(
+                        1, int(self.environment.get("AUTO_BACKFILL_SEASONS", "3"))
+                    ),
+                    request_budget=historical_budget,
+                    include_statistics=True,
+                )
+            result["targeted_statistics_saved"] = targeted_statistics
+            result["settled_bets"] = settled_bets
             completed = self.monitor.mark_success(
                 sync_run.id,
-                {"matches": {"created": result["statistics_saved"], "updated": 0,
+                {"matches": {"created": (
+                    result["statistics_saved"] + targeted_statistics
+                ), "updated": 0,
                              "skipped": 0}, "warnings": result.get("failures", ())},
             )
             return {"sync_run_id": completed.id, "status": completed.status, **result}
@@ -577,6 +593,8 @@ class MultiProviderSyncService:
             self.session.rollback()
             self.monitor.mark_failed(sync_run.id, error)
             raise
+        finally:
+            engine.close()
 
     def run_odds_refresh(
         self, *, triggered_by: str = "scheduler"
@@ -592,11 +610,20 @@ class MultiProviderSyncService:
                 None,
             )
             days = max(1, int(self.environment.get("ODDS_SYNC_WINDOW_DAYS", "14")))
+            # O ciclo frequente prioriza jogos iminentes. Tentar toda a janela
+            # em uma execução pode exceder o intervalo do scheduler quando um
+            # provedor está lento e deixa a série inteira obsoleta.
+            days_per_cycle = min(
+                days,
+                max(1, int(self.environment.get(
+                    "ODDS_SYNC_DAYS_PER_CYCLE", "3"
+                ))),
+            )
             fixture_observations: list[SourceObservation] = []
             odds_observations: list[SourceObservation] = []
             if api_source is not None:
                 consecutive_failures = 0
-                for offset in range(days + 1):
+                for offset in range(days_per_cycle + 1):
                     target = (datetime.now(ZoneInfo("America/Sao_Paulo"))
                               + timedelta(days=offset)).date().isoformat()
                     if not self._quota_allows(api_source):
@@ -629,16 +656,48 @@ class MultiProviderSyncService:
                 try:
                     odds_observations.extend(odds_source.collect(
                         DataCapability.ODDS,
-                        sport_keys=tuple(
-                            key.strip() for key in self.environment.get(
-                                "THE_ODDS_API_SPORT_KEYS", "soccer_brazil_campeonato"
-                            ).split(",") if key.strip()
-                        ),
+                        sport_keys=self._rotating_odds_sport_keys(),
                         regions=self.environment.get("THE_ODDS_API_REGIONS", "eu"),
                         markets=self.environment.get("THE_ODDS_API_MARKETS", "h2h,totals"),
                     ))
                 except Exception as error:
                     failures["the_odds_api"] = str(error)
+
+            # Uma coleta pode ser interrompida depois de salvar a agenda e
+            # antes da fusão. Recuperar a camada bruta impede que partidas
+            # válidas desapareçam de "Em breve" e "Próximas partidas".
+            fixture_keys = {
+                (item.provider, item.external_id)
+                for item in fixture_observations
+            }
+            recovered_fixtures: list[SourceObservation] = []
+            for recovered in self._recent_raw_fixtures(hours=36):
+                key = (recovered.provider, recovered.external_id)
+                if key not in fixture_keys:
+                    recovered_fixtures.append(recovered)
+                    fixture_keys.add(key)
+
+            recovered_schedule = OperationalPipelineService(
+                self.session
+            ).promote_fixtures_only(tuple(recovered_fixtures))
+            self.session.flush()
+
+            # Recupera payloads recentes que sobreviveram a uma interrupção
+            # entre a coleta e a promoção. Isso é idempotente e evita gastar
+            # novamente as cotas dos provedores gratuitos.
+            observed_keys = {
+                (item.provider, item.external_id, item.observed_at)
+                for item in odds_observations
+            }
+            for recovered in self._recent_raw_odds(hours=12):
+                key = (
+                    recovered.provider,
+                    recovered.external_id,
+                    recovered.observed_at,
+                )
+                if key not in observed_keys:
+                    odds_observations.append(recovered)
+                    observed_keys.add(key)
 
             for observation in (*fixture_observations, *odds_observations):
                 created = self.raw_store.save(RawProviderPayload(
@@ -652,7 +711,7 @@ class MultiProviderSyncService:
                 skipped += int(not created)
             self.session.commit()
             fused = MatchFusionService(self.session).fuse(tuple(fixture_observations))
-            promoted = OperationalPipelineService(self.session).process_odds_only(
+            promoted = OperationalPipelineService(self.session).process(
                 fixtures=tuple(fixture_observations), odds=tuple(odds_observations)
             )
             # ``process`` já recalcula as partidas presentes na janela. Um
@@ -675,6 +734,7 @@ class MultiProviderSyncService:
                 "skipped": skipped,
                 "fusion": fused,
                 "promoted": promoted,
+                "recovered_schedule": recovered_schedule,
                 "predictions_refreshed": refreshed,
                 "failures": failures,
             }
@@ -684,6 +744,134 @@ class MultiProviderSyncService:
             raise
         finally:
             engine.close()
+
+    def _rotating_odds_sport_keys(self) -> tuple[str, ...]:
+        """Distribui ligas entre ciclos sem monopolizar o worker ao vivo."""
+        keys = tuple(
+            key.strip()
+            for key in self.environment.get(
+                "THE_ODDS_API_SPORT_KEYS",
+                "soccer_brazil_campeonato",
+            ).split(",")
+            if key.strip()
+        )
+        if not keys:
+            return ("upcoming",)
+        batch_size = min(
+            len(keys),
+            max(1, int(self.environment.get(
+                "THE_ODDS_API_KEYS_PER_CYCLE", "4"
+            ))),
+        )
+        interval = max(1, int(self.environment.get(
+            "ODDS_SYNC_INTERVAL_MINUTES", "15"
+        )))
+        cycle = int(datetime.now(timezone.utc).timestamp() // (interval * 60))
+        start = (cycle * batch_size) % len(keys)
+        return tuple(keys[(start + offset) % len(keys)] for offset in range(batch_size))
+
+    def _recent_raw_odds(
+        self, *, hours: int
+    ) -> list[SourceObservation]:
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=max(1, hours))
+        rows = self.session.scalars(
+            select(RawProviderPayloadRecord).where(
+                RawProviderPayloadRecord.provider.in_((
+                    "api_football", "the_odds_api",
+                )),
+                RawProviderPayloadRecord.resource == DataCapability.ODDS.value,
+                RawProviderPayloadRecord.collected_at >= cutoff,
+            ).order_by(
+                RawProviderPayloadRecord.collected_at.desc()
+            ).limit(5000)
+        ).all()
+        observations = [
+            SourceObservation(
+                provider=row.provider,
+                capability=DataCapability.ODDS,
+                external_id=row.external_id,
+                values=row.payload,
+                observed_at=row.collected_at,
+            )
+            for row in rows
+        ]
+        return observations
+
+    def _recent_raw_fixtures(
+        self, *, hours: int
+    ) -> list[SourceObservation]:
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=max(1, hours))
+        rows = self.session.scalars(
+            select(RawProviderPayloadRecord).where(
+                RawProviderPayloadRecord.resource
+                == DataCapability.FIXTURES.value,
+                RawProviderPayloadRecord.collected_at >= cutoff,
+            ).order_by(
+                RawProviderPayloadRecord.collected_at.desc()
+            ).limit(20000)
+        ).all()
+        # O registro mais recente de cada identidade é suficiente para fusão;
+        # versões anteriores apenas repetiriam trabalho e previsões.
+        latest: dict[tuple[str, str], RawProviderPayloadRecord] = {}
+        for row in rows:
+            latest.setdefault((row.provider, row.external_id), row)
+        observations = [
+            SourceObservation(
+                provider=row.provider,
+                capability=DataCapability.FIXTURES,
+                external_id=row.external_id,
+                values=row.payload,
+                observed_at=row.collected_at,
+            )
+            for row in latest.values()
+        ]
+        identity_keys = [
+            f"match:{item.external_id}" for item in observations
+        ]
+        already_promoted = {
+            (row.provider, row.external_id)
+            for row in self.session.scalars(
+                select(IdentityDecisionRecord).where(
+                    IdentityDecisionRecord.external_id.in_(identity_keys)
+                )
+            ).all()
+        }
+        external_ids = [item.external_id for item in observations]
+        directly_promoted = {
+            (source, external_id)
+            for source, external_id in self.session.execute(
+                select(Match.source, Match.external_id).where(
+                    Match.external_id.in_(external_ids)
+                )
+            ).all()
+        }
+        pending = [
+            item for item in observations
+            if (item.provider, f"match:{item.external_id}")
+            not in already_promoted
+            and (item.provider, item.external_id) not in directly_promoted
+        ]
+        fusion = MatchFusionService(self.session)
+        now = datetime.now(timezone.utc)
+
+        def priority(item: SourceObservation) -> tuple[int, float]:
+            adapted = fusion._adapt(item)
+            if adapted is None:
+                return (2, float("inf"))
+            kickoff = (
+                adapted.kickoff_at
+                if adapted.kickoff_at.tzinfo
+                else adapted.kickoff_at.replace(tzinfo=timezone.utc)
+            )
+            # Futuras e recentes primeiro; partidas antigas ficam no fim.
+            return (0 if kickoff >= now - timedelta(hours=3) else 1,
+                    abs((kickoff - now).total_seconds()))
+
+        pending.sort(key=priority)
+        batch_size = max(1, int(self.environment.get(
+            "FIXTURE_RECOVERY_BATCH_SIZE", "500"
+        )))
+        return pending[:batch_size]
 
     def _run_stage(
         self,
@@ -812,6 +1000,9 @@ class MultiProviderSyncService:
                 MatchStatistics.id.is_(None),
             )
             .order_by(Match.kickoff_at.desc())
+            .limit(max(100, int(self.environment.get(
+                "AUTO_STATS_CANDIDATE_SCAN", "3000"
+            ))))
         ).all()
         fixture_rows = {
             observation.external_id: observation
@@ -826,6 +1017,14 @@ class MultiProviderSyncService:
                 )),
             )
         )
+        competition_ids = {match.competition_id for match in matches}
+        competitions = {
+            item.id: item for item in self.session.scalars(
+                select(Competition).where(
+                    Competition.id.in_(competition_ids or {-1})
+                )
+            ).all()
+        }
         candidates = []
         for match in matches:
             fixture_id = self._provider_match_id(
@@ -879,6 +1078,12 @@ class MultiProviderSyncService:
             candidates.append(
                 (
                     not bool(has_pending_bet),
+                    0 if (
+                        (competition := competitions.get(match.competition_id))
+                        and competition_policy(
+                            competition.name, competition.country
+                        ) is not None
+                    ) else 1,
                     match,
                     fixture_id,
                     fixture_observation,
@@ -888,7 +1093,8 @@ class MultiProviderSyncService:
         candidates.sort(
             key=lambda item: (
                 item[0],
-                -item[1].kickoff_at.timestamp(),
+                item[1],
+                -item[2].kickoff_at.timestamp(),
             )
         )
         limit = max(
@@ -897,9 +1103,11 @@ class MultiProviderSyncService:
         )
         pipeline = OperationalPipelineService(self.session)
         stored, settled = promoted, promoted_settled
-        for _, _, fixture_id, fixture_observation in (
+        for _, _, _, fixture_id, fixture_observation in (
             candidates[:limit]
         ):
+            if not self._quota_allows(api_source):
+                break
             try:
                 observations = api_source.collect(
                     DataCapability.STATISTICS,
@@ -982,6 +1190,9 @@ class MultiProviderSyncService:
                 MatchStatistics.id.is_(None),
             )
             .order_by(Match.kickoff_at.desc())
+            .limit(max(1, int(self.environment.get(
+                "AUTO_RAW_STATS_REPROCESS_LIMIT", "250"
+            ))))
         ).all()
         pipeline = OperationalPipelineService(self.session)
         stored = settled = 0
@@ -1723,16 +1934,45 @@ class MultiProviderSyncService:
             str(country.get("name") or ""),
         ) is not None
 
-    def _reconcile_stale_matches(self) -> int:
+    def _reconcile_stale_matches(
+        self,
+        live_observations: tuple[SourceObservation, ...] = (),
+    ) -> int:
         # Proteção contra provedores que mantêm o status ao vivo depois do
         # apito final. Três horas ainda cobrem intervalo, acréscimos e
         # prorrogação sem deixar partidas encerradas presas no painel.
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
-        stale = self.session.scalars(
-            select(Match).where(
-                Match.status == "in_progress",
-                Match.kickoff_at < cutoff,
+        active_match_ids: set[int] = set()
+        for observation in live_observations:
+            decision = self.session.scalar(
+                select(IdentityDecisionRecord).where(
+                    IdentityDecisionRecord.provider
+                    == observation.provider,
+                    IdentityDecisionRecord.external_id
+                    == f"match:{observation.external_id}",
+                )
             )
+            if decision and decision.candidate_id:
+                active_match_ids.add(int(
+                    decision.candidate_id.removeprefix("match:")
+                ))
+                continue
+            direct = self.session.scalar(select(Match.id).where(
+                Match.source == observation.provider,
+                Match.external_id == observation.external_id,
+            ))
+            if direct is not None:
+                active_match_ids.add(direct)
+        statement = select(Match).where(
+            Match.status == "in_progress",
+            Match.kickoff_at < cutoff,
+        )
+        if active_match_ids:
+            statement = statement.where(
+                Match.id.not_in(active_match_ids)
+            )
+        stale = self.session.scalars(
+            statement
         ).all()
         for match in stale:
             match.status = "finished"

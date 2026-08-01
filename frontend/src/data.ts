@@ -34,13 +34,19 @@ export interface MatchStats {
   possession: [number, number]
   shots: [number, number]
   shotsOnTarget: [number, number]
+  shotsOffTarget: [number, number]
+  blockedShots: [number, number]
+  shotsInsideBox: [number, number]
+  shotsOutsideBox: [number, number]
   corners: [number, number]
   fouls: [number, number]
   yellowCards: [number, number]
   redCards: [number, number]
   offsides: [number, number]
   passes: [number, number]
+  passesAccurate: [number, number]
   passAccuracy: [number, number]
+  goalkeeperSaves: [number, number]
   xG: [number, number]
 }
 
@@ -84,18 +90,23 @@ export interface Match {
 }
 
 export interface H2HMatch {
+  id?: string
   date: string
   homeTeam: string
   awayTeam: string
   homeScore: number
   awayScore: number
   competition: string
+  statisticsAvailable?: boolean
+  result?: 'V' | 'E' | 'D'
 }
 
 export interface MatchAnalysis {
   summary: string
   homeForm: string[]
   awayForm: string[]
+  homeRecent?: H2HMatch[]
+  awayRecent?: H2HMatch[]
   keyFactors: string[]
   recommendations: Recommendation[]
 }
@@ -367,12 +378,14 @@ export const matches: Match[] = [
       possession: [54, 46],
       shots: [12, 9],
       shotsOnTarget: [5, 4],
+      shotsOffTarget: [4, 3], blockedShots: [3, 2], shotsInsideBox: [8, 6], shotsOutsideBox: [4, 3],
       corners: [6, 3],
       fouls: [11, 13],
       yellowCards: [1, 1],
       redCards: [0, 0],
       offsides: [2, 3],
       passes: [487, 413],
+      passesAccurate: [429, 351], goalkeeperSaves: [3, 3],
       passAccuracy: [88, 85],
       xG: [1.62, 1.38],
     },
@@ -449,12 +462,14 @@ export const matches: Match[] = [
       possession: [62, 38],
       shots: [9, 3],
       shotsOnTarget: [5, 1],
+      shotsOffTarget: [3, 1], blockedShots: [1, 1], shotsInsideBox: [7, 2], shotsOutsideBox: [2, 1],
       corners: [5, 1],
       fouls: [7, 12],
       yellowCards: [0, 1],
       redCards: [0, 0],
       offsides: [1, 2],
       passes: [389, 218],
+      passesAccurate: [354, 170], goalkeeperSaves: [1, 3],
       passAccuracy: [91, 78],
       xG: [2.1, 0.42],
     },
@@ -516,12 +531,14 @@ export const matches: Match[] = [
       possession: [50, 50],
       shots: [0, 0],
       shotsOnTarget: [0, 0],
+      shotsOffTarget: [0, 0], blockedShots: [0, 0], shotsInsideBox: [0, 0], shotsOutsideBox: [0, 0],
       corners: [0, 0],
       fouls: [0, 0],
       yellowCards: [0, 0],
       redCards: [0, 0],
       offsides: [0, 0],
       passes: [0, 0],
+      passesAccurate: [0, 0], goalkeeperSaves: [0, 0],
       passAccuracy: [0, 0],
       xG: [0, 0],
     },
@@ -591,12 +608,14 @@ export const matches: Match[] = [
       possession: [50, 50],
       shots: [0, 0],
       shotsOnTarget: [0, 0],
+      shotsOffTarget: [0, 0], blockedShots: [0, 0], shotsInsideBox: [0, 0], shotsOutsideBox: [0, 0],
       corners: [0, 0],
       fouls: [0, 0],
       yellowCards: [0, 0],
       redCards: [0, 0],
       offsides: [0, 0],
       passes: [0, 0],
+      passesAccurate: [0, 0], goalkeeperSaves: [0, 0],
       passAccuracy: [0, 0],
       xG: [0, 0],
     },
@@ -658,12 +677,14 @@ export const matches: Match[] = [
       possession: [50, 50],
       shots: [0, 0],
       shotsOnTarget: [0, 0],
+      shotsOffTarget: [0, 0], blockedShots: [0, 0], shotsInsideBox: [0, 0], shotsOutsideBox: [0, 0],
       corners: [0, 0],
       fouls: [0, 0],
       yellowCards: [0, 0],
       redCards: [0, 0],
       offsides: [0, 0],
       passes: [0, 0],
+      passesAccurate: [0, 0], goalkeeperSaves: [0, 0],
       passAccuracy: [0, 0],
       xG: [0, 0],
     },
@@ -733,12 +754,14 @@ export const matches: Match[] = [
       possession: [48, 52],
       shots: [14, 10],
       shotsOnTarget: [6, 4],
+      shotsOffTarget: [5, 4], blockedShots: [3, 2], shotsInsideBox: [10, 7], shotsOutsideBox: [4, 3],
       corners: [7, 4],
       fouls: [13, 17],
       yellowCards: [2, 3],
       redCards: [0, 1],
       offsides: [3, 2],
       passes: [421, 468],
+      passesAccurate: [349, 407], goalkeeperSaves: [3, 4],
       passAccuracy: [83, 87],
       xG: [1.82, 1.24],
     },

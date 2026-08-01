@@ -65,6 +65,17 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  frontend-mobile:
+    build:
+      context: .
+      dockerfile: frontend-mobile/Dockerfile
+    ports:
+      - "${MOBILE_FRONTEND_PORT:-8517}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   staging_postgres:
   staging_logs:

@@ -9,7 +9,7 @@ import {
   TrendingUp, Star, ChevronRight, ChevronLeft,
   Circle, Activity, BarChart3, Users, BookOpen,
   Trash2, CheckCircle2, XCircle, Clock,
-  AlertTriangle, Target, X, Filter
+  AlertTriangle, Target, X, Filter, Search
 } from 'lucide-react'
 
 type MatchTab = 'live' | 'lineup' | 'stats' | 'analysis' | 'markets' | 'h2h'
@@ -119,10 +119,10 @@ export function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }:
 }) {
   const [scope, setScope] = useState<'live' | 'today' | 'next' | 'finished'>('live')
   const [league, setLeague] = useState('all')
-  const liveCutoff = Date.now() - 3 * 60 * 60 * 1000
+  const [search, setSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const live = matches.filter(m =>
-    m.status === 'live' && Boolean(m.kickoffAt) &&
-    new Date(m.kickoffAt as string).getTime() >= liveCutoff
+    m.status === 'live' && Boolean(m.kickoffAt)
   )
   const todayKey = new Date().toLocaleDateString('en-CA')
   const upcomingToday = matches.filter(m =>
@@ -141,7 +141,14 @@ export function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }:
     ? upcomingToday : scope === 'next'
     ? next : finished
   const leagues = Array.from(new Set(matches.map(m => m.league))).sort()
-  const visible = league === 'all' ? scoped : scoped.filter(m => m.league === league)
+  const normalizedSearch = search.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
+  const visible = scoped.filter(match => {
+    if (league !== 'all' && match.league !== league) return false
+    if (!normalizedSearch) return true
+
+    return [match.homeTeam.name, match.awayTeam.name, match.league]
+      .some(value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').includes(normalizedSearch))
+  })
 
   const byLeague = (list: Match[]) => list.reduce((acc, m) => { if (!acc[m.league]) acc[m.league] = []; acc[m.league].push(m); return acc }, {} as Record<string, Match[]>)
 
@@ -152,7 +159,7 @@ export function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }:
         <p style={{ fontSize: '13px', color: '#5a6480', marginTop: '4px' }}>{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+      <div className="match-controls" style={{ position: 'relative', display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 8, marginBottom: 16 }}>
         {[
           { id: 'live', label: `Ao vivo (${live.length})` },
           { id: 'today', label: `Em breve (${upcomingToday.length})` },
@@ -160,14 +167,46 @@ export function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }:
           { id: 'finished', label: `Encerradas (${finished.length})` },
         ].map(item => (
           <button key={item.id} onClick={() => setScope(item.id as typeof scope)}
-            style={{ padding: '9px 14px', borderRadius: 8, border: `1px solid ${scope === item.id ? '#00e887' : '#1e2438'}`, background: scope === item.id ? 'rgba(0,232,135,.12)' : '#0f1119', color: scope === item.id ? '#00e887' : '#7a88b0', cursor: 'pointer', fontWeight: 700 }}>
+            style={{ flexShrink: 0, whiteSpace: 'nowrap', padding: '9px 12px', borderRadius: 8, border: `1px solid ${scope === item.id ? '#00e887' : '#1e2438'}`, background: scope === item.id ? 'rgba(0,232,135,.12)' : '#0f1119', color: scope === item.id ? '#00e887' : '#7a88b0', cursor: 'pointer', fontWeight: 700 }}>
             {item.label}
           </button>
         ))}
-        <label style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, color: '#7a88b0' }}>
-          <Filter size={14} />
+        <button
+          className="match-search-button"
+          type="button"
+          onClick={() => setSearchOpen(current => !current)}
+          aria-label="Pesquisar partidas e competições"
+          aria-expanded={searchOpen}
+          title="Pesquisar partidas e competições"
+          style={{ marginLeft: 'auto', flex: '0 0 42px', height: 42, display: 'grid', placeItems: 'center', borderRadius: 8, border: `1px solid ${searchOpen || normalizedSearch ? '#00e887' : '#1e2438'}`, background: searchOpen || normalizedSearch ? 'rgba(0,232,135,.12)' : '#0f1119', color: searchOpen || normalizedSearch ? '#00e887' : '#7a88b0', cursor: 'pointer' }}
+        >
+          <Search size={17} />
+        </button>
+        {searchOpen && (
+          <div className="match-search-panel" role="search" style={{ position: 'absolute', zIndex: 10, top: 'calc(100% + 8px)', right: 190, width: 300, display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,.35))' }}>
+            <Search size={15} aria-hidden="true" style={{ position: 'absolute', left: 12, color: '#7a88b0', pointerEvents: 'none' }} />
+            <input
+              autoFocus
+              type="search"
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+              onKeyDown={event => { if (event.key === 'Escape') setSearchOpen(false) }}
+              placeholder="Buscar time ou competição"
+              aria-label="Buscar partidas por time ou competição"
+              style={{ width: '100%', boxSizing: 'border-box', background: '#0f1119', color: '#eef0f9', border: '1px solid #00e887', borderRadius: 8, padding: '11px 38px', outline: 'none' }}
+            />
+            {search && (
+              <button type="button" onClick={() => setSearch('')} aria-label="Limpar pesquisa" title="Limpar pesquisa"
+                style={{ position: 'absolute', right: 8, display: 'grid', placeItems: 'center', padding: 4, color: '#7a88b0', background: 'transparent', border: 0, cursor: 'pointer' }}>
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        )}
+        <label className="match-league-filter" style={{ flex: '0 0 180px', height: 42, display: 'flex', alignItems: 'center', gap: 7, color: '#7a88b0' }}>
+          <Filter size={14} style={{ flexShrink: 0 }} />
           <select value={league} onChange={event => setLeague(event.target.value)}
-            style={{ background: '#0f1119', color: '#eef0f9', border: '1px solid #1e2438', borderRadius: 8, padding: '9px 12px' }}>
+            style={{ width: '100%', height: 42, minWidth: 0, background: '#0f1119', color: '#eef0f9', border: '1px solid #1e2438', borderRadius: 8, padding: '0 10px' }}>
             <option value="all">Todas as ligas</option>
             {leagues.map(item => <option key={item} value={item}>{item}</option>)}
           </select>
@@ -176,7 +215,9 @@ export function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }:
 
       {visible.length === 0 && (
         <Card style={{ padding: 24, textAlign: 'center', color: '#7a88b0' }}>
-          Nenhuma partida encontrada nesta categoria.
+          {normalizedSearch
+            ? `Nenhuma partida ou competição encontrada para “${search.trim()}”.`
+            : 'Nenhuma partida encontrada nesta categoria.'}
         </Card>
       )}
       {Object.entries(byLeague(visible)).map(([l, ms]) => (
@@ -211,7 +252,9 @@ export function MatchView({ match, betSlip, onAddBet, onBack, isFavorite, onTogg
   onBack: () => void; isFavorite: boolean; onToggleFavorite: () => void
 }) {
   const [tab, setTab] = useState<MatchTab>(
-    match.status === 'live' ? 'live' : match.status === 'finished' ? 'stats' : 'lineup'
+    new URLSearchParams(window.location.search).get('tab') === 'stats'
+      ? 'stats'
+      : match.status === 'live' ? 'live' : match.status === 'finished' ? 'stats' : 'lineup'
   )
   const matchName = `${match.homeTeam.name} vs ${match.awayTeam.name}`
   const addBet = (market: string, option: string, odds: number) => {
@@ -493,18 +536,39 @@ function LineupTab({ match }: { match: Match }) {
 }
 
 function StatsTab({ match }: { match: Match }) {
-  const rows = [
-    { keys: ['possession_home', 'possession_away'], label: 'Posse de Bola', h: `${match.stats.possession[0]}%`, a: `${match.stats.possession[1]}%`, hv: match.stats.possession[0], av: match.stats.possession[1] },
-    { keys: ['shots_home', 'shots_away'], label: 'Chutes Totais', h: String(match.stats.shots[0]), a: String(match.stats.shots[1]), hv: match.stats.shots[0], av: match.stats.shots[1] },
-    { keys: ['shots_on_target_home', 'shots_on_target_away'], label: 'Chutes no Alvo', h: String(match.stats.shotsOnTarget[0]), a: String(match.stats.shotsOnTarget[1]), hv: match.stats.shotsOnTarget[0], av: match.stats.shotsOnTarget[1] },
-    { keys: ['corners_home', 'corners_away'], label: 'Escanteios', h: String(match.stats.corners[0]), a: String(match.stats.corners[1]), hv: match.stats.corners[0], av: match.stats.corners[1] },
-    { keys: ['yellow_cards_home', 'yellow_cards_away'], label: 'Cartões Amarelos', h: String(match.stats.yellowCards[0]), a: String(match.stats.yellowCards[1]), hv: match.stats.yellowCards[0], av: match.stats.yellowCards[1] },
-    { keys: ['red_cards_home', 'red_cards_away'], label: 'Cartões Vermelhos', h: String(match.stats.redCards[0]), a: String(match.stats.redCards[1]), hv: match.stats.redCards[0], av: match.stats.redCards[1] },
-    { keys: ['offsides_home', 'offsides_away'], label: 'Impedimentos', h: String(match.stats.offsides[0]), a: String(match.stats.offsides[1]), hv: match.stats.offsides[0], av: match.stats.offsides[1] },
-    { keys: ['xg_home', 'xg_away'], label: 'Expected Goals (xG)', h: String(match.stats.xG[0]), a: String(match.stats.xG[1]), hv: match.stats.xG[0], av: match.stats.xG[1] },
-  ].filter(row => row.keys.some(key => match.availableStats?.includes(key)))
+  type StatRow = { keys: string[]; label: string; values: [number, number]; suffix?: string; always?: boolean }
+  const row = (keys: string[], label: string, values: [number, number], suffix = '', always = false): StatRow =>
+    ({ keys, label, values, suffix, always })
+  const groups = [
+    { title: 'Forma e controle', rows: [
+      row(['possession_home', 'possession_away'], 'Posse de bola', match.stats.possession, '%'),
+      row(['pass_accuracy_home', 'pass_accuracy_away'], 'Precisão de passes', match.stats.passAccuracy, '%'),
+      row(['passes_home', 'passes_away'], 'Passes', match.stats.passes),
+      row(['passes_accurate_home', 'passes_accurate_away'], 'Passes certos', match.stats.passesAccurate),
+    ] },
+    { title: 'Ataque', rows: [
+      row([], 'Gols', [match.homeScore || 0, match.awayScore || 0], '', match.homeScore != null && match.awayScore != null),
+      row(['shots_home', 'shots_away'], 'Total de chutes', match.stats.shots),
+      row(['shots_on_target_home', 'shots_on_target_away'], 'Chutes no gol', match.stats.shotsOnTarget),
+      row(['shots_off_target_home', 'shots_off_target_away'], 'Chutes fora do gol', match.stats.shotsOffTarget),
+      row(['blocked_shots_home', 'blocked_shots_away'], 'Chutes bloqueados', match.stats.blockedShots),
+      row(['shots_inside_box_home', 'shots_inside_box_away'], 'Chutes dentro da área', match.stats.shotsInsideBox),
+      row(['shots_outside_box_home', 'shots_outside_box_away'], 'Chutes fora da área', match.stats.shotsOutsideBox),
+      row(['corners_home', 'corners_away'], 'Escanteios', match.stats.corners),
+      row(['offsides_home', 'offsides_away'], 'Impedimentos', match.stats.offsides),
+      row(['xg_home', 'xg_away'], 'Expected Goals (xG)', match.stats.xG),
+    ] },
+    { title: 'Defesa e disciplina', rows: [
+      row(['fouls_home', 'fouls_away'], 'Faltas', match.stats.fouls),
+      row(['goalkeeper_saves_home', 'goalkeeper_saves_away'], 'Defesas do goleiro', match.stats.goalkeeperSaves),
+      row(['yellow_cards_home', 'yellow_cards_away'], 'Cartões amarelos', match.stats.yellowCards),
+      row(['red_cards_home', 'red_cards_away'], 'Cartões vermelhos', match.stats.redCards),
+    ] },
+  ].map(group => ({ ...group, rows: group.rows.filter(item =>
+    item.always || item.keys.some(key => match.availableStats?.includes(key))
+  ) })).filter(group => group.rows.length > 0)
 
-  if (!match.statsAvailable || rows.length === 0) {
+  if (!match.statsAvailable || groups.length === 0) {
     return (
       <Card style={{ padding: 40, textAlign: 'center' }}>
         <BarChart3 size={30} color="#2a3150" style={{ margin: '0 auto 12px' }} />
@@ -517,36 +581,48 @@ function StatsTab({ match }: { match: Match }) {
   }
 
   return (
-    <Card style={{ overflow: 'hidden' }}>
-      <div style={{ display: 'flex', padding: '12px 16px', borderBottom: '1px solid #1e2438' }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '18px' }}>{match.homeTeam.logo}</span>
-          <span style={{ fontWeight: 600, fontSize: '13px', color: '#eef0f9' }}>{match.homeTeam.name}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <Card style={{ overflow: 'hidden' }}>
+        <div style={{ display: 'flex', padding: '12px 16px', alignItems: 'center' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 18 }}>{match.homeTeam.logo}</span>
+            <span style={{ fontWeight: 600, fontSize: 13, color: '#eef0f9' }}>{match.homeTeam.name}</span>
+          </div>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#5a6480', letterSpacing: '0.1em' }}>COMPARATIVO</span>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+            <span style={{ fontWeight: 600, fontSize: 13, color: '#eef0f9', textAlign: 'right' }}>{match.awayTeam.name}</span>
+            <span style={{ fontSize: 18 }}>{match.awayTeam.logo}</span>
+          </div>
         </div>
-        <span style={{ fontSize: '11px', fontWeight: 700, color: '#5a6480', letterSpacing: '0.1em' }}>ESTATÍSTICA</span>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
-          <span style={{ fontWeight: 600, fontSize: '13px', color: '#eef0f9', textAlign: 'right' }}>{match.awayTeam.name}</span>
-          <span style={{ fontSize: '18px' }}>{match.awayTeam.logo}</span>
-        </div>
-      </div>
-      {rows.map((row, i) => {
-        const total = row.hv + row.av || 1
-        const hPct = (row.hv / total) * 100
-        return (
-          <div key={row.label} style={{ padding: '12px 16px', borderBottom: i < rows.length - 1 ? '1px solid #1e2438' : 'none' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '14px', color: '#eef0f9' }}>{row.h}</span>
-              <span style={{ fontSize: '12px', color: '#5a6480' }}>{row.label}</span>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '14px', color: '#eef0f9' }}>{row.a}</span>
+      </Card>
+      {groups.map(group => <Card key={group.title} style={{ padding: '18px 16px 8px' }}>
+        <h3 style={{ margin: '0 0 18px', textAlign: 'center', color: '#eef0f9', fontSize: 18 }}>{group.title}</h3>
+        {group.rows.map(item => {
+          const [home, away] = item.values
+          const maximum = Math.max(home, away, 1)
+          const homeWidth = home === 0 && away === 0 ? 0 : home / maximum * 100
+          const awayWidth = home === 0 && away === 0 ? 0 : away / maximum * 100
+          return <div key={item.label} style={{ marginBottom: 15 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '64px 1fr 64px', alignItems: 'end', gap: 10, marginBottom: 7 }}>
+              <strong style={{ fontFamily: "'JetBrains Mono', monospace", color: '#eef0f9', fontSize: 14 }}>{home}{item.suffix}</strong>
+              <span style={{ textAlign: 'center', color: '#a8b0c8', fontSize: 12 }}>{item.label}</span>
+              <strong style={{ fontFamily: "'JetBrains Mono', monospace", color: '#eef0f9', fontSize: 14, textAlign: 'right' }}>{away}{item.suffix}</strong>
             </div>
-            <div style={{ height: '5px', borderRadius: '3px', background: '#1e2438', display: 'flex', overflow: 'hidden' }}>
-              <div style={{ width: `${hPct}%`, background: '#4f8ef7' }} />
-              <div style={{ flex: 1, background: '#ff7c3a' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ height: 6, borderRadius: 4, background: '#1e2438', overflow: 'hidden', display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ width: `${homeWidth}%`, background: '#4f8ef7', borderRadius: 4 }} />
+              </div>
+              <div style={{ height: 6, borderRadius: 4, background: '#1e2438', overflow: 'hidden' }}>
+                <div style={{ width: `${awayWidth}%`, background: '#ff7c3a', borderRadius: 4 }} />
+              </div>
             </div>
           </div>
-        )
-      })}
-    </Card>
+        })}
+      </Card>)}
+      <div style={{ color: '#5a6480', fontSize: 11, lineHeight: 1.5, padding: '0 4px' }}>
+        Estatísticas conciliadas entre os provedores disponíveis. Apenas campos efetivamente recebidos são exibidos; dados ao vivo podem sofrer atraso.
+      </div>
+    </div>
   )
 }
 
@@ -585,6 +661,7 @@ function MarketsTab({ match, betSlip, onAddBet }: {
 }
 
 function AnalysisTab({ match, onAddBet }: { match: Match; onAddBet: (market: string, option: string, odds: number) => void }) {
+  const [expandedForm, setExpandedForm] = useState<'home' | 'away' | null>(null)
   const confStyle: Record<string, [string, string]> = {
     Alta: ['rgba(0,200,83,0.15)', '#00c853'],
     Média: ['rgba(251,191,36,0.15)', '#fbbf24'],
@@ -637,13 +714,40 @@ function AnalysisTab({ match, onAddBet }: { match: Match; onAddBet: (market: str
         {(['home', 'away'] as const).map(side => {
           const team = side === 'home' ? match.homeTeam : match.awayTeam
           const form = side === 'home' ? match.analysis.homeForm : match.analysis.awayForm
+          const recent = (side === 'home' ? match.analysis.homeRecent : match.analysis.awayRecent) || []
+          const expanded = expandedForm === side
           return (
-            <Card key={side} style={{ padding: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                <span>{team.logo}</span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#7a88b0' }}>{team.shortName} — Forma</span>
-              </div>
-              <div style={{ display: 'flex', gap: '4px' }}>{form.map((r, i) => <FormBadge key={i} result={r} />)}</div>
+            <Card key={side} style={{ padding: 0, overflow: 'hidden' }}>
+              <button
+                type="button"
+                onClick={() => setExpandedForm(expanded ? null : side)}
+                aria-expanded={expanded}
+                style={{ width: '100%', padding: '14px', border: 0, background: 'transparent', cursor: recent.length ? 'pointer' : 'default', textAlign: 'left' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                  <span>{team.logo}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#7a88b0' }}>{team.shortName} — Forma recente</span>
+                  {recent.length > 0 && <span style={{ marginLeft: 'auto', color: '#5a6480', fontSize: 11 }}>{expanded ? 'Ocultar' : 'Ver jogos'}</span>}
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {form.length ? form.map((r, i) => <FormBadge key={i} result={r} />) : <span style={{ color: '#5a6480', fontSize: 12 }}>Histórico insuficiente</span>}
+                </div>
+              </button>
+              {expanded && recent.length > 0 && (
+                <div style={{ borderTop: '1px solid #1e2438' }}>
+                  {recent.map(game => (
+                    <a key={game.id} href={`/matches/${game.id}?tab=stats`}
+                      style={{ display: 'block', padding: '10px 14px', borderBottom: '1px solid #161b26', color: 'inherit', textDecoration: 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                        <FormBadge result={game.result || 'E'} />
+                        <span style={{ flex: 1, color: '#7a88b0' }}>{game.homeTeam} <strong style={{ color: '#eef0f9' }}>{game.homeScore}–{game.awayScore}</strong> {game.awayTeam}</span>
+                        <span style={{ color: game.statisticsAvailable ? '#4f8ef7' : '#5a6480', fontSize: 10 }}>{game.statisticsAvailable ? 'Ver estatísticas' : 'Ver partida'}</span>
+                      </div>
+                      <div style={{ marginTop: 4, paddingLeft: 28, fontSize: 10, color: '#5a6480' }}>{game.date} · {game.competition}</div>
+                    </a>
+                  ))}
+                </div>
+              )}
             </Card>
           )
         })}
@@ -654,6 +758,9 @@ function AnalysisTab({ match, onAddBet }: { match: Match; onAddBet: (market: str
           <AlertTriangle size={15} color="#ff7c3a" />
           <span style={{ fontWeight: 600, fontSize: '14px', color: '#eef0f9' }}>Fatores-Chave</span>
         </div>
+        {match.analysis.keyFactors.length === 0 && (
+          <div style={{ fontSize: 13, color: '#5a6480' }}>Ainda não há amostra estatística suficiente para destacar fatores-chave.</div>
+        )}
         {match.analysis.keyFactors.map((f, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px', fontSize: '13px', color: '#7a88b0' }}>
             <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#4f8ef7', flexShrink: 0, marginTop: '6px' }} />
@@ -770,6 +877,8 @@ function H2HTab({ match }: { match: Match }) {
           const homeDiff = h.homeScore - h.awayScore
           return (
             <Card key={i} style={{ padding: '12px 16px' }}>
+              <a href={h.id ? `/matches/${h.id}?tab=stats` : undefined}
+                style={{ color: 'inherit', textDecoration: 'none', display: 'block', cursor: h.id ? 'pointer' : 'default' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ flex: 1, textAlign: 'right' }}>
                   <span style={{ fontWeight: 600, fontSize: '13px', color: homeDiff > 0 ? '#00c853' : '#eef0f9' }}>{h.homeTeam}</span>
@@ -783,8 +892,9 @@ function H2HTab({ match }: { match: Match }) {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
                 <span style={{ fontSize: '11px', color: '#5a6480' }}>{h.date}</span>
-                <span style={{ fontSize: '11px', color: '#5a6480' }}>{h.competition}</span>
+                <span style={{ fontSize: '11px', color: '#5a6480' }}>{h.competition}{h.id ? ' · Ver estatísticas' : ''}</span>
               </div>
+              </a>
             </Card>
           )
         })}
