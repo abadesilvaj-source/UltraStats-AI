@@ -43,7 +43,7 @@ src/
 Diretório:
 
 ```text
-src/ultrastats_ai/domain/
+backend/src/ultrastats_ai/domain/
 ```
 
 Responsabilidade:
@@ -96,7 +96,7 @@ domain/
 Diretório:
 
 ```text
-src/ultrastats_ai/application/
+backend/src/ultrastats_ai/application/
 ```
 
 Responsabilidade:
@@ -133,7 +133,7 @@ concretas de infraestrutura.
 Diretório:
 
 ```text
-src/ultrastats_ai/infrastructure/
+backend/src/ultrastats_ai/infrastructure/
 ```
 
 Responsabilidade:
@@ -172,7 +172,7 @@ infrastructure/
 Diretório:
 
 ```text
-src/ultrastats_ai/interfaces/
+backend/src/ultrastats_ai/interfaces/
 ```
 
 Responsabilidade:
@@ -202,7 +202,7 @@ interfaces/
 Diretório:
 
 ```text
-src/ultrastats_ai/shared/
+backend/src/ultrastats_ai/shared/
 ```
 
 Responsabilidade:
@@ -223,7 +223,7 @@ código sem classificação.
 Diretório:
 
 ```text
-src/ultrastats_ai/domain/shared/
+backend/src/ultrastats_ai/domain/shared/
 ```
 
 Responsabilidade:

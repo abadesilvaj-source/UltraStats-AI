@@ -34,11 +34,18 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install -r requirements.txt
+      - run: python -m pip install -r requirements-dev.txt
+        working-directory: backend
       - run: python -m pip check
+        working-directory: backend
       - run: python -m alembic upgrade head
+        working-directory: backend
       - run: python -m pytest
+        working-directory: backend
       - run: python -m scripts.release_smoke
-      - run: docker build -t ultrastats-ai:${{ github.sha }} .
-      - run: docker run --rm ultrastats-ai:${{ github.sha }} python -m scripts.release_smoke
+        working-directory: backend
+      - run: docker build -t ultrastats-backend:${{ github.sha }} backend
+      - run: docker run --rm ultrastats-backend:${{ github.sha }} python -m scripts.release_smoke
+      - run: docker build -t ultrastats-frontend:${{ github.sha }} frontend

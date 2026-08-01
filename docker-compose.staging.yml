@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
 
   migrations:
-    build: .
+    build: ./backend
     command: ["python", "-m", "alembic", "upgrade", "head"]
     env_file: ${STAGING_ENV_FILE:-.env.staging}
     depends_on:
@@ -24,14 +24,14 @@ services:
     restart: "no"
 
   scheduler:
-    build: .
+    build: ./backend
     command: ["python", "-m", "scripts.run_scheduler"]
     env_file: ${STAGING_ENV_FILE:-.env.staging}
+    volumes:
+      - staging_logs:/app/logs
     depends_on:
       migrations:
         condition: service_completed_successfully
-    volumes:
-      - staging_logs:/app/logs
     healthcheck:
       test: ["CMD", "python", "-m", "scripts.check_scheduler_health"]
       interval: 30s
@@ -40,42 +40,42 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-  dashboard:
-    build: .
-    command:
-      [
-        "python",
-        "-m",
-        "streamlit",
-        "run",
-        "dashboard/Home.py",
-        "--server.address=0.0.0.0",
-        "--server.port=8501",
-        "--server.headless=true",
-      ]
+  backend:
+    build: ./backend
     env_file: ${STAGING_ENV_FILE:-.env.staging}
     ports:
-      - "${DASHBOARD_PORT:-8501}:8501"
-    volumes:
-      - staging_logs:/app/logs
-      - staging_exports:/app/exports
+      - "${BACKEND_PORT:-8000}:8000"
     depends_on:
       migrations:
         condition: service_completed_successfully
-      scheduler:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8501/_stcore/health"]
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/api/v1/health"]
       interval: 15s
       timeout: 5s
       retries: 8
-      start_period: 30s
-    read_only: true
-    tmpfs:
-      - /tmp
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-8516}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend-mobile:
+    build:
+      context: .
+      dockerfile: frontend-mobile/Dockerfile
+    ports:
+      - "${MOBILE_FRONTEND_PORT:-8517}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
   staging_postgres:
   staging_logs:
-  staging_exports:

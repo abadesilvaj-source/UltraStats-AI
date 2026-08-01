@@ -1,0 +1,1049 @@
+import { useCallback, useEffect, useState } from 'react'
+import {
+  BrowserRouter, NavLink, Navigate, Route, Routes,
+  useLocation, useNavigate, useParams,
+} from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  Activity, AlertTriangle, BarChart3, BrainCircuit, CheckCircle2, Database, FlaskConical,
+  Grid3X3, Home, LogOut, Menu, Receipt, RefreshCw, ShieldCheck, Star,
+  Target, TrendingUp, Wallet, X, Zap,
+} from 'lucide-react'
+import {
+  BankrollView, BetsView, BetSlipDrawer, FavoritesView, HomeView, MatchView,
+  SystemView,
+} from '../App'
+import type { BetSelection, Match, PlacedBet } from '../data'
+import {
+  analyzeBetSlip, loadBankrolls, loadBetSlips, loadCurrentUser, loadMatch, loadMatches,
+  loginUser, logoutUser, registerUser,
+  loadIntelligence, loadMaturity, loadPredictions, loadRecommendations, placeBet,
+} from '../api'
+import type { AuthUser, PredictionDto, RecommendationDto } from '../api'
+
+type Bankroll = {
+  id: number
+  balance: number
+  active: boolean
+}
+
+type RiskAssessment = {
+  approved: boolean
+  expected_value: number
+  correlation_adjusted_probability: number
+  correlated_pairs: number
+  recommended_max_bankroll_percentage: number
+  warnings: string[]
+  unavailable_markets: Array<{
+    leg: number
+    market: string
+    selection: string
+  }>
+}
+
+type BetPlacementPayload = {
+  bankroll_id: number
+  bookmaker: string
+  stake_amount: number
+  legs: Array<{
+    match_id: number
+    market_id?: number
+    market_name: string
+    selection: string
+    odd_value: number
+  }>
+}
+
+type PendingRiskConfirmation = {
+  payload: BetPlacementPayload
+  assessment: RiskAssessment
+}
+
+const navigation = [
+  { to: '/', label: 'Central de partidas', icon: Home },
+  { to: '/favorites', label: 'Favoritos', icon: Star },
+  { to: '/bankroll', label: 'Gestão de banca', icon: Wallet },
+  { to: '/bets', label: 'Minhas apostas', icon: Receipt },
+  { to: '/analysis', label: 'Análises', icon: BarChart3 },
+  { to: '/risk', label: 'Gestão de risco', icon: ShieldCheck },
+  { to: '/statistics', label: 'Motor estatístico', icon: Activity },
+  { to: '/models', label: 'Modelos e aprendizado', icon: BrainCircuit },
+  { to: '/recommendations', label: 'Recomendações', icon: Target },
+  { to: '/providers', label: 'Provedores e qualidade', icon: Database },
+]
+
+const queryKeys = {
+  matches: ['matches'] as const,
+  bankrolls: ['bankrolls'] as const,
+  bets: ['bets'] as const,
+  maturity: ['maturity'] as const,
+  predictions: ['predictions'] as const,
+  recommendations: ['recommendations'] as const,
+  intelligence: ['intelligence'] as const,
+}
+
+function useStoredFavorites(userId: string) {
+  const storageKey = `ultrastats:favorites:${userId}`
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) || '[]')
+    } catch {
+      return []
+    }
+  })
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(favorites))
+  }, [favorites, storageKey])
+  const toggle = useCallback((id: string) => {
+    setFavorites(current => current.includes(id)
+      ? current.filter(item => item !== id)
+      : [...current, id])
+  }, [])
+  return { favorites, toggle }
+}
+
+const riskWarningLabels: Record<string, string> = {
+  correlated_legs: 'O bilhete combina mercados correlacionados.',
+  missing_predictions: 'Uma ou mais seleções não possuem previsão estatística completa.',
+  high_leg_count: 'O bilhete possui muitas seleções e maior variância.',
+}
+
+function RiskConfirmationDialog({
+  assessment, stake, busy, onCancel, onConfirm,
+}: {
+  assessment: RiskAssessment
+  stake: number
+  busy: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const warnings = assessment.warnings?.map(
+    warning => riskWarningLabels[warning] || warning.replace(/_/g, ' '),
+  ) || []
+  if (!assessment.approved) {
+    warnings.unshift(
+      'O motor de risco não encontrou vantagem estatística conservadora suficiente.',
+    )
+  }
+  for (const item of assessment.unavailable_markets || []) {
+    warnings.push(
+      `${item.market} — ${item.selection}: sem validação automática de disponibilidade.`,
+    )
+  }
+  const uniqueWarnings = [...new Set(warnings)]
+  const ev = Number.isFinite(assessment.expected_value)
+    ? `${(assessment.expected_value * 100).toFixed(1)}%`
+    : 'indisponível'
+
+  return (
+    <div className="risk-confirmation-backdrop" role="presentation">
+      <section
+        className="risk-confirmation-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="risk-confirmation-title"
+      >
+        <div className="risk-confirmation-heading">
+          <AlertTriangle size={24} />
+          <div>
+            <h2 id="risk-confirmation-title">Confirmar bilhete com riscos?</h2>
+            <p>A gestão de risco recomenda cautela, mas não impedirá sua decisão.</p>
+          </div>
+        </div>
+        <div className="risk-confirmation-metrics">
+          <span>Valor: <strong>R$ {stake.toFixed(2)}</strong></span>
+          <span>EV estimado: <strong>{ev}</strong></span>
+          <span>
+            Limite sugerido: <strong>
+              {assessment.recommended_max_bankroll_percentage.toFixed(1)}% da banca
+            </strong>
+          </span>
+        </div>
+        <ul>
+          {uniqueWarnings.map(warning => <li key={warning}>{warning}</li>)}
+        </ul>
+        <p className="risk-confirmation-disclaimer">
+          Ao continuar, você reconhece que a aposta pode resultar na perda integral do valor.
+        </p>
+        <div className="risk-confirmation-actions">
+          <button type="button" onClick={onCancel} disabled={busy}>
+            Revisar bilhete
+          </button>
+          <button
+            type="button"
+            className="confirm-risk"
+            onClick={onConfirm}
+            disabled={busy}
+          >
+            {busy ? 'Registrando…' : 'Criar mesmo assim'}
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+export default function AppRouter() {
+  return (
+    <BrowserRouter>
+      <AuthGate />
+    </BrowserRouter>
+  )
+}
+
+function AuthGate() {
+  const queryClient = useQueryClient()
+  const [user, setUser] = useState<AuthUser | null | undefined>(undefined)
+  useEffect(() => { loadCurrentUser().then(setUser).catch(() => setUser(null)) }, [])
+  if (user === undefined) return <div className="auth-page"><div className="auth-card">Validando sessão…</div></div>
+  if (!user) return <AuthScreen onAuthenticated={setUser} />
+  return <UltraStatsApp user={user} onLogout={async () => {
+    await logoutUser()
+    queryClient.clear()
+    setUser(null)
+  }} />
+}
+
+function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void }) {
+  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault(); setBusy(true); setError('')
+    try {
+      onAuthenticated(mode === 'login'
+        ? await loginUser(email, password)
+        : await registerUser(name, email, password))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Não foi possível entrar.')
+    } finally { setBusy(false) }
+  }
+  return <main className="auth-page">
+    <section className="auth-card">
+      <div className="auth-logo"><Zap size={20} fill="currentColor" /> ULTRASTATS AI</div>
+      <h1>{mode === 'login' ? 'Acesse sua conta' : 'Crie sua conta'}</h1>
+      <p>Seus dados de banca e apostas ficam separados e protegidos.</p>
+      <form onSubmit={submit}>
+        {mode === 'register' && <label>Nome<input required minLength={2} autoComplete="name" value={name} onChange={e => setName(e.target.value)} /></label>}
+        <label>E-mail<input required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} /></label>
+        <label>Senha<input required minLength={8} type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={e => setPassword(e.target.value)} /></label>
+        {error && <div className="auth-error" role="alert">{error}</div>}
+        <button disabled={busy} type="submit">{busy ? 'Aguarde…' : mode === 'login' ? 'Entrar' : 'Criar conta'}</button>
+      </form>
+      <button className="auth-switch" type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}>
+        {mode === 'login' ? 'Ainda não tenho uma conta' : 'Já tenho uma conta'}
+      </button>
+    </section>
+  </main>
+}
+
+function UltraStatsApp({ user, onLogout }: { user: AuthUser; onLogout: () => Promise<void> }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const queryClient = useQueryClient()
+  const { favorites, toggle } = useStoredFavorites(user.id)
+  const [betSlip, setBetSlip] = useState<BetSelection[]>([])
+  const [betSlipOpen, setBetSlipOpen] = useState(false)
+  const [message, setMessage] = useState('')
+  const [placedBets, setPlacedBets] = useState<PlacedBet[]>([])
+  const [riskConfirmation, setRiskConfirmation] =
+    useState<PendingRiskConfirmation | null>(null)
+  const [placingBet, setPlacingBet] = useState(false)
+  const needsMaturity = [
+    '/system', '/statistics', '/models', '/providers',
+  ].includes(location.pathname)
+  const needsPredictions = location.pathname === '/analysis'
+  const needsRecommendations = [
+    '/risk', '/recommendations',
+  ].includes(location.pathname)
+  const needsIntelligence = [
+    '/statistics', '/models',
+  ].includes(location.pathname)
+
+  const matchesQuery = useQuery({
+    queryKey: queryKeys.matches,
+    queryFn: loadMatches,
+    refetchInterval: 60_000,
+    staleTime: 20_000,
+    retry: 2,
+  })
+  const bankrollQuery = useQuery({
+    queryKey: queryKeys.bankrolls,
+    queryFn: loadBankrolls,
+    staleTime: 30_000,
+  })
+  const betsQuery = useQuery({
+    queryKey: queryKeys.bets,
+    queryFn: loadBetSlips,
+    staleTime: 20_000,
+  })
+  const maturityQuery = useQuery({
+    queryKey: queryKeys.maturity,
+    queryFn: loadMaturity,
+    enabled: needsMaturity,
+    refetchInterval: 120_000,
+    staleTime: 60_000,
+  })
+  const predictionsQuery = useQuery({
+    queryKey: queryKeys.predictions,
+    queryFn: loadPredictions,
+    enabled: needsPredictions,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  })
+  const recommendationsQuery = useQuery({
+    queryKey: queryKeys.recommendations,
+    queryFn: loadRecommendations,
+    enabled: needsRecommendations,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  })
+  const intelligenceQuery = useQuery({
+    queryKey: queryKeys.intelligence,
+    queryFn: loadIntelligence,
+    enabled: needsIntelligence,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  })
+
+  useEffect(() => {
+    if (betsQuery.data) setPlacedBets(betsQuery.data)
+  }, [betsQuery.data])
+
+  const matches = matchesQuery.data || []
+  const bankroll = (bankrollQuery.data || []).find(
+    (item: Bankroll) => item.active,
+  ) as Bankroll | undefined
+  const totalOdds = betSlip.reduce((value, item) => value * item.odds, 1)
+
+  const addToBetSlip = useCallback((
+    matchId: string,
+    matchName: string,
+    market: string,
+    option: string,
+    odds: number,
+    explicitMarketId?: number,
+  ) => {
+    const source = matches.find(item => item.id === matchId)
+    const fallbackMarketId = Number(source?.markets.find(item => item.name === market)?.id)
+    const marketId = explicitMarketId ?? (
+      Number.isFinite(fallbackMarketId) ? fallbackMarketId : undefined
+    )
+    setBetSlip(current => {
+      const id = `${matchId}-${market}-${option}`
+      if (current.some(item => item.id === id)) {
+        return current.filter(item => item.id !== id)
+      }
+      return [...current, {
+        id, matchId, matchName, market, marketId, option,
+        odds, sourceOdds: odds,
+      }]
+    })
+    setBetSlipOpen(true)
+  }, [matches])
+
+  const finishBetPlacement = async (payload: BetPlacementPayload) => {
+    setPlacingBet(true)
+    try {
+      await placeBet(payload)
+      setBetSlip([])
+      setBetSlipOpen(false)
+      setRiskConfirmation(null)
+      setMessage('Bilhete registrado com sucesso.')
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.bets }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.bankrolls }),
+      ])
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Falha ao registrar bilhete.')
+    } finally {
+      setPlacingBet(false)
+    }
+  }
+
+  const placeCurrentBet = async (stake: number) => {
+    if (!bankroll) {
+      setMessage('Crie e ative uma banca antes de confirmar o bilhete.')
+      setBetSlipOpen(false)
+      navigate('/bankroll')
+      return
+    }
+    const payload = {
+      bankroll_id: bankroll.id,
+      bookmaker: 'Odd informada pelo usuário',
+      stake_amount: stake,
+      legs: betSlip.map(item => ({
+        match_id: Number(item.matchId),
+        market_id: item.marketId,
+        market_name: item.market,
+        selection: item.option,
+        odd_value: item.odds,
+      })),
+    }
+    try {
+      const assessment = await analyzeBetSlip(payload) as RiskAssessment
+      if (!assessment.approved || assessment.warnings?.length) {
+        setRiskConfirmation({ payload, assessment })
+        return
+      }
+      await finishBetPlacement(payload)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Falha ao registrar bilhete.')
+    }
+  }
+
+  const isLoading = (
+    matchesQuery.isPending || bankrollQuery.isPending
+    || betsQuery.isPending
+  )
+  const queryError = [
+    matchesQuery.error, bankrollQuery.error, betsQuery.error, maturityQuery.error,
+    predictionsQuery.error, recommendationsQuery.error, intelligenceQuery.error,
+  ].find(Boolean)
+
+  return (
+    <AppShell
+      user={user}
+      onLogout={onLogout}
+      betCount={betSlip.length}
+      onBetSlipOpen={() => setBetSlipOpen(true)}
+      refreshing={matchesQuery.isFetching}
+      onRefresh={() => queryClient.invalidateQueries()}
+    >
+      {message && (
+        <StatusBanner message={message} onClose={() => setMessage('')} />
+      )}
+      {queryError && (
+        <StatusBanner
+          message={queryError instanceof Error ? queryError.message : 'Falha de comunicação.'}
+          onClose={() => queryClient.invalidateQueries()}
+          retry
+        />
+      )}
+      {riskConfirmation && (
+        <RiskConfirmationDialog
+          assessment={riskConfirmation.assessment}
+          stake={riskConfirmation.payload.stake_amount}
+          busy={placingBet}
+          onCancel={() => setRiskConfirmation(null)}
+          onConfirm={() => finishBetPlacement(riskConfirmation.payload)}
+        />
+      )}
+      {isLoading && !matchesQuery.data ? <LoadingScreen /> : (
+        <Routes>
+          <Route path="/" element={
+            <HomeView
+              matches={matches}
+              favorites={favorites}
+              onToggleFavorite={toggle}
+              onMatchClick={match => navigate(`/matches/${match.id}`)}
+            />
+          } />
+          <Route path="/matches/:matchId" element={
+            <MatchRoute
+              fallbackMatches={matches}
+              favorites={favorites}
+              toggleFavorite={toggle}
+              betSlip={betSlip}
+              onAddBet={addToBetSlip}
+            />
+          } />
+          <Route path="/favorites" element={
+            <FavoritesView
+              matches={matches}
+              favorites={favorites}
+              onToggleFavorite={toggle}
+              onMatchClick={match => navigate(`/matches/${match.id}`)}
+            />
+          } />
+          <Route path="/bankroll" element={
+            <BankrollView
+              bets={placedBets}
+              setBets={setPlacedBets}
+              bankroll={bankroll?.balance || 0}
+              bankrollId={bankroll?.id || null}
+              onBankrollCreated={() => {
+                setMessage('')
+                queryClient.invalidateQueries({ queryKey: queryKeys.bankrolls })
+              }}
+              onError={setMessage}
+              onBalanceChanged={() => {
+                setMessage('')
+                queryClient.invalidateQueries({ queryKey: queryKeys.bankrolls })
+              }}
+              wonTotal={placedBets.filter(item => item.status === 'won')
+                .reduce((sum, item) => sum + item.potentialReturn - item.stake, 0)}
+              lostTotal={placedBets.filter(item => item.status === 'lost')
+                .reduce((sum, item) => sum + item.stake, 0)}
+              pending={placedBets.filter(item => item.status === 'pending').length}
+            />
+          } />
+          <Route path="/bets" element={
+            <FeaturePage title="MINHAS APOSTAS" subtitle="Histórico, pendências e liquidação manual">
+              <BetsView
+                bets={placedBets}
+                setBets={setPlacedBets}
+                onError={setMessage}
+                onSettled={() => {
+                  queryClient.invalidateQueries({ queryKey: queryKeys.bets })
+                  queryClient.invalidateQueries({ queryKey: queryKeys.bankrolls })
+                }}
+              />
+            </FeaturePage>
+          } />
+          <Route path="/system" element={<SystemView maturity={maturityQuery.data} />} />
+          <Route path="/analysis" element={
+            predictionsQuery.isPending ? <LoadingScreen compact /> :
+            <AnalysisPage predictions={predictionsQuery.data || []} onOpenMatch={id => navigate(`/matches/${id}`)} />
+          } />
+          <Route path="/risk" element={
+            recommendationsQuery.isPending ? <LoadingScreen compact /> :
+            <RiskPage recommendations={recommendationsQuery.data || []} onOpenMatch={id => navigate(`/matches/${id}`)} />
+          } />
+          <Route path="/statistics" element={
+            intelligenceQuery.isPending ? <LoadingScreen compact /> :
+            <StatisticsPage maturity={maturityQuery.data} intelligence={intelligenceQuery.data} />
+          } />
+          <Route path="/models" element={
+            intelligenceQuery.isPending ? <LoadingScreen compact /> :
+            <ModelsPage maturity={maturityQuery.data} intelligence={intelligenceQuery.data} />
+          } />
+          <Route path="/recommendations" element={
+            recommendationsQuery.isPending ? <LoadingScreen compact /> :
+            <RecommendationsPage
+              recommendations={recommendationsQuery.data || []}
+              maturity={maturityQuery.data}
+              onOpenMatch={id => navigate(`/matches/${id}`)}
+            />
+          } />
+          <Route path="/providers" element={<ProvidersPage maturity={maturityQuery.data} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      )}
+      {betSlipOpen && (
+        <BetSlipDrawer
+          selections={betSlip}
+          onRemove={id => setBetSlip(current => current.filter(item => item.id !== id))}
+          onOddsChange={(id, odds) => setBetSlip(current => current.map(
+            item => item.id === id ? { ...item, odds } : item,
+          ))}
+          onClose={() => setBetSlipOpen(false)}
+          totalOdds={totalOdds}
+          onPlace={placeCurrentBet}
+        />
+      )}
+      {betSlip.length > 0 && !betSlipOpen && (
+        <button className="floating-bet" onClick={() => setBetSlipOpen(true)}
+          aria-label={`Abrir bilhete com ${betSlip.length} seleções`}>
+          <Target size={18} />
+          Bilhete ({betSlip.length})
+          <strong>{totalOdds.toFixed(2)}x</strong>
+        </button>
+      )}
+    </AppShell>
+  )
+}
+
+function MatchRoute({
+  fallbackMatches, favorites, toggleFavorite, betSlip, onAddBet,
+}: {
+  fallbackMatches: Match[]
+  favorites: string[]
+  toggleFavorite: (id: string) => void
+  betSlip: BetSelection[]
+  onAddBet: (
+    matchId: string, matchName: string, market: string,
+    option: string, odds: number, marketId?: number,
+  ) => void
+}) {
+  const { matchId = '' } = useParams()
+  const navigate = useNavigate()
+  const fallback = fallbackMatches.find(item => item.id === matchId)
+  const query = useQuery({
+    queryKey: ['match', matchId],
+    queryFn: () => loadMatch(matchId),
+    enabled: Boolean(matchId),
+    placeholderData: fallback,
+    staleTime: 15_000,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
+  })
+  if (query.isPending || !query.data) return <LoadingScreen compact />
+  if (query.error) {
+    return <EmptyState title="Partida indisponível" action={() => navigate('/')} />
+  }
+  return (
+    <MatchView
+      match={query.data}
+      betSlip={betSlip}
+      onAddBet={onAddBet}
+      onBack={() => navigate('/')}
+      isFavorite={favorites.includes(matchId)}
+      onToggleFavorite={() => toggleFavorite(matchId)}
+    />
+  )
+}
+
+function AppShell({
+  children, betCount, onBetSlipOpen, refreshing, onRefresh, user, onLogout,
+}: {
+  children: React.ReactNode
+  betCount: number
+  onBetSlipOpen: () => void
+  refreshing: boolean
+  onRefresh: () => void
+  user: AuthUser
+  onLogout: () => Promise<void>
+}) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const location = useLocation()
+  useEffect(() => setMenuOpen(false), [location.pathname])
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="topbar-inner">
+          <NavLink to="/" className="brand" aria-label="UltraStats AI — início">
+            <span className="brand-icon"><Zap size={16} fill="currentColor" /></span>
+            <span>ULTRASTATS AI</span>
+          </NavLink>
+          <div className="topbar-actions">
+            <span className="current-user">{user.display_name}</span>
+            <button className="icon-button" onClick={onLogout} aria-label="Sair da conta" title="Sair">
+              <LogOut size={16} />
+            </button>
+            <button className="icon-button" onClick={onRefresh}
+              aria-label="Atualizar dados">
+              <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
+            </button>
+            {betCount > 0 && (
+              <button className="bet-button" onClick={onBetSlipOpen}>
+                <Target size={15} /> Bilhete <span>{betCount}</span>
+              </button>
+            )}
+            <button className="feature-button" onClick={() => setMenuOpen(value => !value)}
+              aria-expanded={menuOpen} aria-controls="feature-menu">
+              {menuOpen ? <X size={16} /> : <Grid3X3 size={16} />}
+              Funcionalidades
+            </button>
+            <button className="mobile-menu-button" onClick={() => setMenuOpen(value => !value)}
+              aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'}>
+              {menuOpen ? <X /> : <Menu />}
+            </button>
+          </div>
+        </div>
+      </header>
+      <div className="workspace">
+        <aside id="feature-menu" className={`sidebar ${menuOpen ? 'open' : ''}`}>
+          <div className="sidebar-title">FUNCIONALIDADES</div>
+          <nav aria-label="Funcionalidades principais">
+            {navigation.map(({ to, label, icon: Icon }) => (
+              <NavLink key={to} to={to} end={to === '/'}
+                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                <Icon size={16} /><span>{label}</span>
+              </NavLink>
+            ))}
+          </nav>
+          <NavLink to="/system" className="system-link">
+            <FlaskConical size={16} /> Visão técnica
+          </NavLink>
+        </aside>
+        {menuOpen && <button className="menu-backdrop" onClick={() => setMenuOpen(false)}
+          aria-label="Fechar menu" />}
+        <main className="content">{children}</main>
+      </div>
+    </div>
+  )
+}
+
+function StatusBanner({
+  message, onClose, retry = false,
+}: {
+  message: string
+  onClose: () => void
+  retry?: boolean
+}) {
+  return (
+    <div className={`status-banner ${retry ? 'error' : ''}`} role={retry ? 'alert' : 'status'}>
+      <span>{message}</span>
+      <button onClick={onClose}>{retry ? 'Tentar novamente' : 'Fechar'}</button>
+    </div>
+  )
+}
+
+function LoadingScreen({ compact = false }: { compact?: boolean }) {
+  return (
+    <section className={`loading-screen ${compact ? 'compact' : ''}`} aria-live="polite">
+      <div className="skeleton heading" />
+      <div className="skeleton tabs" />
+      {[1, 2, 3].map(item => <div className="skeleton card" key={item} />)}
+      <span>Atualizando dados dos provedores…</span>
+    </section>
+  )
+}
+
+function EmptyState({ title, action }: { title: string; action: () => void }) {
+  return (
+    <section className="empty-state">
+      <Activity size={28} />
+      <h1>{title}</h1>
+      <button onClick={action}>Voltar à central</button>
+    </section>
+  )
+}
+
+function FeaturePage({
+  title, subtitle, children,
+}: {
+  title: string
+  subtitle: string
+  children: React.ReactNode
+}) {
+  return (
+    <section>
+      <div className="page-heading">
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function AnalysisPage({ predictions, onOpenMatch }: {
+  predictions: PredictionDto[]; onOpenMatch: (id: number) => void
+}) {
+  const [evidence, setEvidence] = useState('all')
+  const [search, setSearch] = useState('')
+  const visible = predictions
+    .filter(item => evidence === 'all' || item.evidence === evidence)
+    .filter(item => `${item.match} ${item.market} ${item.competition}`.toLocaleLowerCase()
+      .includes(search.toLocaleLowerCase()))
+  return (
+    <FeaturePage title="ANÁLISES" subtitle="Probabilidades produzidas pelo motor, organizadas por partida e mercado.">
+      <div className="engine-grid">
+        <MetricCard label="Previsões exibidas" value={String(predictions.length)} />
+        <MetricCard label="Partidas nesta amostra" value={String(new Set(predictions.map(item => item.match_id)).size)} />
+        <MetricCard label="Evidência média/alta" value={String(predictions.filter(item => item.evidence !== 'low').length)} />
+        <MetricCard label="Modelos ativos" value={String(new Set(predictions.map(item => item.model)).size)} />
+      </div>
+      <div className="data-toolbar">
+        <input aria-label="Pesquisar análises" placeholder="Pesquisar partida, liga ou mercado…" value={search}
+          onChange={event => setSearch(event.target.value)} />
+        <select aria-label="Filtrar análises" value={evidence} onChange={event => setEvidence(event.target.value)}>
+          <option value="all">Todas as evidências</option><option value="high">Evidência alta</option>
+          <option value="medium">Evidência média</option><option value="low">Evidência baixa</option>
+        </select>
+      </div>
+      <DataList empty="Nenhuma previsão encontrada com estes filtros.">
+        {visible.slice(0, 120).map(item => (
+          <button className="data-row" key={item.id} onClick={() => onOpenMatch(item.match_id)}>
+            <div><strong>{item.match}</strong><span>{item.competition} · {item.market}</span></div>
+            <div><strong>{item.selection}</strong><span>{Math.round(item.probability * 100)}% · {evidenceLabel(item.evidence)}</span></div>
+          </button>
+        ))}
+      </DataList>
+    </FeaturePage>
+  )
+}
+
+function RiskPage({ recommendations, onOpenMatch }: {
+  recommendations: RecommendationDto[]; onOpenMatch: (id: number) => void
+}) {
+  const primary = recommendations.filter(item => item.is_primary_recommendation)
+  return (
+    <FeaturePage title="GESTÃO DE RISCO" subtitle="Exposição, evidência e bloqueios avaliados antes da aposta.">
+      <div className="engine-grid">
+        <MetricCard label="Sugestões principais" value={String(primary.length)} />
+        <MetricCard label="Valor confirmado" value={String(recommendations.filter(item => item.actionable).length)} />
+        <MetricCard label="Sem valor confirmado" value={String(primary.filter(item => !item.actionable).length)} />
+        <MetricCard label="Risco alto" value={String(recommendations.filter(item => item.risk === 'high').length)} />
+      </div>
+      <section className="insight-panel">
+        <div><ShieldCheck size={20} /><strong>Política de risco aplicada</strong></div>
+        <p>Mercados de evidência baixa continuam disponíveis com aviso. Somente oportunidades aprovadas nos gates de valor, confiança e correlação são classificadas como acionáveis.</p>
+      </section>
+      <DataList empty="Nenhuma avaliação de risco disponível.">
+        {primary.slice(0, 80).map(item => (
+          <button className="data-row" key={`${item.match_id}-${item.market_id}`} onClick={() => onOpenMatch(item.match_id)}>
+            <div><strong>{item.match}</strong><span>{item.market} · {item.selection}</span></div>
+            <RiskBadge item={item} />
+          </button>
+        ))}
+      </DataList>
+    </FeaturePage>
+  )
+}
+
+function StatisticsPage({ maturity, intelligence }: { maturity: any; intelligence: any }) {
+  const statistics = intelligence?.statistics || {}
+  const coverage = maturity?.coverage || {}
+  const raw = maturity?.raw_coverage || {}
+  return (
+    <FeaturePage title="MOTOR ESTATÍSTICO" subtitle="Cobertura pós-jogo e atualização das estatísticas coletadas.">
+      <div className="engine-grid">
+        <MetricCard label="Partidas com estatísticas" value={String(statistics.matches_with_statistics ?? '—')} />
+        <MetricCard label="Cobertura elegível" value={percent(coverage.statistics)} />
+        <MetricCard label="Cobertura bruta" value={percent(raw.statistics)} />
+        <MetricCard label="Tentativas em 24h" value={String(statistics.recent_attempts ?? '—')} />
+      </div>
+      <section className="insight-panel">
+        <div><Activity size={20} /><strong>Como a cobertura é calculada</strong></div>
+        <p>
+          Elegível: {maturity?.matches?.statistics_eligible_covered ?? 0} de {maturity?.matches?.statistics_eligible ?? 0}
+          {' · '}pendentes: {maturity?.matches?.statistics_eligible_missing ?? 0}
+          {' · '}indisponíveis no provedor: {maturity?.matches?.statistics_confirmed_unavailable ?? 0}
+          {' · '}bruta: {maturity?.matches?.statistics_available_recent ?? 0} de {maturity?.matches?.finished ?? 0} partidas encerradas nos últimos {maturity?.window_days ?? 14} dias.
+        </p>
+      </section>
+      <section className="insight-panel">
+        <div><Activity size={20} /><strong>Última atualização estatística</strong></div>
+        <p>{statistics.last_update ? formatDateTime(statistics.last_update) : 'Nenhuma atualização registrada.'}</p>
+      </section>
+      <CoverageBars items={[
+        ['Estatísticas pós-jogo', coverage.statistics], ['Odds', coverage.odds],
+        ['Previsões', coverage.predictions], ['Escalações', raw.lineups],
+      ]} />
+      <section className="insight-panel">
+        <div><Activity size={20} /><strong>Cobertura por competição</strong></div>
+        <p>Mercados sem amostra suficiente permanecem como projeção, com aviso explícito de evidência limitada.</p>
+      </section>
+      <DataList empty="Nenhuma competição prioritária disponível nesta janela.">
+        {(maturity?.competition_coverage || []).map((item: any) => (
+          <div className="data-row" key={item.code}>
+            <div>
+              <strong>{item.name}</strong>
+              <span>{item.finished} encerradas · {item.active} ativas</span>
+            </div>
+            <span>
+              Estatísticas {percent(item.statistics)} · Odds {percent(item.odds)}
+              {' · '}Previsões {percent(item.predictions)}
+            </span>
+          </div>
+        ))}
+      </DataList>
+    </FeaturePage>
+  )
+}
+
+function ModelsPage({ maturity, intelligence }: { maturity: any; intelligence: any }) {
+  const learning = intelligence?.learning || {}
+  const validation = learning.latest_validation
+  const metrics = validation?.metrics || {}
+  const financial = metrics.financial || {}
+  const platform = intelligence?.platform || {}
+  const platformModels = platform.models || {}
+  const backtesting = platform.backtesting || {}
+  const featureStore = platform.feature_store || {}
+  const quality = platform.quality || {}
+  const taskQueue = platform.task_queue || {}
+  const decisionControl = platform.decision_control || {}
+  return (
+    <FeaturePage title="MODELOS E APRENDIZADO" subtitle="Auditoria, validação e evolução do modelo preditivo.">
+      <div className="engine-grid">
+        <MetricCard label="Previsões auditadas" value={String(learning.audited_predictions ?? '—')} />
+        <MetricCard label="Modelos registrados" value={String(learning.registered_models ?? '—')} />
+        <MetricCard label="Datasets de treino" value={String(learning.training_datasets ?? '—')} />
+        <MetricCard label="Cobertura preditiva" value={percent(maturity?.coverage?.predictions)} />
+      </div>
+      <section className={`insight-panel ${validation?.approved ? 'success' : 'warning'}`}>
+        <div>{validation?.approved ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+          <strong>{validation ? (validation.approved ? 'Modelo aprovado no último gate' : 'Modelo ainda não aprovado') : 'Validação ainda não disponível'}</strong>
+        </div>
+        <p>{validation?.evaluated_at ? `Avaliado em ${formatDateTime(validation.evaluated_at)}` : 'O pipeline precisa acumular evidência auditada para uma validação conclusiva.'}</p>
+      </section>
+      <div className="model-metrics">
+        {Object.entries(metrics)
+          .filter(([, value]) => typeof value !== 'object')
+          .slice(0, 12).map(([key, value]) => (
+          <div key={key}><span>{humanize(key)}</span><strong>{formatMetric(value)}</strong></div>
+        ))}
+        {!Object.keys(metrics).length && <p>Nenhuma métrica de validação consolidada disponível.</p>}
+      </div>
+      <section className="insight-panel">
+        <div><TrendingUp size={20} /><strong>Desempenho financeiro auditado</strong></div>
+        <p>
+          ROI {financial.roi == null ? 'ainda sem amostra' : percent(financial.roi)}
+          {' · '}Taxa de acerto {financial.win_rate == null ? 'ainda sem amostra' : percent(financial.win_rate)}
+          {' · '}CLV médio {financial.average_clv == null ? 'aguardando odds de fechamento' : percent(financial.average_clv)}
+          {' · '}{financial.clv_samples ?? 0} amostras de fechamento.
+        </p>
+      </section>
+      <div className="engine-grid">
+        <MetricCard label="Famílias especializadas" value={String(platformModels.families?.length ?? '—')} />
+        <MetricCard label="Desafiantes em shadow" value={String(platformModels.shadow_challengers ?? '—')} />
+        <MetricCard label="Backtests temporais" value={String(backtesting.runs ?? '—')} />
+        <MetricCard label="Previsões explicadas" value={String(platform.explainability?.predictions_explained ?? '—')} />
+        <MetricCard label="Políticas calibradas" value={String(decisionControl.active_policies ?? '—')} />
+        <MetricCard label="Segmentos calibrados" value={String(decisionControl.calibrated_segments ?? '—')} />
+        <MetricCard label="Segmentos com drift" value={String(decisionControl.drifted_segments ?? '—')} />
+        <MetricCard label="Meta seletiva" value={decisionControl.target_accuracy == null ? '—' : percent(decisionControl.target_accuracy)} />
+      </div>
+      <section className="insight-panel success">
+        <div><CheckCircle2 size={20} /><strong>Plataforma científica e operacional</strong></div>
+        <p>
+          Feature store: {featureStore.snapshots ?? 0} snapshots, corte estritamente anterior ao jogo.
+          {' · '}Validação: {humanize(backtesting.method || 'não executada')}.
+          {' · '}Famílias aprovadas: {(backtesting.passed_families || []).map(humanize).join(', ') || 'aguardando amostra'}.
+        </p>
+      </section>
+      <section className={`insight-panel ${quality.critical ? 'warning' : 'success'}`}>
+        <div>{quality.critical ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />}
+          <strong>Qualidade dos dados e fila persistente</strong>
+        </div>
+        <p>
+          {quality.open_incidents ?? 0} incidentes abertos ({quality.critical ?? 0} críticos).
+          {' · '}Fila: {taskQueue.pending ?? 0} pendentes, {taskQueue.failed ?? 0} falhas e {taskQueue.completed ?? 0} concluídas.
+          {quality.by_kind && ` · ${Object.entries(quality.by_kind).map(
+            ([key, value]) => `${humanize(key)}: ${value}`
+          ).join(' · ')}`}
+        </p>
+      </section>
+      <section className={`insight-panel ${decisionControl.drifted_segments ? 'warning' : 'success'}`}>
+        <div>{decisionControl.drifted_segments ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />}
+          <strong>Calibração e cobertura seletiva</strong>
+        </div>
+        <p>
+          Políticas condicionadas por competição, mercado, faixa de odd e antecedência.
+          {' · '}O motor sinaliza incerteza sem transformar baixa evidência em falsa confiança.
+        </p>
+      </section>
+    </FeaturePage>
+  )
+}
+
+function RecommendationsPage({ recommendations, maturity, onOpenMatch }: {
+  recommendations: RecommendationDto[]; maturity: any
+  onOpenMatch: (id: number) => void
+}) {
+  const [filter, setFilter] = useState('primary')
+  const primary = recommendations.filter(item => item.is_primary_recommendation)
+  const visible = filter === 'high'
+    ? recommendations.filter(item => item.recommendation_tier === 'high_confidence')
+    : filter === 'value'
+    ? recommendations.filter(item => item.recommendation_tier === 'statistical_value')
+    : filter === 'experimental'
+    ? recommendations.filter(item => item.recommendation_tier === 'experimental')
+    : primary
+  return (
+    <FeaturePage title="RECOMENDAÇÕES" subtitle="Melhor sugestão por partida, com indicação explícita de segurança.">
+      {maturity?.freshness?.odds_stale && (
+        <section className="insight-panel warning" role="status">
+          <div><AlertTriangle size={20} /><strong>Odds atuais insuficientes</strong></div>
+          <p>
+            As probabilidades do modelo continuam disponíveis, mas recomendações de valor
+            dependem de uma cotação recente. Odds justas não devem ser confundidas com odds
+            oferecidas por uma casa de apostas.
+          </p>
+        </section>
+      )}
+      <div className="engine-grid">
+        <MetricCard label="Partidas cobertas" value={String(new Set(recommendations.map(item => item.match_id)).size)} />
+        <MetricCard label="Sugestões principais" value={String(primary.length)} />
+        <MetricCard label="Valor confirmado" value={String(recommendations.filter(item => item.actionable).length)} />
+        <MetricCard label="Projeções exibidas" value={String(recommendations.length)} />
+      </div>
+      <div className="segmented-control">
+        {[['primary', 'Melhores por partida'], ['high', 'Alta confiança'], ['value', 'Valor estatístico'], ['experimental', 'Experimental']].map(([id, label]) => (
+          <button key={id} className={filter === id ? 'active' : ''} onClick={() => setFilter(id)}>{label}</button>
+        ))}
+      </div>
+      <DataList empty="Nenhuma recomendação disponível nesta categoria.">
+        {visible.slice(0, 120).map(item => (
+          <button className="recommendation-row" key={`${item.match_id}-${item.market_id}`} onClick={() => onOpenMatch(item.match_id)}>
+            <div className="recommendation-icon"><TrendingUp size={17} /></div>
+            <div><strong>{item.match}</strong><span>{item.market} · {item.selection}</span></div>
+            <div className="recommendation-score"><strong>{Math.round((item.calibrated_probability ?? item.probability) * 100)}%</strong><RiskBadge item={item} /></div>
+          </button>
+        ))}
+      </DataList>
+    </FeaturePage>
+  )
+}
+
+function ProvidersPage({ maturity }: { maturity: any }) {
+  const providers = Object.entries(maturity?.providers || {}) as [string, any][]
+  const available = providers.filter(([, item]) => item.available).length
+  const effective = maturity?.neutrality?.effective_contributions || {}
+  const candidates = maturity?.neutrality?.candidate_contributions || {}
+  return (
+    <FeaturePage title="PROVEDORES E QUALIDADE" subtitle="Disponibilidade, latência, capacidades e atualidade de cada fonte.">
+      <div className="engine-grid">
+        <MetricCard label="Provedores monitorados" value={String(providers.length)} />
+        <MetricCard label="Disponíveis" value={String(available)} />
+        <MetricCard label="Indisponíveis" value={String(providers.length - available)} />
+        <MetricCard label="Neutralidade de identidade" value={percent(maturity?.neutrality?.multi_provider_identity_coverage)} />
+        <MetricCard label="Maior participação efetiva" value={percent(maturity?.neutrality?.largest_provider_share)} />
+      </div>
+      <div className="provider-grid">
+        {providers.map(([name, item]) => (
+          <article className="provider-card" key={name}>
+            <div>
+              <span className={`provider-dot ${item.available ? 'online' : ''}`} />
+              <strong>{humanize(name)}</strong>
+              <span className={`provider-state ${item.available ? 'online' : ''}`}>
+                {item.available ? 'Disponível' : 'Indisponível'}
+              </span>
+            </div>
+            <p>{item.latency_ms == null ? 'Latência não informada' : `${item.latency_ms} ms`} · peso base {item.base_weight ?? 1}</p>
+            <p>
+              {effective[name] ?? 0} campo(s) selecionado(s)
+              {' · '}{candidates[name] ?? 0} contribuição(ões) candidata(s)
+            </p>
+            <div className="capability-list">
+              {(item.capabilities || []).map((capability: string) => <span key={capability}>{humanize(capability)}</span>)}
+            </div>
+            <small>Último dado: {item.last_payload_at ? formatDateTime(item.last_payload_at) : 'ainda não registrado'}</small>
+            {item.quota && (
+              <small>
+                Franquia diária: {item.quota['x-ratelimit-requests-remaining'] ?? '—'} de{' '}
+                {item.quota['x-ratelimit-requests-limit'] ?? '—'} requisições restantes
+              </small>
+            )}
+          </article>
+        ))}
+        {!providers.length && <div className="data-empty">Diagnóstico dos provedores indisponível.</div>}
+      </div>
+    </FeaturePage>
+  )
+}
+
+function DataList({ children, empty }: { children: React.ReactNode; empty: string }) {
+  const isEmpty = Array.isArray(children) && children.length === 0
+  return <div className="data-list">{isEmpty ? <div className="data-empty">{empty}</div> : children}</div>
+}
+
+function RiskBadge({ item }: { item: RecommendationDto }) {
+  const label = item.recommendation_tier === 'high_confidence' ? 'Alta confiança'
+    : item.recommendation_tier === 'statistical_value' ? 'Valor estatístico'
+    : item.recommendation_tier === 'experimental' ? 'Experimental'
+    : item.actionable ? 'Valor confirmado'
+    : item.recommendation_type === 'model_pick' ? 'Melhor projeção' : 'Não recomendada'
+  return <span className={`risk-badge ${item.actionable ? 'safe' : item.no_bet ? 'blocked' : 'projection'}`}>{label}</span>
+}
+
+function CoverageBars({ items }: { items: [string, number | undefined][] }) {
+  return <div className="coverage-list">{items.map(([label, value]) => (
+    <div key={label}><div><span>{label}</span><strong>{percent(value)}</strong></div>
+      <progress max="1" value={value || 0} aria-label={`${label}: ${percent(value)}`} /></div>
+  ))}</div>
+}
+
+const percent = (value?: number) => value == null ? '—' : `${Math.round(value * 100)}%`
+const evidenceLabel = (value: string) => ({ high: 'Alta', medium: 'Média', low: 'Baixa' }[value] || value)
+const formatDateTime = (value: string) => new Date(value).toLocaleString('pt-BR')
+const humanize = (value: string) => value.replace(/_/g, ' ').replace(/^\w/, (letter: string) => letter.toUpperCase())
+const formatMetric = (value: unknown) => typeof value === 'number'
+  ? (value >= 0 && value <= 1 ? `${(value * 100).toFixed(1)}%` : value.toFixed(2))
+  : String(value)
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="metric-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}

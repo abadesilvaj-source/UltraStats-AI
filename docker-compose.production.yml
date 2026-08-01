@@ -13,7 +13,7 @@ services:
     restart: unless-stopped
 
   migrations:
-    image: ${ULTRASTATS_IMAGE:?ULTRASTATS_IMAGE is required}
+    image: ${ULTRASTATS_BACKEND_IMAGE:?ULTRASTATS_BACKEND_IMAGE is required}
     command: ["python", "-m", "alembic", "upgrade", "head"]
     env_file: ${PRODUCTION_ENV_FILE:-.env.production}
     depends_on:
@@ -23,7 +23,7 @@ services:
     restart: "no"
 
   scheduler:
-    image: ${ULTRASTATS_IMAGE:?ULTRASTATS_IMAGE is required}
+    image: ${ULTRASTATS_BACKEND_IMAGE:?ULTRASTATS_BACKEND_IMAGE is required}
     command: ["python", "-m", "scripts.run_scheduler"]
     env_file: ${PRODUCTION_ENV_FILE:-.env.production}
     depends_on:
@@ -42,31 +42,29 @@ services:
     tmpfs: [/tmp]
     restart: unless-stopped
 
-  dashboard:
-    image: ${ULTRASTATS_IMAGE:?ULTRASTATS_IMAGE is required}
-    command:
-      [
-        "python", "-m", "streamlit", "run", "dashboard/Home.py",
-        "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true"
-      ]
+  backend:
+    image: ${ULTRASTATS_BACKEND_IMAGE:?ULTRASTATS_BACKEND_IMAGE is required}
     env_file: ${PRODUCTION_ENV_FILE:-.env.production}
     depends_on:
       migrations:
         condition: service_completed_successfully
-      scheduler:
-        condition: service_healthy
-    volumes:
-      - production_logs:/app/logs
-      - production_exports:/app/exports
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8501/_stcore/health"]
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/api/v1/health"]
       interval: 15s
       timeout: 5s
       retries: 8
-      start_period: 30s
-    networks: [backend, edge]
+      start_period: 20s
+    networks: [backend]
     read_only: true
     tmpfs: [/tmp]
+    restart: unless-stopped
+
+  frontend:
+    image: ${ULTRASTATS_FRONTEND_IMAGE:?ULTRASTATS_FRONTEND_IMAGE is required}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [backend, edge]
     restart: unless-stopped
 
   caddy:
@@ -74,12 +72,12 @@ services:
     env_file: ${PRODUCTION_ENV_FILE:-.env.production}
     ports: ["80:80", "443:443"]
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./ops/deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - production_caddy_data:/data
       - production_caddy_config:/config
     depends_on:
-      dashboard:
-        condition: service_healthy
+      frontend:
+        condition: service_started
     networks: [edge]
     restart: unless-stopped
 
@@ -91,6 +89,5 @@ networks:
 volumes:
   production_postgres:
   production_logs:
-  production_exports:
   production_caddy_data:
   production_caddy_config:

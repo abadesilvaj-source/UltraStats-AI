@@ -1,5 +1,13 @@
 # Providers
 
+## API-Football Ultra
+
+A integração Ultra inclui fixtures, livescore, eventos, estatísticas,
+escalações, lesões, estatísticas de jogadores e equipes, previsões do provedor,
+odds pré-jogo e odds ao vivo. A política de frequência, franquia e backfill
+está documentada em
+[`docs/operations/api-football-ultra.md`](../operations/api-football-ultra.md).
+
 ## Operação agendada
 
 O scheduler usa `SYNC_PROVIDER=multi_provider` para consultar API-Football,
@@ -13,8 +21,8 @@ eventos/xG orientadas por partida, pois seu contrato exige um `match_id`.
 
 ### Pipeline operacional
 
-A coleta de fixtures API-Football é promovida para as tabelas consumidas pelo
-dashboard. O processo resolve competição e equipes pelos identificadores
+A coleta de fixtures é promovida para as tabelas consumidas pela API e pelo
+frontend. O processo resolve competição e equipes pelos identificadores
 externos, atualiza o ciclo de vida das partidas, garante os mercados principais,
 vincula odds disponíveis e produz previsões Poisson idempotentes.
 
@@ -65,3 +73,18 @@ degradada e validação preditiva estão em
 [`multi-provider-model-validation.md`](../architecture/multi-provider-model-validation.md).
 
 Fontes sem API pública ou licença explícita não são coletadas por scraping.
+## Integrações gratuitas complementares
+
+Os conectores são ativados somente quando suas chaves estão presentes no
+ambiente local. Não se considera uma fonte disponível apenas porque o
+endpoint público de saúde responde: a aceitação também exige coleta bruta,
+normalização, identidade e fusão.
+
+- **GOAL API:** agenda, placares, eventos, escalações, estatísticas e odds;
+  requer `GOAL_API_KEY`.
+- **Zafronix Sports APIs:** histórico de seleções e competições, estádios,
+  árbitros e clima; requer `ZAFRONIX_API_KEY`.
+
+GOAL API e Zafronix seguem o mesmo peso-base dos demais provedores. A decisão
+por campo continua sendo feita por consenso, atualidade e completude; a ordem
+da lista de provedores não concede autoridade especial sobre um campo.

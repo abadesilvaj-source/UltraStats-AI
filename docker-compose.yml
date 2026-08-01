@@ -1,187 +1,83 @@
 services:
   postgres:
     image: postgres:17
-    container_name: ultrastats_postgres
-
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ultrastats}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ultrastats123}
       POSTGRES_DB: ${POSTGRES_DB:-ultrastats_db}
-
     ports:
-      - "5432:5432"
-
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - ultrastats_postgres_data:/var/lib/postgresql/data
-
+      - ultrastats_postgres:/var/lib/postgresql/data
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-ultrastats} -d ${POSTGRES_DB:-ultrastats_db}"
-        ]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-
+      retries: 12
     restart: unless-stopped
-
 
   migrations:
-    build:
-      context: .
-      dockerfile: Dockerfile
-
-    container_name: ultrastats_migrations
-
-    command:
-      [
-        "python",
-        "-m",
-        "alembic",
-        "upgrade",
-        "head"
-      ]
-
-    environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ultrastats}:${POSTGRES_PASSWORD:-ultrastats123}@postgres:5432/${POSTGRES_DB:-ultrastats_db}
-
+    build: ./backend
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    env_file: ${APP_ENV_FILE:-.env}
     depends_on:
       postgres:
         condition: service_healthy
-
     restart: "no"
 
-
   scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile
-
-    container_name: ultrastats_scheduler
-
-    command:
-      [
-        "python",
-        "-m",
-        "scripts.run_scheduler"
-      ]
-    environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ultrastats}:${POSTGRES_PASSWORD:-ultrastats123}@postgres:5432/${POSTGRES_DB:-ultrastats_db}
-
-      SCHEDULER_INSTANCE_NAME: ${DOCKER_SCHEDULER_INSTANCE_NAME:-ultrastats-docker}
-      
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      LOG_DIRECTORY: ${LOG_DIRECTORY:-logs}
-      LOG_MAX_BYTES: ${LOG_MAX_BYTES:-5000000}
-      LOG_BACKUP_COUNT: ${LOG_BACKUP_COUNT:-5}
-      LOG_CONSOLE_ENABLED: ${LOG_CONSOLE_ENABLED:-true}
-      LOG_FILE_ENABLED: ${LOG_FILE_ENABLED:-true}
-
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-      migrations:
-        condition: service_completed_successfully
-
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-m",
-          "scripts.check_scheduler_health"
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 45s
-
-    restart: unless-stopped
-
-
-  dashboard:
-    build:
-      context: .
-      dockerfile: Dockerfile
-
-    container_name: ultrastats_dashboard
-
-    command:
-      [
-        "python",
-        "-m",
-        "streamlit",
-        "run",
-        "dashboard/Home.py",
-        "--server.address=0.0.0.0",
-        "--server.port=8501",
-        "--server.headless=true"
-      ]
-
-    environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ultrastats}:${POSTGRES_PASSWORD:-ultrastats123}@postgres:5432/${POSTGRES_DB:-ultrastats_db}
-
-      SYNC_ENABLED: "true"
-      SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-60}
-      SYNC_PROVIDER: ${SYNC_PROVIDER:-mock_provider}
-      SYNC_MAX_RUNTIME_MINUTES: ${SYNC_MAX_RUNTIME_MINUTES:-20}
-
-      SCHEDULER_HEARTBEAT_SECONDS: ${SCHEDULER_HEARTBEAT_SECONDS:-30}
-      SCHEDULER_OFFLINE_AFTER_SECONDS: ${SCHEDULER_OFFLINE_AFTER_SECONDS:-90}
-      SCHEDULER_INSTANCE_NAME: ${DOCKER_SCHEDULER_INSTANCE_NAME:-ultrastats-docker}
-
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      LOG_DIRECTORY: ${LOG_DIRECTORY:-logs}
-      LOG_MAX_BYTES: ${LOG_MAX_BYTES:-5000000}
-      LOG_BACKUP_COUNT: ${LOG_BACKUP_COUNT:-5}
-      LOG_CONSOLE_ENABLED: ${LOG_CONSOLE_ENABLED:-true}
-      LOG_FILE_ENABLED: ${LOG_FILE_ENABLED:-true}
-
-      SPORTS_API_BASE_URL: ${SPORTS_API_BASE_URL:-https://sandbox.example.invalid}
-      SPORTS_API_KEY: ${SPORTS_API_KEY:-docker-test-key}
-      SPORTS_API_TIMEOUT: ${SPORTS_API_TIMEOUT:-15}
-      SPORTS_API_MAX_RETRIES: ${SPORTS_API_MAX_RETRIES:-3}
-      SPORTS_API_RETRY_DELAY: ${SPORTS_API_RETRY_DELAY:-1}
-      SPORTS_API_SANDBOX: ${SPORTS_API_SANDBOX:-true}
-
-    ports:
-      - "${DASHBOARD_PORT:-8501}:8501"
-
+    build: ./backend
+    command: ["python", "-m", "scripts.run_scheduler"]
+    env_file: ${APP_ENV_FILE:-.env}
     volumes:
       - ultrastats_logs:/app/logs
-      - ultrastats_exports:/app/exports
-      - ultrastats_reports:/app/reports
-
     depends_on:
-      postgres:
-        condition: service_healthy
-
       migrations:
         condition: service_completed_successfully
-
-      scheduler:
-        condition: service_started
-
     healthcheck:
-      test:
-        [
-          "CMD",
-          "curl",
-          "--fail",
-          "http://localhost:8501/_stcore/health"
-        ]
+      test: ["CMD", "python", "-m", "scripts.check_scheduler_health"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
       start_period: 30s
-
     restart: unless-stopped
 
+  backend:
+    build: ./backend
+    env_file: ${APP_ENV_FILE:-.env}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-8516}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend-mobile:
+    build:
+      context: .
+      dockerfile: frontend-mobile/Dockerfile
+    ports:
+      - "${MOBILE_FRONTEND_PORT:-8517}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
-  ultrastats_postgres_data:
+  ultrastats_postgres:
   ultrastats_logs:
-  ultrastats_exports:
-  ultrastats_reports:
