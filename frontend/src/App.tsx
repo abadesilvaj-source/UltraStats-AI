@@ -30,7 +30,7 @@ function FormBadge({ result }: { result: string }) {
 }
 
 function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return <div style={{ background: '#0f1119', border: '1px solid #1e2438', borderRadius: '12px', ...style }}>{children}</div>
+  return <div style={{ background: '#22252a', border: '1px solid #444a52', borderRadius: '12px', ...style }}>{children}</div>
 }
 
 function MatchCard({ match, onClick, isFavorite, onToggleFavorite }: {
@@ -51,16 +51,16 @@ function MatchCard({ match, onClick, isFavorite, onToggleFavorite }: {
       }}
     >
     <Card style={{ cursor: 'pointer', transition: 'border-color 0.15s' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', borderBottom: '1px solid #1e2438' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', borderBottom: '1px solid #444a52' }}>
         <span style={{ fontSize: '12px', color: '#5a6480', fontFamily: "'JetBrains Mono', monospace" }}>{match.startTime}</span>
         {match.status === 'live' && <LiveBadge minute={match.minute} />}
-        {match.status === 'finished' && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: '#1e2438', color: '#5a6480' }}>Encerrado</span>}
+        {match.status === 'finished' && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: '#444a52', color: '#5a6480' }}>Encerrado</span>}
         {match.status === 'upcoming' && <span style={{ fontSize: '11px', color: '#5a6480' }}>Em breve</span>}
         <button
           aria-label={isFavorite ? 'Remover partida dos favoritos' : 'Adicionar partida aos favoritos'}
           aria-pressed={isFavorite}
           onClick={e => { e.stopPropagation(); onToggleFavorite() }}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: isFavorite ? '#fbbf24' : '#2a3150', padding: '2px' }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: isFavorite ? '#fbbf24' : '#59616b', padding: '2px' }}
         >
           <Star size={14} fill={isFavorite ? '#fbbf24' : 'none'} />
         </button>
@@ -69,14 +69,14 @@ function MatchCard({ match, onClick, isFavorite, onToggleFavorite }: {
       <div style={{ padding: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#161b26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>{match.homeTeam.logo}</div>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#2b2f35', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>{match.homeTeam.logo}</div>
             <span style={{ fontWeight: 600, fontSize: '13px', color: '#eef0f9' }}>{match.homeTeam.name}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
             {match.homeScore !== undefined
               ? <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontFamily: "'Russo One', sans-serif", fontSize: '22px', color: '#eef0f9' }}>{match.homeScore}</span>
-                <span style={{ fontFamily: "'Russo One', sans-serif", fontSize: '16px', color: '#2a3150' }}>:</span>
+                <span style={{ fontFamily: "'Russo One', sans-serif", fontSize: '16px', color: '#59616b' }}>:</span>
                 <span style={{ fontFamily: "'Russo One', sans-serif", fontSize: '22px', color: '#eef0f9' }}>{match.awayScore}</span>
               </div>
               : <span style={{ fontSize: '12px', color: '#5a6480', fontFamily: "'JetBrains Mono', monospace" }}>vs</span>
@@ -84,18 +84,18 @@ function MatchCard({ match, onClick, isFavorite, onToggleFavorite }: {
           </div>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'flex-end' }}>
             <span style={{ fontWeight: 600, fontSize: '13px', color: '#eef0f9', textAlign: 'right' }}>{match.awayTeam.name}</span>
-            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#161b26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>{match.awayTeam.logo}</div>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#2b2f35', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>{match.awayTeam.logo}</div>
           </div>
         </div>
 
         {match.markets.length > 0 && match.status !== 'finished' && (
-          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #1e2438', display: 'flex', gap: '8px' }}>
+          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #444a52', display: 'flex', gap: '8px' }}>
             {(match.markets.find(m => m.name === 'Resultado da Partida')?.options || []).slice(0, 3).map(o => (
               <button key={o.label}
                 onClick={e => { e.stopPropagation(); onClick() }}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px', borderRadius: '8px', background: '#161b26', border: '1px solid #1e2438', cursor: 'pointer', transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#00e887'; e.currentTarget.style.background = '#00e887'; Array.from(e.currentTarget.children).forEach((c: any) => c.style.color = '#07080f') }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e2438'; e.currentTarget.style.background = '#161b26'; Array.from(e.currentTarget.children).forEach((c: any, i) => c.style.color = i === 0 ? '#7a88b0' : '#eef0f9') }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px', borderRadius: '8px', background: '#2b2f35', border: '1px solid #444a52', cursor: 'pointer', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#00e887'; e.currentTarget.style.background = '#00e887'; Array.from(e.currentTarget.children).forEach((c: any) => c.style.color = '#17191c') }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#444a52'; e.currentTarget.style.background = '#2b2f35'; Array.from(e.currentTarget.children).forEach((c: any, i) => c.style.color = i === 0 ? '#7a88b0' : '#eef0f9') }}
               >
                 <span style={{ fontSize: '11px', color: '#7a88b0', marginBottom: '2px' }}>{o.label}</span>
                 <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '14px', color: '#eef0f9' }}>{o.odds.toFixed(2)}</span>
@@ -167,7 +167,7 @@ export function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }:
           { id: 'finished', label: `Encerradas (${finished.length})` },
         ].map(item => (
           <button key={item.id} onClick={() => setScope(item.id as typeof scope)}
-            style={{ flexShrink: 0, whiteSpace: 'nowrap', padding: '9px 12px', borderRadius: 8, border: `1px solid ${scope === item.id ? '#00e887' : '#1e2438'}`, background: scope === item.id ? 'rgba(0,232,135,.12)' : '#0f1119', color: scope === item.id ? '#00e887' : '#7a88b0', cursor: 'pointer', fontWeight: 700 }}>
+            style={{ flexShrink: 0, whiteSpace: 'nowrap', padding: '9px 12px', borderRadius: 8, border: `1px solid ${scope === item.id ? '#00e887' : '#444a52'}`, background: scope === item.id ? 'rgba(0,232,135,.12)' : '#22252a', color: scope === item.id ? '#00e887' : '#7a88b0', cursor: 'pointer', fontWeight: 700 }}>
             {item.label}
           </button>
         ))}
@@ -178,7 +178,7 @@ export function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }:
           aria-label="Pesquisar partidas e competições"
           aria-expanded={searchOpen}
           title="Pesquisar partidas e competições"
-          style={{ marginLeft: 'auto', flex: '0 0 42px', height: 42, display: 'grid', placeItems: 'center', borderRadius: 8, border: `1px solid ${searchOpen || normalizedSearch ? '#00e887' : '#1e2438'}`, background: searchOpen || normalizedSearch ? 'rgba(0,232,135,.12)' : '#0f1119', color: searchOpen || normalizedSearch ? '#00e887' : '#7a88b0', cursor: 'pointer' }}
+          style={{ marginLeft: 'auto', flex: '0 0 42px', height: 42, display: 'grid', placeItems: 'center', borderRadius: 8, border: `1px solid ${searchOpen || normalizedSearch ? '#00e887' : '#444a52'}`, background: searchOpen || normalizedSearch ? 'rgba(0,232,135,.12)' : '#22252a', color: searchOpen || normalizedSearch ? '#00e887' : '#7a88b0', cursor: 'pointer' }}
         >
           <Search size={17} />
         </button>
@@ -193,7 +193,7 @@ export function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }:
               onKeyDown={event => { if (event.key === 'Escape') setSearchOpen(false) }}
               placeholder="Buscar time ou competição"
               aria-label="Buscar partidas por time ou competição"
-              style={{ width: '100%', boxSizing: 'border-box', background: '#0f1119', color: '#eef0f9', border: '1px solid #00e887', borderRadius: 8, padding: '11px 38px', outline: 'none' }}
+              style={{ width: '100%', boxSizing: 'border-box', background: '#22252a', color: '#eef0f9', border: '1px solid #00e887', borderRadius: 8, padding: '11px 38px', outline: 'none' }}
             />
             {search && (
               <button type="button" onClick={() => setSearch('')} aria-label="Limpar pesquisa" title="Limpar pesquisa"
@@ -206,7 +206,7 @@ export function HomeView({ matches, onMatchClick, favorites, onToggleFavorite }:
         <label className="match-league-filter" style={{ flex: '0 0 180px', height: 42, display: 'flex', alignItems: 'center', gap: 7, color: '#7a88b0' }}>
           <Filter size={14} style={{ flexShrink: 0 }} />
           <select value={league} onChange={event => setLeague(event.target.value)}
-            style={{ width: '100%', height: 42, minWidth: 0, background: '#0f1119', color: '#eef0f9', border: '1px solid #1e2438', borderRadius: 8, padding: '0 10px' }}>
+            style={{ width: '100%', height: 42, minWidth: 0, background: '#22252a', color: '#eef0f9', border: '1px solid #444a52', borderRadius: 8, padding: '0 10px' }}>
             <option value="all">Todas as ligas</option>
             {leagues.map(item => <option key={item} value={item}>{item}</option>)}
           </select>
@@ -236,8 +236,8 @@ function LeagueGroup({ league, logo, country, group, children }: { league: strin
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', padding: '0 4px' }}>
         <span style={{ fontSize: '16px' }}>{logo}</span>
         <span style={{ fontSize: '12px', fontWeight: 600, color: '#7a88b0' }}>{league}</span>
-        <span style={{ fontSize: '11px', color: '#2a3150' }}>· {country}</span>
-        <span style={{ marginLeft: 'auto', fontSize: '9px', color: group === 'observation' ? '#f59e0b' : '#00e89d', border: '1px solid currentColor', borderRadius: 10, padding: '2px 7px' }}>
+        <span style={{ fontSize: '11px', color: '#59616b' }}>· {country}</span>
+        <span style={{ marginLeft: 'auto', fontSize: '9px', color: group === 'observation' ? '#f59e0b' : '#00e887', border: '1px solid currentColor', borderRadius: 10, padding: '2px 7px' }}>
           {group === 'national_teams' ? 'SELEÇÕES' : group === 'core' ? 'NÚCLEO' : 'OBSERVAÇÃO'}
         </span>
       </div>
@@ -292,9 +292,9 @@ export function MatchView({ match, betSlip, onAddBet, onBack, isFavorite, onTogg
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               {match.status === 'live' && <LiveBadge minute={match.minute} />}
-              {match.status === 'finished' && <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '4px', background: '#1e2438', color: '#5a6480' }}>Encerrado</span>}
+              {match.status === 'finished' && <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '4px', background: '#444a52', color: '#5a6480' }}>Encerrado</span>}
               {match.status === 'upcoming' && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '16px', color: '#4f8ef7' }}>{match.startTime}</span>}
-              <button onClick={onToggleFavorite} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isFavorite ? '#fbbf24' : '#2a3150' }}>
+              <button onClick={onToggleFavorite} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isFavorite ? '#fbbf24' : '#59616b' }}>
                 <Star size={18} fill={isFavorite ? '#fbbf24' : 'none'} />
               </button>
             </div>
@@ -302,7 +302,7 @@ export function MatchView({ match, betSlip, onAddBet, onBack, isFavorite, onTogg
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
-              <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: '#161b26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>{match.homeTeam.logo}</div>
+              <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: '#2b2f35', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>{match.homeTeam.logo}</div>
               <span style={{ fontWeight: 600, fontSize: '14px', color: '#eef0f9' }}>{match.homeTeam.name}</span>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', color: '#5a6480' }}>{match.homeLineup.formation}</span>
             </div>
@@ -310,21 +310,21 @@ export function MatchView({ match, betSlip, onAddBet, onBack, isFavorite, onTogg
               {match.homeScore !== undefined
                 ? <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontFamily: "'Russo One', sans-serif", fontSize: '40px', color: '#eef0f9' }}>{match.homeScore}</span>
-                  <span style={{ fontFamily: "'Russo One', sans-serif", fontSize: '24px', color: '#2a3150' }}>:</span>
+                  <span style={{ fontFamily: "'Russo One', sans-serif", fontSize: '24px', color: '#59616b' }}>:</span>
                   <span style={{ fontFamily: "'Russo One', sans-serif", fontSize: '40px', color: '#eef0f9' }}>{match.awayScore}</span>
                 </div>
-                : <span style={{ fontFamily: "'Russo One', sans-serif", fontSize: '24px', color: '#2a3150' }}>vs</span>
+                : <span style={{ fontFamily: "'Russo One', sans-serif", fontSize: '24px', color: '#59616b' }}>vs</span>
               }
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
-              <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: '#161b26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>{match.awayTeam.logo}</div>
+              <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: '#2b2f35', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>{match.awayTeam.logo}</div>
               <span style={{ fontWeight: 600, fontSize: '14px', color: '#eef0f9' }}>{match.awayTeam.name}</span>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', color: '#5a6480' }}>{match.awayLineup.formation}</span>
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', borderTop: '1px solid #1e2438', overflowX: 'auto' }}>
+        <div style={{ display: 'flex', borderTop: '1px solid #444a52', overflowX: 'auto' }}>
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '12px 8px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap', border: 'none', borderBottom: `2px solid ${tab === t.id ? '#00e887' : 'transparent'}`, background: tab === t.id ? 'rgba(0,232,135,0.04)' : 'transparent', color: tab === t.id ? '#00e887' : '#5a6480', cursor: 'pointer', transition: 'all 0.15s' }}
@@ -358,7 +358,7 @@ function LiveTab({ match }: { match: Match }) {
         <SectionLabel>Eventos da Partida</SectionLabel>
         {match.status === 'upcoming' ? (
           <Card style={{ padding: '40px', textAlign: 'center' }}>
-            <Clock size={32} color="#2a3150" style={{ margin: '0 auto 12px' }} />
+            <Clock size={32} color="#59616b" style={{ margin: '0 auto 12px' }} />
             <p style={{ fontSize: '13px', color: '#5a6480', margin: 0 }}>A partida ainda não começou</p>
           </Card>
         ) : match.events.length === 0 ? (
@@ -422,13 +422,13 @@ function StatsBars({ match }: { match: Match }) {
         const total = row.hv + row.av || 1
         const hPct = (row.hv / total) * 100
         return (
-          <div key={row.label} style={{ padding: '12px 16px', borderBottom: i < rows.length - 1 ? '1px solid #1e2438' : 'none' }}>
+          <div key={row.label} style={{ padding: '12px 16px', borderBottom: i < rows.length - 1 ? '1px solid #444a52' : 'none' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: 700, color: '#eef0f9' }}>{row.h}</span>
               <span style={{ fontSize: '12px', color: '#5a6480' }}>{row.label}</span>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', fontWeight: 700, color: '#eef0f9' }}>{row.a}</span>
             </div>
-            <div style={{ height: '4px', borderRadius: '2px', background: '#1e2438', display: 'flex', overflow: 'hidden' }}>
+            <div style={{ height: '4px', borderRadius: '2px', background: '#444a52', display: 'flex', overflow: 'hidden' }}>
               <div style={{ width: `${hPct}%`, background: '#4f8ef7', borderRadius: '2px' }} />
               <div style={{ flex: 1, background: '#ff7c3a' }} />
             </div>
@@ -494,9 +494,9 @@ function LineupTab({ match }: { match: Match }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', borderRadius: '10px', border: '1px solid #1e2438', overflow: 'hidden', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', borderRadius: '10px', border: '1px solid #444a52', overflow: 'hidden', marginBottom: '16px' }}>
         {(['home', 'away'] as const).map(s => (
-          <button key={s} onClick={() => setSide(s)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '13px', fontWeight: 600, background: side === s ? '#1c2235' : '#0f1119', color: side === s ? '#eef0f9' : '#5a6480', border: 'none', cursor: 'pointer', transition: 'all 0.15s' }}>
+          <button key={s} onClick={() => setSide(s)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '13px', fontWeight: 600, background: side === s ? '#343941' : '#22252a', color: side === s ? '#eef0f9' : '#5a6480', border: 'none', cursor: 'pointer', transition: 'all 0.15s' }}>
             <span>{s === 'home' ? match.homeTeam.logo : match.awayTeam.logo}</span>
             <span>{s === 'home' ? match.homeTeam.name : match.awayTeam.name}</span>
           </button>
@@ -509,14 +509,14 @@ function LineupTab({ match }: { match: Match }) {
           O sistema continuará consultando automaticamente.
         </Card>
       ) : <Card style={{ overflow: 'hidden', marginBottom: '16px' }}>
-        <div style={{ position: 'relative', paddingBottom: '58%', background: 'linear-gradient(180deg, #081408 0%, #0c200c 50%, #081408 100%)' }}>
+        <div style={{ position: 'relative', paddingBottom: '58%', background: 'linear-gradient(180deg, #25282d 0%, #30343a 50%, #25282d 100%)' }}>
           <div style={{ position: 'absolute', inset: '12px 20px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px' }} />
           <div style={{ position: 'absolute', left: '50%', top: '12px', bottom: '12px', width: '1px', background: 'rgba(255,255,255,0.06)', transform: 'translateX(-50%)' }} />
           <div style={{ position: 'absolute', left: '50%', top: '50%', width: '48px', height: '48px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.06)', transform: 'translate(-50%,-50%)' }} />
           {positioned.map((p, index) => (
             <div key={`${p.number}-${p.name}-${index}`} style={{ position: 'absolute', left: `${p.coords.x}%`, top: `${p.coords.y}%`, transform: 'translate(-50%,-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: `2px solid ${team.color}`, background: '#0f1119', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#eef0f9' }}>{p.number}</div>
-              <div style={{ padding: '1px 4px', borderRadius: '3px', background: 'rgba(7,8,15,0.9)', color: '#eef0f9', fontSize: '9px', fontWeight: 600, whiteSpace: 'nowrap', maxWidth: '56px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name.split(' ').pop()}</div>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: `2px solid ${team.color}`, background: '#22252a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', fontWeight: 700, color: '#eef0f9' }}>{p.number}</div>
+              <div style={{ padding: '1px 4px', borderRadius: '3px', background: 'rgba(23,25,28,0.92)', color: '#eef0f9', fontSize: '9px', fontWeight: 600, whiteSpace: 'nowrap', maxWidth: '56px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name.split(' ').pop()}</div>
             </div>
           ))}
         </div>
@@ -571,7 +571,7 @@ function StatsTab({ match }: { match: Match }) {
   if (!match.statsAvailable || groups.length === 0) {
     return (
       <Card style={{ padding: 40, textAlign: 'center' }}>
-        <BarChart3 size={30} color="#2a3150" style={{ margin: '0 auto 12px' }} />
+        <BarChart3 size={30} color="#59616b" style={{ margin: '0 auto 12px' }} />
         <div style={{ color: '#eef0f9', fontWeight: 700, marginBottom: 5 }}>Dados da partida não disponíveis</div>
         <div style={{ color: '#5a6480', fontSize: 12 }}>
           O sistema continuará consultando os provedores e atualizará o modelo quando as estatísticas forem recebidas.
@@ -609,10 +609,10 @@ function StatsTab({ match }: { match: Match }) {
               <strong style={{ fontFamily: "'JetBrains Mono', monospace", color: '#eef0f9', fontSize: 14, textAlign: 'right' }}>{away}{item.suffix}</strong>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={{ height: 6, borderRadius: 4, background: '#1e2438', overflow: 'hidden', display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ height: 6, borderRadius: 4, background: '#444a52', overflow: 'hidden', display: 'flex', justifyContent: 'flex-end' }}>
                 <div style={{ width: `${homeWidth}%`, background: '#4f8ef7', borderRadius: 4 }} />
               </div>
-              <div style={{ height: 6, borderRadius: 4, background: '#1e2438', overflow: 'hidden' }}>
+              <div style={{ height: 6, borderRadius: 4, background: '#444a52', overflow: 'hidden' }}>
                 <div style={{ width: `${awayWidth}%`, background: '#ff7c3a', borderRadius: 4 }} />
               </div>
             </div>
@@ -636,7 +636,7 @@ function MarketsTab({ match, betSlip, onAddBet }: {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {match.markets.map(market => (
         <Card key={market.id} style={{ overflow: 'hidden' }}>
-          <div style={{ padding: '10px 16px', borderBottom: '1px solid #1e2438' }}>
+          <div style={{ padding: '10px 16px', borderBottom: '1px solid #444a52' }}>
             <span style={{ fontSize: '12px', fontWeight: 600, color: '#7a88b0' }}>{market.name}</span>
           </div>
           <div style={{ padding: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -644,12 +644,12 @@ function MarketsTab({ match, betSlip, onAddBet }: {
               const sel = isSel(market, opt)
               return (
                 <button key={opt.id} onClick={() => onAddBet(market.name, opt.label, opt.odds)}
-                  style={{ flex: '1', minWidth: '80px', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 8px', borderRadius: '8px', background: sel ? '#00e887' : '#161b26', border: `1px solid ${sel ? '#00e887' : '#1e2438'}`, cursor: 'pointer', transition: 'all 0.15s' }}
+                  style={{ flex: '1', minWidth: '80px', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 8px', borderRadius: '8px', background: sel ? '#00e887' : '#2b2f35', border: `1px solid ${sel ? '#00e887' : '#444a52'}`, cursor: 'pointer', transition: 'all 0.15s' }}
                   onMouseEnter={e => { if (!sel) { e.currentTarget.style.borderColor = '#00e887'; e.currentTarget.style.background = 'rgba(0,232,135,0.08)' } }}
-                  onMouseLeave={e => { if (!sel) { e.currentTarget.style.borderColor = '#1e2438'; e.currentTarget.style.background = '#161b26' } }}
+                  onMouseLeave={e => { if (!sel) { e.currentTarget.style.borderColor = '#444a52'; e.currentTarget.style.background = '#2b2f35' } }}
                 >
-                  <span style={{ fontSize: '11px', color: sel ? '#07080f' : '#7a88b0', marginBottom: '4px', fontWeight: 500 }}>{opt.label}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '16px', color: sel ? '#07080f' : '#eef0f9' }}>{opt.odds.toFixed(2)}</span>
+                  <span style={{ fontSize: '11px', color: sel ? '#17191c' : '#7a88b0', marginBottom: '4px', fontWeight: 500 }}>{opt.label}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '16px', color: sel ? '#17191c' : '#eef0f9' }}>{opt.odds.toFixed(2)}</span>
                 </button>
               )
             })}
@@ -734,10 +734,10 @@ function AnalysisTab({ match, onAddBet }: { match: Match; onAddBet: (market: str
                 </div>
               </button>
               {expanded && recent.length > 0 && (
-                <div style={{ borderTop: '1px solid #1e2438' }}>
+                <div style={{ borderTop: '1px solid #444a52' }}>
                   {recent.map(game => (
                     <a key={game.id} href={`/matches/${game.id}?tab=stats`}
-                      style={{ display: 'block', padding: '10px 14px', borderBottom: '1px solid #161b26', color: 'inherit', textDecoration: 'none' }}>
+                      style={{ display: 'block', padding: '10px 14px', borderBottom: '1px solid #2b2f35', color: 'inherit', textDecoration: 'none' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
                         <FormBadge result={game.result || 'E'} />
                         <span style={{ flex: 1, color: '#7a88b0' }}>{game.homeTeam} <strong style={{ color: '#eef0f9' }}>{game.homeScore}–{game.awayScore}</strong> {game.awayTeam}</span>
@@ -804,7 +804,7 @@ function AnalysisTab({ match, onAddBet }: { match: Match; onAddBet: (market: str
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 12 }}>
             {categories.map(category => (
               <button key={category} onClick={() => setSelectedCategory(category)}
-                style={{ padding: '8px 11px', borderRadius: 8, border: `1px solid ${selectedCategory === category ? '#00e887' : '#1e2438'}`, background: selectedCategory === category ? 'rgba(0,232,135,.1)' : '#0f1119', color: selectedCategory === category ? '#00e887' : '#7a88b0', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                style={{ padding: '8px 11px', borderRadius: 8, border: `1px solid ${selectedCategory === category ? '#00e887' : '#444a52'}`, background: selectedCategory === category ? 'rgba(0,232,135,.1)' : '#22252a', color: selectedCategory === category ? '#00e887' : '#7a88b0', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                 {categoryLabels[category] || category} ({grouped[category].length})
               </button>
             ))}
@@ -883,7 +883,7 @@ function H2HTab({ match }: { match: Match }) {
                 <div style={{ flex: 1, textAlign: 'right' }}>
                   <span style={{ fontWeight: 600, fontSize: '13px', color: homeDiff > 0 ? '#00c853' : '#eef0f9' }}>{h.homeTeam}</span>
                 </div>
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '14px', padding: '4px 12px', borderRadius: '6px', background: '#1e2438', color: '#eef0f9', flexShrink: 0 }}>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '14px', padding: '4px 12px', borderRadius: '6px', background: '#444a52', color: '#eef0f9', flexShrink: 0 }}>
                   {h.homeScore} — {h.awayScore}
                 </div>
                 <div style={{ flex: 1 }}>
@@ -943,8 +943,8 @@ export function BetSlipDrawer({ selections, onRemove, onOddsChange, onClose, tot
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', justifyContent: 'flex-end' }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)' }} />
-      <div className="animate-slide-right" style={{ position: 'relative', width: '100%', maxWidth: '380px', background: '#0f1119', borderLeft: '1px solid #1e2438', display: 'flex', flexDirection: 'column', maxHeight: '100vh' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #1e2438' }}>
+      <div className="animate-slide-right" style={{ position: 'relative', width: '100%', maxWidth: '380px', background: '#22252a', borderLeft: '1px solid #444a52', display: 'flex', flexDirection: 'column', maxHeight: '100vh' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #444a52' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Target size={18} color="#00e887" />
             <span style={{ fontWeight: 600, fontSize: '15px', color: '#eef0f9' }}>Bilhete de Apostas</span>
@@ -957,12 +957,12 @@ export function BetSlipDrawer({ selections, onRemove, onOddsChange, onClose, tot
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {selections.length === 0 ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 0', color: '#5a6480', textAlign: 'center' }}>
-              <Target size={40} color="#2a3150" style={{ marginBottom: '12px' }} />
+              <Target size={40} color="#59616b" style={{ marginBottom: '12px' }} />
               <p style={{ fontSize: '13px', margin: 0 }}>Nenhuma seleção</p>
-              <p style={{ fontSize: '12px', marginTop: '4px', color: '#2a3150' }}>Clique em uma odd para adicionar</p>
+              <p style={{ fontSize: '12px', marginTop: '4px', color: '#59616b' }}>Clique em uma odd para adicionar</p>
             </div>
           ) : selections.map(sel => (
-            <div key={sel.id} style={{ background: '#161b26', border: '1px solid #1e2438', borderRadius: '10px', padding: '12px' }}>
+            <div key={sel.id} style={{ background: '#2b2f35', border: '1px solid #444a52', borderRadius: '10px', padding: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '11px', color: '#5a6480', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sel.matchName}</div>
@@ -988,7 +988,7 @@ export function BetSlipDrawer({ selections, onRemove, onOddsChange, onClose, tot
                     onKeyDown={event => {
                       if (event.key === 'Enter') event.currentTarget.blur()
                     }}
-                    style={{ width: '82px', background: '#0f1119', border: '1px solid #2a3150', borderRadius: '6px', padding: '6px 8px', textAlign: 'right', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '16px', color: '#00e887', outline: 'none' }}
+                    style={{ width: '82px', background: '#22252a', border: '1px solid #59616b', borderRadius: '6px', padding: '6px 8px', textAlign: 'right', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '16px', color: '#00e887', outline: 'none' }}
                     onFocus={event => event.currentTarget.select()}
                   />
                   <span style={{ fontSize: '10px', color: '#5a6480' }}>
@@ -1004,7 +1004,7 @@ export function BetSlipDrawer({ selections, onRemove, onOddsChange, onClose, tot
         </div>
 
         {selections.length > 0 && (
-          <div style={{ borderTop: '1px solid #1e2438', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ borderTop: '1px solid #444a52', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', color: '#7a88b0' }}>Odds combinadas</span>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '22px', color: '#00e887' }}>{totalOdds.toFixed(2)}x</span>
@@ -1013,15 +1013,15 @@ export function BetSlipDrawer({ selections, onRemove, onOddsChange, onClose, tot
             <div>
               <label style={{ fontSize: '12px', color: '#5a6480', display: 'block', marginBottom: '8px' }}>Valor da aposta (R$)</label>
               <input type="number" value={stake} onChange={e => setStake(e.target.value)}
-                style={{ width: '100%', background: '#161b26', border: '1px solid #1e2438', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: '#eef0f9', outline: 'none', boxSizing: 'border-box' }}
-                onFocus={e => e.target.style.borderColor = '#00e887'} onBlur={e => e.target.style.borderColor = '#1e2438'}
+                style={{ width: '100%', background: '#2b2f35', border: '1px solid #444a52', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: '#eef0f9', outline: 'none', boxSizing: 'border-box' }}
+                onFocus={e => e.target.style.borderColor = '#00e887'} onBlur={e => e.target.style.borderColor = '#444a52'}
               />
               <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
                 {[10, 25, 50, 100].map(q => (
                   <button key={q} onClick={() => setStake(String(q))}
-                    style={{ flex: 1, padding: '6px', borderRadius: '6px', background: '#161b26', border: '1px solid #1e2438', color: '#7a88b0', fontSize: '12px', cursor: 'pointer' }}
+                    style={{ flex: 1, padding: '6px', borderRadius: '6px', background: '#2b2f35', border: '1px solid #444a52', color: '#7a88b0', fontSize: '12px', cursor: 'pointer' }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = '#00e887'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = '#1e2438'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = '#444a52'}
                   >
                     {q}
                   </button>
@@ -1029,7 +1029,7 @@ export function BetSlipDrawer({ selections, onRemove, onOddsChange, onClose, tot
               </div>
             </div>
 
-            <div style={{ background: '#161b26', borderRadius: '8px', padding: '12px' }}>
+            <div style={{ background: '#2b2f35', borderRadius: '8px', padding: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                 <span style={{ fontSize: '12px', color: '#5a6480' }}>Retorno potencial</span>
                 <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '16px', color: '#00e887' }}>R$ {potential}</span>
@@ -1040,12 +1040,12 @@ export function BetSlipDrawer({ selections, onRemove, onOddsChange, onClose, tot
               </div>
             </div>
 
-            <div style={{ background: '#161b26', border: '1px solid #1e2438', borderRadius: '8px', padding: '12px' }}>
+            <div style={{ background: '#2b2f35', border: '1px solid #444a52', borderRadius: '8px', padding: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <span style={{ fontSize: '12px', color: '#5a6480' }}>Análise de Risco</span>
                 <span style={{ fontSize: '12px', fontWeight: 600, color: riskColor }}>{risk}</span>
               </div>
-              <div style={{ height: '4px', borderRadius: '2px', background: '#1e2438', marginBottom: '8px' }}>
+              <div style={{ height: '4px', borderRadius: '2px', background: '#444a52', marginBottom: '8px' }}>
                 <div style={{ width: `${riskPct}%`, height: '100%', background: riskColor, borderRadius: '2px', transition: 'all 0.3s' }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#5a6480' }}>
@@ -1056,7 +1056,7 @@ export function BetSlipDrawer({ selections, onRemove, onOddsChange, onClose, tot
 
             <button onClick={() => { if (stakeNum > 0) onPlace(stakeNum) }}
               disabled={stakeNum <= 0}
-              style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#00e887', color: '#07080f', fontWeight: 700, fontSize: '14px', border: 'none', cursor: stakeNum > 0 ? 'pointer' : 'not-allowed', opacity: stakeNum > 0 ? 1 : 0.5, transition: 'all 0.15s' }}
+              style={{ width: '100%', padding: '14px', borderRadius: '10px', background: '#00e887', color: '#17191c', fontWeight: 700, fontSize: '14px', border: 'none', cursor: stakeNum > 0 ? 'pointer' : 'not-allowed', opacity: stakeNum > 0 ? 1 : 0.5, transition: 'all 0.15s' }}
               onMouseEnter={e => { if (stakeNum > 0) e.currentTarget.style.transform = 'scale(1.02)' }}
               onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
             >
@@ -1135,15 +1135,15 @@ export function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCr
 
       {bankrollId && (
         <Card style={{ padding: '14px', marginBottom: '16px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button onClick={() => setMovement('deposit')} style={{ padding: '10px 16px', borderRadius: 8, background: '#00e887', color: '#07080f', border: 0, fontWeight: 700, cursor: 'pointer' }}>
+          <button onClick={() => setMovement('deposit')} style={{ padding: '10px 16px', borderRadius: 8, background: '#00e887', color: '#17191c', border: 0, fontWeight: 700, cursor: 'pointer' }}>
             + Depósito
           </button>
-          <button onClick={() => setMovement('withdraw')} style={{ padding: '10px 16px', borderRadius: 8, background: '#1e2438', color: '#eef0f9', border: '1px solid #2a3150', fontWeight: 700, cursor: 'pointer' }}>
+          <button onClick={() => setMovement('withdraw')} style={{ padding: '10px 16px', borderRadius: 8, background: '#444a52', color: '#eef0f9', border: '1px solid #59616b', fontWeight: 700, cursor: 'pointer' }}>
             − Saque
           </button>
           {movement && <>
             <input autoFocus type="number" min="0.01" step="0.01" placeholder="Valor em R$" value={movementAmount} onChange={event => setMovementAmount(event.target.value)}
-              style={{ width: 150, background: '#161b26', border: '1px solid #2a3150', borderRadius: 7, padding: 10, color: '#eef0f9' }} />
+              style={{ width: 150, background: '#2b2f35', border: '1px solid #59616b', borderRadius: 7, padding: 10, color: '#eef0f9' }} />
             <button onClick={async () => {
               const amount = Number(movementAmount)
               if (!amount || amount <= 0) return onError('Informe um valor maior que zero.')
@@ -1170,7 +1170,7 @@ export function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCr
           ['week', 'Semanal'], ['month', 'Mensal'], ['year', 'Anual'], ['all', 'Todo período'],
         ] as const).map(([value, label]) => (
           <button key={value} onClick={() => setPeriod(value)}
-            style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #1e2438', background: period === value ? '#1e2438' : 'transparent', color: period === value ? '#00e887' : '#7a88b0', cursor: 'pointer', fontSize: 12 }}>
+            style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #444a52', background: period === value ? '#444a52' : 'transparent', color: period === value ? '#00e887' : '#7a88b0', cursor: 'pointer', fontSize: 12 }}>
             {label}
           </button>
         ))}
@@ -1188,17 +1188,17 @@ export function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCr
             <label style={{ fontSize: '11px', color: '#7a88b0' }}>
               Nome
               <input value={name} onChange={event => setName(event.target.value)}
-                style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, background: '#161b26', border: '1px solid #1e2438', borderRadius: 7, padding: 10, color: '#eef0f9' }} />
+                style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, background: '#2b2f35', border: '1px solid #444a52', borderRadius: 7, padding: 10, color: '#eef0f9' }} />
             </label>
             <label style={{ fontSize: '11px', color: '#7a88b0' }}>
               Saldo inicial (R$)
               <input type="number" min="0.01" step="0.01" value={initialBalance} onChange={event => setInitialBalance(event.target.value)}
-                style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, background: '#161b26', border: '1px solid #1e2438', borderRadius: 7, padding: 10, color: '#eef0f9' }} />
+                style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, background: '#2b2f35', border: '1px solid #444a52', borderRadius: 7, padding: 10, color: '#eef0f9' }} />
             </label>
             <label style={{ fontSize: '11px', color: '#7a88b0' }}>
               Valor da unidade (%)
               <input type="number" min="0.1" max="100" step="0.1" value={unitPercentage} onChange={event => setUnitPercentage(event.target.value)}
-                style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, background: '#161b26', border: '1px solid #1e2438', borderRadius: 7, padding: 10, color: '#eef0f9' }} />
+                style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, background: '#2b2f35', border: '1px solid #444a52', borderRadius: 7, padding: 10, color: '#eef0f9' }} />
             </label>
           </div>
           <button disabled={creating} onClick={async () => {
@@ -1216,7 +1216,7 @@ export function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCr
             } finally {
               setCreating(false)
             }
-          }} style={{ marginTop: 14, padding: '11px 18px', borderRadius: 8, background: '#00e887', color: '#07080f', border: 0, fontWeight: 700, cursor: creating ? 'wait' : 'pointer' }}>
+          }} style={{ marginTop: 14, padding: '11px 18px', borderRadius: 8, background: '#00e887', color: '#17191c', border: 0, fontWeight: 700, cursor: creating ? 'wait' : 'pointer' }}>
             {creating ? 'Criando…' : 'Criar e ativar banca'}
           </button>
         </Card>
@@ -1251,7 +1251,7 @@ export function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCr
           const cfg = stCfg[bet.status] ?? unknownStatus
           return (
             <Card key={bet.id} style={{ overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid #1e2438' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid #444a52' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ color: cfg.color }}>{cfg.icon}</span>
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: cfg.bg, color: cfg.color, fontWeight: 600 }}>{cfg.label}</span>
@@ -1261,12 +1261,12 @@ export function BankrollView({ bets, setBets, bankroll, bankrollId, onBankrollCr
               </div>
               <div style={{ padding: '12px 16px' }}>
                 {bet.selections.map(sel => (
-                  <div key={sel.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderBottom: '1px solid #1e2438', fontSize: '12px' }}>
+                  <div key={sel.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderBottom: '1px solid #444a52', fontSize: '12px' }}>
                     <div style={{ color: '#5a6480' }}>
                       <span>{sel.matchName}</span>
-                      <span style={{ margin: '0 6px', color: '#2a3150' }}>·</span>
+                      <span style={{ margin: '0 6px', color: '#59616b' }}>·</span>
                       <span style={{ color: '#7a88b0' }}>{sel.market}</span>
-                      <span style={{ margin: '0 6px', color: '#2a3150' }}>·</span>
+                      <span style={{ margin: '0 6px', color: '#59616b' }}>·</span>
                       <span style={{ color: '#eef0f9', fontWeight: 600 }}>{sel.option}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
@@ -1336,7 +1336,7 @@ export function BetsView({ bets, setBets, onError, onSettled }: {
           ['canceled', 'Canceladas'],
         ] as const).map(([value, label]) => (
           <button key={value} onClick={() => setStatus(value)}
-            style={{ padding: '8px 12px', borderRadius: 7, border: `1px solid ${status === value ? '#00e887' : '#1e2438'}`, background: status === value ? 'rgba(0,232,135,.1)' : '#0f1119', color: status === value ? '#00e887' : '#7a88b0', cursor: 'pointer' }}>
+            style={{ padding: '8px 12px', borderRadius: 7, border: `1px solid ${status === value ? '#00e887' : '#444a52'}`, background: status === value ? 'rgba(0,232,135,.1)' : '#22252a', color: status === value ? '#00e887' : '#7a88b0', cursor: 'pointer' }}>
             {label} ({value === 'all' ? bets.length : bets.filter(item => item.status === value).length})
           </button>
         ))}
@@ -1351,7 +1351,7 @@ export function BetsView({ bets, setBets, onError, onSettled }: {
           const cfg = labels[bet.status]
           return (
             <Card key={bet.id} style={{ overflow: 'hidden' }}>
-              <div style={{ padding: '11px 16px', borderBottom: '1px solid #1e2438', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ padding: '11px 16px', borderBottom: '1px solid #444a52', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                   <span style={{ color: cfg.color, fontWeight: 700 }}>{cfg.label}</span>
                   <span style={{ color: '#5a6480', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{bet.date}</span>
@@ -1367,7 +1367,7 @@ export function BetsView({ bets, setBets, onError, onSettled }: {
               </div>
               <div style={{ padding: '8px 16px 14px' }}>
                 {bet.selections.map(selection => (
-                  <div key={selection.id} style={{ padding: '10px 0', borderBottom: '1px solid #1e2438', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div key={selection.id} style={{ padding: '10px 0', borderBottom: '1px solid #444a52', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                     <div style={{ minWidth: 0 }}>
                       <strong style={{ display: 'block', color: '#eef0f9', fontSize: 13 }}>{selection.matchName}</strong>
                       <span style={{ color: '#7a88b0', fontSize: 12 }}>{selection.market} · {selection.option}</span>
@@ -1407,9 +1407,9 @@ export function FavoritesView({ matches, favorites, onMatchClick, onToggleFavori
       </div>
       {favMatches.length === 0 ? (
         <Card style={{ padding: '48px', textAlign: 'center' }}>
-          <Star size={40} color="#2a3150" style={{ margin: '0 auto 12px' }} />
+          <Star size={40} color="#59616b" style={{ margin: '0 auto 12px' }} />
           <p style={{ fontSize: '13px', color: '#5a6480', margin: 0 }}>Nenhum favorito ainda</p>
-          <p style={{ fontSize: '12px', marginTop: '4px', color: '#2a3150' }}>Clique na estrela em qualquer partida para favoritar</p>
+          <p style={{ fontSize: '12px', marginTop: '4px', color: '#59616b' }}>Clique na estrela em qualquer partida para favoritar</p>
         </Card>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

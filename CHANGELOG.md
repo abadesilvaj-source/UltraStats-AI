@@ -11,6 +11,30 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- G33: camada temporal de importância dos jogadores, com rating relativo à
+  posição, minutos, forma, produção ofensiva/defensiva, escalação confirmada ou
+  provável, desfalques ponderados e snapshots auditáveis;
+- integração conservadora dos jogadores ao xG, confiança, evidência e
+  explicações, com cobertura mínima, teto configurável e fallback integral ao
+  modelo coletivo anterior;
+- automação da materialização de atributos individuais no ciclo de
+  inteligência já existente, sem novo worker concorrente;
+
+- roadmap vigente G27–G32 para estabilização, cobertura, MLOps, recomendação,
+  piloto local multiusuário e futura prontidão de hospedagem;
+- subetapa G27.1 e runbook de manutenção segura do armazenamento Docker, com
+  backup, checksum, restore testado, alertas e proibição de remover volumes;
+- modo operacional de provedor único, mantendo API-Football para novas coletas
+  e preservando todo o histórico das demais fontes;
+- rotação de odds que mantém o dia atual em todos os ciclos e percorre os 14
+  dias futuros sem rajadas, além de alinhar o denominador elegível à janela;
+- regressão logística temporal para 1X2, over/under 2,5 e BTTS, com split
+  cronológico 70/15/15, calibração holdout e gate contra baseline;
+- forecasts champion/challenger reais combinando Poisson, Elo e ML;
+- marcação de closing odds e fallback legado controlado da API-Football;
+- invalidação do ML quando placares, features ou alvos são corrigidos;
+- teste temporal dedicado e regressão integral com 2.729 testes aprovados.
+
 - pipeline operacional ponta a ponta para promover fixtures API-Football em
   competições, equipes e partidas; criar mercados; vincular odds reais; e
   registrar previsões Poisson idempotentes com nível de evidência explícito;
@@ -360,6 +384,10 @@ acompanhar a evolução oficial do roadmap.
 
 ### Changed
 
+- deployments sem ensemble probabilístico deixam de ser apresentados como
+  ensembles ativos;
+- treino temporal usa até 5.000 observações recentes para limitar custo;
+- documentação declara operação local e hospedagem pausada;
 - centralizada a configuração do pytest no arquivo `pyproject.toml`;
 - migradas as configurações `testpaths`, `pythonpath`, `python_files` e `python_functions`;
 - adotada a pasta `src` como raiz de importação do pacote `ultrastats_ai`;
@@ -529,3 +557,13 @@ Até a primeira versão oficial, as alterações permanecerão registradas em:
 ```text
 [Unreleased]
 ```
+# 2026-08-02
+
+- Adicionado ciclo automático de paper trading com banca sintética separada.
+- Adicionadas liquidação automática, captura de closing odds e cálculo de CLV.
+- Adicionado aprendizado automático com gates temporais, amostra mínima e
+  comparação estatística contra baseline.
+- Adicionados lotes rotativos de previsões e backoff para HTTP 429.
+- Adicionada retenção segura, desabilitada por padrão e condicionada a backup
+  recente verificado.
+- Adicionados endpoint, migração, testes e documentação do novo fluxo.

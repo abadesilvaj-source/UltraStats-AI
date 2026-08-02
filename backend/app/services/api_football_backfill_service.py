@@ -8,9 +8,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.competition_catalog import (
+    competition_is_modeled,
     competition_policy,
     competition_priority,
 )
+from app.models import Competition
 from app.services.match_fusion_service import MatchFusionService
 from app.services.operational_pipeline_service import OperationalPipelineService
 from ultrastats_ai.infrastructure.database.models import RawProviderPayloadRecord
@@ -78,9 +80,15 @@ class ApiFootballBackfillService:
                     str(league.get("name") or ""),
                     str(country.get("name") or ""),
                 )
-                if policy is None:
-                    continue
                 league_id = int(league.get("id") or 0)
+                competition = self.session.scalar(
+                    select(Competition).where(
+                        Competition.source == "api_football",
+                        Competition.external_id == str(league_id),
+                    )
+                ) if league_id else None
+                if policy is None and not competition_is_modeled(competition):
+                    continue
                 seasons = sorted(
                     {
                         int(item.get("year"))
@@ -98,7 +106,7 @@ class ApiFootballBackfillService:
                 )[:seasons_per_league]
                 targets.extend(
                     (
-                        competition_priority(policy),
+                        competition_priority(policy) if policy else 40,
                         league_id,
                         season,
                         str(league.get("name") or league_id),

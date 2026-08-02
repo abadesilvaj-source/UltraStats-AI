@@ -1,5 +1,8 @@
 # Produção
 
+> PAUSADO — documento de referência. Nenhuma publicação deve ser executada sem
+> nova autorização explícita e conclusão do G32.
+
 ## Implantação
 
 1. Copiar `.env.production.example` para `.env.production`.

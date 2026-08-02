@@ -173,6 +173,12 @@ def recommendations(
     )
 
 
+@app.get("/api/v1/paper-trading")
+def paper_trading(request: Request):
+    """Painel auditável da simulação automática; não expõe banca real."""
+    return queries(request).paper_trading()
+
+
 @app.get("/api/v1/bankrolls")
 def bankrolls(request: Request):
     user = current_user(request)

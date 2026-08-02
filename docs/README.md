@@ -1,5 +1,12 @@
 # Documentação do UltraStats AI
 
+> Índice vigente em 2 de agosto de 2026. Para planejamento, consulte primeiro
+> [`development/next-steps-roadmap.md`](development/next-steps-roadmap.md). O
+> arquivo `development/roadmap.md` preserva o histórico detalhado G1–G26.
+
+Manutenção segura do disco Docker:
+[`operations/docker-storage-maintenance.md`](operations/docker-storage-maintenance.md).
+
 Este diretório concentra a documentação técnica, arquitetural, operacional e de
 desenvolvimento do UltraStats AI.
 
@@ -656,7 +663,7 @@ Exemplo:
 Exemplo dentro de uma subpasta:
 
 ```markdown
-[Modelo Canônico](../architecture/canonical-domain-model.md)
+[Modelo Canônico](architecture/canonical-domain-model.md)
 ```
 
 Não deverão ser utilizados caminhos absolutos do computador local.
@@ -735,6 +742,7 @@ Geography, Competition, People e Team.
 | Team | `architecture/team-domain.md` |
 | Match | `architecture/match-domain.md` |
 | Roadmap | `development/roadmap.md` |
+| Próximas etapas G27–G32 | `development/next-steps-roadmap.md` |
 
 ---
 
@@ -753,3 +761,4 @@ A documentação deverá evoluir juntamente com o projeto.
 
 Uma funcionalidade não deverá ser considerada completamente concluída quando
 existirem alterações obrigatórias de documentação ainda pendentes.
+- [Paper trading e aprendizado automático](architecture/automatic-paper-learning.md)

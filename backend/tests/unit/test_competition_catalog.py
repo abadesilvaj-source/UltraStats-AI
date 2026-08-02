@@ -7,6 +7,8 @@ from app.core.competition_catalog import (
 def test_requested_club_competitions_are_operational():
     cases = {
         "Brasileirão Série B": "BSB",
+        "Copa Do Brasil": "CDB",
+        "Brazil Cup": "CDB",
         "CONMEBOL Libertadores": "LIB",
         "Copa Sudamericana": "SUD",
     }

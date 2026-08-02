@@ -18,7 +18,10 @@ from app.models import (
     Odd,
     Prediction,
 )
-from app.core.competition_catalog import competition_policy
+from app.core.competition_catalog import (
+    competition_is_modeled,
+    competition_policy,
+)
 from app.utils.odds_matching import best_matching_odd, canonical_selection
 from app.services.intelligence_platform_service import (
     IntelligencePlatformService,
@@ -126,9 +129,7 @@ class OperationalIntelligenceService:
         ).all()
         audits = [
             audit for audit, competition in audit_rows
-            if competition_policy(
-                competition.name, competition.country
-            ) is not None
+            if competition_is_modeled(competition)
         ]
         checksum = sha256(
             "|".join(
@@ -343,7 +344,7 @@ class OperationalIntelligenceService:
                 )
                 if competition else None
             )
-            if policy is None:
+            if policy is None and not competition_is_modeled(competition):
                 continue
             predictions = self.session.scalars(
                 select(Prediction)
@@ -428,7 +429,8 @@ class OperationalIntelligenceService:
                     if competition_market_approved
                     else (
                         f"{market_family(market.code)}-ensemble-v2"
-                        if market_approved
+                        if market_approved and market_family(market.code)
+                        in IntelligencePlatformService.ensemble_members
                         else self.model_version
                     )
                 )
@@ -718,7 +720,7 @@ class OperationalIntelligenceService:
         odds_signal: dict[str, object],
     ) -> dict[str, float]:
         weights = dict(IntelligencePlatformService.ensemble_members.get(
-            family, IntelligencePlatformService.ensemble_members["other"]
+            family, {"baseline": 1.0}
         ))
         if odds_signal.get("bookmakers", 0) >= 3 and "market" in weights:
             weights["market"] += .10
@@ -915,16 +917,15 @@ class OperationalIntelligenceService:
             select(
                 Prediction.id,
                 Prediction.market_id,
-                Competition.name,
-                Competition.country,
+                Competition,
             )
             .join(Match, Match.id == Prediction.match_id)
             .join(Competition, Competition.id == Match.competition_id)
             .where(Prediction.id.in_(prediction_ids or [-1]))
         ).all()
         lookup = {
-            prediction_id: (market_id, name, country)
-            for prediction_id, market_id, name, country in rows
+            prediction_id: (market_id, competition)
+            for prediction_id, market_id, competition in rows
         }
         market_names = {
             item.id: item.code
@@ -935,11 +936,20 @@ class OperationalIntelligenceService:
             item = lookup.get(audit.prediction_id)
             if item is None:
                 continue
-            market_id, name, country = item
-            policy = competition_policy(name, country)
-            if policy is None:
+            market_id, competition = item
+            policy = competition_policy(
+                competition.name, competition.country
+            )
+            if policy is None and not competition_is_modeled(competition):
                 continue
-            key = f"{policy.code}:{market_names.get(market_id, market_id)}"
+            competition_code = (
+                policy.code if policy is not None
+                else f"AUTO-{competition.id}"
+            )
+            key = (
+                f"{competition_code}:"
+                f"{market_names.get(market_id, market_id)}"
+            )
             grouped.setdefault(key, []).append(audit)
         return {
             key: {

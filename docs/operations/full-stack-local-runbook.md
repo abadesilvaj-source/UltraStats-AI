@@ -1,5 +1,7 @@
 # Operação local full-stack
 
+> Modo vigente: exclusivamente local. Não há implantação externa autorizada.
+
 ## Inicialização
 
 ```powershell
@@ -12,6 +14,7 @@ docker compose -p ultrastats-g16 `
 | Serviço | URL |
 |---|---|
 | Frontend React | http://localhost:8516 |
+| Frontend mobile | http://localhost:8517 |
 | Backend FastAPI | http://localhost:8000 |
 | Swagger | http://localhost:8000/docs |
 
@@ -48,3 +51,22 @@ para auditoria e reprocessamento.
 
 Verifique `/api/v1/health`, `/api/v1/maturity/status` e a execução
 `multi_provider_live` para diagnosticar atualização ao vivo.
+
+## Limites e operação segura
+
+- odds possuem ciclo dedicado de 15 minutos no ambiente atual;
+- não execute dois refreshes manuais de odds em paralelo;
+- o ML mantém o baseline quando não há modelo aprovado;
+- HTTP 429 indica limite do provedor e HTTP 402, capacidade fora do plano;
+- nunca coloque `.env`, bancos, backups ou chaves no Git;
+- recriar backend/scheduler preserva o volume PostgreSQL, mas reverte transações
+  ainda não confirmadas.
+
+Próximas ações: [`../development/next-steps-roadmap.md`](../development/next-steps-roadmap.md).
+
+## Manutenção de armazenamento
+
+O procedimento obrigatório está em
+[`docker-storage-maintenance.md`](docker-storage-maintenance.md). Limpeza de
+cache nunca autoriza remoção de volumes. Antes de qualquer manutenção, o banco
+deve possuir backup lógico, checksum e restore testado em ambiente isolado.

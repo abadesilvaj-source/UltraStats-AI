@@ -18,6 +18,7 @@ from app.models import (
     Prediction,
     Team,
 )
+from app.services.player_impact_service import PlayerImpactService
 from ultrastats_ai.infrastructure.database.models import (
     DataQualityIncidentRecord,
     DecisionPolicyRecord,
@@ -106,17 +107,14 @@ class IntelligencePlatformService:
     """Camada interna para as quinze melhorias de confiabilidade científica."""
 
     ensemble_members = {
-        "results": {"poisson": .40, "elo": .35, "market": .25},
-        "goals": {"poisson": .55, "form": .25, "market": .20},
-        "corners": {"negative_binomial": .50, "form": .30, "market": .20},
-        "cards": {"negative_binomial": .45, "referee": .25, "form": .30},
-        "players": {"availability": .40, "form": .35, "team_context": .25},
-        "other": {"poisson": .50, "form": .30, "market": .20},
+        "results": {"poisson": .45, "elo": .25, "ml": .30},
+        "goals": {"poisson": .65, "ml": .35},
     }
 
     def __init__(self, session: Session) -> None:
         self.session = session
         self.queue = PersistentTaskQueue(session)
+        self.player_impact = PlayerImpactService(session)
 
     def run(self) -> dict[str, object]:
         features = self.materialize_feature_store()
@@ -163,6 +161,9 @@ class IntelligencePlatformService:
                 continue
             home = self.session.get(Team, match.home_team_id)
             away = self.session.get(Team, match.away_team_id)
+            player_impact = self.player_impact.context(
+                match, as_of=as_of, persist=True
+            )
             previous = self.session.scalars(
                 select(Match)
                 .where(
@@ -208,6 +209,15 @@ class IntelligencePlatformService:
                     else "post_lineup" if self._hours_until(match.kickoff_at, now) <= 1.5
                     else "prematch"
                 ),
+                "player_impact_enabled": player_impact["enabled"],
+                "home_player_strength": player_impact["home_strength"],
+                "away_player_strength": player_impact["away_strength"],
+                "home_player_coverage": player_impact["home_coverage"],
+                "away_player_coverage": player_impact["away_coverage"],
+                "home_absence_impact": player_impact["home_absence_impact"],
+                "away_absence_impact": player_impact["away_absence_impact"],
+                "home_lineup_status": player_impact["home_lineup_status"],
+                "away_lineup_status": player_impact["away_lineup_status"],
                 "home_recent_matches": sum(
                     match.home_team_id in (old.home_team_id, old.away_team_id)
                     for old in previous
@@ -408,6 +418,19 @@ class IntelligencePlatformService:
 
     def ensure_specialized_models(self) -> int:
         created = 0
+        unsupported = self.session.scalars(
+            select(ModelDeploymentRecord).where(
+                ModelDeploymentRecord.market_family.not_in(
+                    tuple(self.ensemble_members)
+                ),
+                ModelDeploymentRecord.model_name.in_((
+                    "specialized_ensemble", "specialized_challenger",
+                )),
+                ModelDeploymentRecord.active.is_(True),
+            )
+        ).all()
+        for deployment in unsupported:
+            deployment.active = False
         for family, weights in self.ensemble_members.items():
             definitions = (
                 ("specialized_ensemble", "ensemble-v2", "champion", weights),
@@ -766,6 +789,7 @@ class IntelligencePlatformService:
                 .where(
                     FeatureSnapshotRecord.entity_type == "match",
                     FeatureSnapshotRecord.entity_id == str(prediction.match_id),
+                    FeatureSnapshotRecord.feature_set == "prematch_context_v1",
                     FeatureSnapshotRecord.as_of <= prediction.created_at.replace(
                         tzinfo=timezone.utc
                     ),
@@ -782,6 +806,20 @@ class IntelligencePlatformService:
                 adverse.append("evidencia_historica_limitada")
             if prediction.implied_probability is None:
                 adverse.append("odd_atual_indisponivel")
+            feature_values = feature.values if feature else {}
+            player_coverage = min(
+                float(feature_values.get("home_player_coverage") or 0),
+                float(feature_values.get("away_player_coverage") or 0),
+            )
+            if player_coverage >= .70:
+                favorable.append("estatisticas_individuais_com_alta_cobertura")
+            elif player_coverage < .45:
+                adverse.append("cobertura_individual_insuficiente")
+            if max(
+                float(feature_values.get("home_absence_impact") or 0),
+                float(feature_values.get("away_absence_impact") or 0),
+            ) >= .08:
+                adverse.append("desfalque_de_jogador_relevante")
             self.session.add(
                 PredictionExplanationRecord(
                     prediction_id=str(prediction.id),
@@ -789,7 +827,7 @@ class IntelligencePlatformService:
                     model_name=market_family(market.code if market else "other"),
                     model_version=prediction.model_version,
                     data_cutoff_at=prediction.created_at.replace(tzinfo=timezone.utc),
-                    features=feature.values if feature else {},
+                    features=feature_values,
                     favorable_factors=favorable,
                     adverse_factors=adverse,
                     decision={
@@ -850,6 +888,14 @@ class IntelligencePlatformService:
                 "snapshots": self.session.scalar(
                     select(func.count()).select_from(FeatureSnapshotRecord)
                 ) or 0,
+                "player_impact_snapshots": self.session.scalar(
+                    select(func.count())
+                    .select_from(FeatureSnapshotRecord)
+                    .where(
+                        FeatureSnapshotRecord.feature_set == "player_impact_v1"
+                    )
+                ) or 0,
+                "player_impact_enabled": PlayerImpactService.enabled(),
                 "latest_as_of": self._iso(self.session.scalar(
                     select(func.max(FeatureSnapshotRecord.as_of))
                 )),

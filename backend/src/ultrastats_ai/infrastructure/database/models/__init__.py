@@ -15,6 +15,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Float,
     Index,
     Integer,
     JSON,
@@ -344,6 +345,68 @@ class RecommendationAuditRecord(CanonicalBase):
     actor: Mapped[str] = mapped_column(String(255), nullable=False)
     reason: Mapped[str] = mapped_column(String(500), nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PaperPortfolioRecord(CanonicalBase):
+    """Banca sintética global, completamente isolada das bancas dos usuários."""
+
+    __tablename__ = "paper_portfolios"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    initial_balance: Mapped[float] = mapped_column(Float, nullable=False)
+    current_balance: Mapped[float] = mapped_column(Float, nullable=False)
+    peak_balance: Mapped[float] = mapped_column(Float, nullable=False)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="BRL")
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class PaperBetRecord(CanonicalBase):
+    """Decisão fictícia imutável, liquidada apenas com resultado posterior."""
+
+    __tablename__ = "paper_bets"
+    __table_args__ = (
+        UniqueConstraint("opportunity_id", name="uq_paper_bet_opportunity"),
+        Index("ix_paper_bet_settlement", "status", "match_id"),
+        Index("ix_paper_bet_segment", "competition_id", "market", "settled_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    portfolio_id: Mapped[UUID] = mapped_column(
+        ForeignKey("paper_portfolios.id", ondelete="RESTRICT"), nullable=False
+    )
+    opportunity_id: Mapped[UUID] = mapped_column(
+        ForeignKey("recommendation_opportunities.id", ondelete="RESTRICT"), nullable=False
+    )
+    match_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    competition_id: Mapped[str | None] = mapped_column(String(64))
+    market: Mapped[str] = mapped_column(String(64), nullable=False)
+    selection: Mapped[str] = mapped_column(String(128), nullable=False)
+    risk: Mapped[str] = mapped_column(String(32), nullable=False)
+    offered_odds: Mapped[float] = mapped_column(Float, nullable=False)
+    closing_odds: Mapped[float | None] = mapped_column(Float)
+    probability: Mapped[float] = mapped_column(Float, nullable=False)
+    stake: Mapped[float] = mapped_column(Float, nullable=False)
+    payout: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    profit: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    clv: Mapped[float | None] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending")
+    snapshot: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    recommended_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    kickoff_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PaperLearningRunRecord(CanonicalBase):
+    __tablename__ = "paper_learning_runs"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    metrics: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    policy_updates: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False)
+    model_training_triggered: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 
 class FeatureSnapshotRecord(CanonicalBase):
@@ -739,6 +802,9 @@ __all__ = [
     "PredictiveModelRecord",
     "RecommendationAuditRecord",
     "RecommendationOpportunityRecord",
+    "PaperPortfolioRecord",
+    "PaperBetRecord",
+    "PaperLearningRunRecord",
     "RiskProfileRecord",
     "PortfolioSnapshotRecord",
     "AutomaticReportRecord",

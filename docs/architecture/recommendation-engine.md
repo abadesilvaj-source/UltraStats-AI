@@ -1,5 +1,9 @@
 # Motor de Recomendações
 
+> Regra vigente: sem odd real e atual não existe recomendação acionável. ML ou
+> ensemble reprovado retorna ao baseline; métricas financeiras usam somente
+> apostas oficiais liquidadas.
+
 ## Objetivo
 
 A G10 transforma probabilidades calibradas e cotações observadas em
@@ -36,6 +40,15 @@ probabilidade + confiança + confiabilidade + cotações
 
 O score só ordena oportunidades que passaram pelos filtros. Ele nunca torna
 segura uma recomendação bloqueada.
+
+## Evidência de jogadores
+
+Cobertura individual suficiente acrescenta evidência ao forecast, mas não
+substitui odds, histórico ou validação do mercado. As explicações registram
+força dos titulares, estado da escalação e impacto ponderado dos desfalques.
+Cobertura abaixo de 45% mantém a previsão coletiva e gera o fator adverso
+`cobertura_individual_insuficiente`; ausências relevantes geram
+`desfalque_de_jogador_relevante`.
 
 ## Segurança e risco
 

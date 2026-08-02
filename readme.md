@@ -1,5 +1,9 @@
 # UltraStats AI
 
+> Estado atual: operação exclusivamente local. O roadmap vigente é
+> [docs/development/next-steps-roadmap.md](docs/development/next-steps-roadmap.md).
+> Hospedagem externa permanece pausada até nova autorização explícita.
+
 Plataforma pessoal de inteligência para futebol, com coleta multiprovedor,
 conciliação de dados, estatísticas, previsões, recomendações, gestão de risco e
 controle de banca.
@@ -37,6 +41,10 @@ Detalhes da organização estão em
 A arquitetura dos motores e do ciclo científico está em
 [docs/architecture/intelligence-platform-v2.md](docs/architecture/intelligence-platform-v2.md).
 
+O pipeline atual combina baseline Poisson/Elo com ML temporal aprovado fora da
+amostra. Ensembles reais operam em champion/challenger para resultados e gols;
+na ausência de modelo aprovado, a inferência usa o baseline determinístico.
+
 ## Execução com Docker
 
 Na raiz:
@@ -47,6 +55,7 @@ docker compose ps
 ```
 
 - Aplicação: `http://localhost:8516`
+- Aplicação mobile: `http://localhost:8517`
 - API: `http://localhost:8000/api/v1/health`
 
 Para encerrar:

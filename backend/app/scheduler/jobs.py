@@ -25,6 +25,7 @@ logger = logging.getLogger(
 backfill_lock = threading.Lock()
 odds_sync_lock = threading.Lock()
 live_sync_lock = threading.Lock()
+paper_trading_lock = threading.Lock()
 
 
 def mark_stale_runs() -> int:
@@ -346,6 +347,29 @@ def run_scheduled_odds_sync() -> None:
         if session is not None:
             session.close()
         odds_sync_lock.release()
+
+
+def run_scheduled_paper_trading() -> None:
+    """Cria, liquida e aprende com apostas fictícias; nunca usa banca real."""
+    if not settings.paper_trading_enabled or not paper_trading_lock.acquire(blocking=False):
+        return
+    session = None
+    try:
+        from app.services.paper_trading_service import PaperTradingService
+        session = SessionLocal()
+        result = PaperTradingService(session).run()
+        logger.info(
+            "Paper trading concluído: criadas=%s liquidadas=%s treino=%s",
+            result["created"], result["settled"], result["trained"],
+        )
+    except Exception:
+        if session is not None:
+            session.rollback()
+        logger.exception("Erro no ciclo automático de paper trading.")
+    finally:
+        if session is not None:
+            session.close()
+        paper_trading_lock.release()
         
 def update_scheduler_heartbeat() -> None:
     """

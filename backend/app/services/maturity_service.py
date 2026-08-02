@@ -2,12 +2,20 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+import os
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.competition_catalog import competition_policy
+from app.core.competition_catalog import (
+    competition_is_modeled,
+    competition_metadata,
+    competition_policy,
+)
 from app.core.config import settings
+from app.services.competition_promotion_service import (
+    CompetitionPromotionService,
+)
 from app.models import Competition, Match, MatchStatistics, Odd, Prediction
 from ultrastats_ai.infrastructure.database.models import (
     IdentityDecisionRecord,
@@ -57,7 +65,9 @@ class MaturityService:
         self.session = session
 
     def run(self) -> dict[str, object]:
+        promotion = CompetitionPromotionService(self.session).evaluate()
         report = self.report()
+        report["competition_promotion"] = promotion
         now = datetime.now(timezone.utc)
         active_alert_codes = {
             str(alert["code"]) for alert in report["alerts"]
@@ -132,9 +142,7 @@ class MaturityService:
             for item in active
             if (
                 (competition := competitions.get(item.competition_id))
-                and competition_policy(
-                    competition.name, competition.country
-                ) is not None
+                and competition_is_modeled(competition)
             )
         }
         stats_ids = set(self.session.scalars(
@@ -181,9 +189,7 @@ class MaturityService:
             item.id for item in finished
             if (
                 (competition := competitions.get(item.competition_id))
-                and competition_policy(
-                    competition.name, competition.country
-                ) is not None
+                and competition_is_modeled(competition)
                 and providers_by_match.get(item.id, set())
                 & {"api_football", "sportmonks"}
             )
@@ -222,13 +228,19 @@ class MaturityService:
             )
         }
         stats_eligible = stats_candidates - statistics_confirmed_unavailable
+        odds_window_days = max(
+            1, int(os.getenv("ODDS_SYNC_WINDOW_DAYS", "14"))
+        )
+        odds_window_end = naive + timedelta(days=odds_window_days)
         odds_eligible = {
             item.id for item in active
             if (
+                naive - timedelta(hours=3)
+                <= self._as_naive(item.kickoff_at)
+                <= odds_window_end
+                and
                 (competition := competitions.get(item.competition_id))
-                and competition_policy(
-                    competition.name, competition.country
-                ) is not None
+                and competition_is_modeled(competition)
                 and providers_by_match.get(item.id, set())
                 & {"api_football", "football_data_uk", "the_odds_api"}
             )
@@ -240,9 +252,7 @@ class MaturityService:
             <= naive + timedelta(minutes=120)
             and (
                 (competition := competitions.get(item.competition_id))
-                and competition_policy(
-                    competition.name, competition.country
-                ) is not None
+                and competition_is_modeled(competition)
             )
             and providers_by_match.get(item.id, set())
             & {"api_football", "sportmonks"}
@@ -276,8 +286,13 @@ class MaturityService:
             policy = competition_policy(
                 competition.name, competition.country
             )
-            if policy is None:
+            if policy is None and not competition.auto_core:
                 continue
+            metadata = competition_metadata(
+                competition.name,
+                competition.country,
+                auto_core=competition.auto_core,
+            )
             active_comp = {
                 item.id for item in active
                 if item.competition_id == competition_id
@@ -290,10 +305,14 @@ class MaturityService:
                 item.id for item in lineup_window
                 if item.competition_id == competition_id
             }
-            current = competition_coverage.setdefault(policy.code, {
-                "code": policy.code,
-                "name": policy.name,
-                "group": policy.group,
+            coverage_code = str(metadata["code"] or f"AUTO-{competition.id}")
+            current = competition_coverage.setdefault(coverage_code, {
+                "code": coverage_code,
+                "name": str(metadata["canonical_name"]),
+                "group": str(metadata["group"]),
+                "promotion_source": (
+                    "automatic" if competition.auto_core else "catalog"
+                ),
                 "active": 0,
                 "finished": 0,
                 "_active_ids": set(),
@@ -312,8 +331,9 @@ class MaturityService:
             current["statistics"] = self._ratio(
                 len(stats_ids & comp_finished), len(comp_finished)
             )
+            eligible_comp_odds = comp_active & odds_eligible
             current["odds"] = self._ratio(
-                len(odds_ids & comp_active), len(comp_active)
+                len(odds_ids & eligible_comp_odds), len(eligible_comp_odds)
             )
             current["predictions"] = self._ratio(
                 len(prediction_ids & comp_active), len(comp_active)

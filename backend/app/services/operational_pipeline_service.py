@@ -24,8 +24,13 @@ from app.models import (
     Team,
 )
 from app.core.football_market_catalog import FOOTBALL_MARKETS
-from app.core.competition_catalog import competition_policy
+from app.core.competition_catalog import (
+    competition_is_modeled,
+    competition_policy,
+)
 from app.services.post_match_service import PostMatchService
+from app.services.temporal_ml_service import TemporalMLService
+from app.services.player_impact_service import PlayerImpactService
 from app.utils.betting_math import (
     calculate_expected_value,
     calculate_implied_probability,
@@ -34,7 +39,7 @@ from app.utils.odds_matching import best_matching_odd
 from ultrastats_ai.domain.prediction import ModelSpecification, PoissonScoreModel
 from ultrastats_ai.infrastructure.providers import DataCapability, SourceObservation
 from ultrastats_ai.infrastructure.database.models import (
-    OddsSnapshotRecord,
+    OddsSnapshotRecord, PredictiveForecastRecord,
     RawProviderPayloadRecord,
 )
 from ultrastats_ai.infrastructure.database.models import IdentityDecisionRecord
@@ -69,8 +74,14 @@ class OperationalPipelineService:
 
     model_version = "operational-poisson-v1"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self, session: Session, *, temporal_ml_training: bool = True
+    ) -> None:
         self.session = session
+        self.temporal_ml = TemporalMLService(
+            session, allow_training=temporal_ml_training
+        )
+        self.player_impact = PlayerImpactService(session)
         self._calibration_history: list[
             tuple[str, float, int, int]
         ] | None = None
@@ -81,6 +92,7 @@ class OperationalPipelineService:
         *,
         fixtures: tuple[SourceObservation, ...],
         odds: tuple[SourceObservation, ...] = (),
+        predict_only_with_odds: bool = False,
     ) -> dict[str, int]:
         counters = {
             "competitions": 0,
@@ -115,7 +127,19 @@ class OperationalPipelineService:
         self.session.flush()
         counters["odds"] += self._promote_odds(odds, matches, markets)
         self.session.flush()
-        for match in matches.values():
+        prediction_matches = matches.values()
+        if predict_only_with_odds:
+            priced_keys = {
+                f"api_football:{fixture['id']}"
+                for observation in odds
+                if observation.provider == "api_football"
+                for fixture in (observation.values.get("fixture"),)
+                if isinstance(fixture, dict) and fixture.get("id") is not None
+            }
+            prediction_matches = (
+                match for key, match in matches.items() if key in priced_keys
+            )
+        for match in prediction_matches:
             if match.status in {"scheduled", "in_progress"}:
                 counters["predictions"] += self._predict(match, markets)
         return counters
@@ -460,18 +484,24 @@ class OperationalPipelineService:
     def refresh_all_predictions(self) -> int:
         counters = {"markets": 0}
         markets = self._ensure_markets(counters)
-        matches = self.session.scalars(
-            select(Match).where(
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        filters = (
                 Match.status.in_(("scheduled", "in_progress")),
                 Match.kickoff_at >= (
-                    datetime.now(timezone.utc).replace(tzinfo=None)
-                    - timedelta(hours=6)
+                    now - timedelta(hours=6)
                 ),
                 Match.kickoff_at <= (
-                    datetime.now(timezone.utc).replace(tzinfo=None)
-                    + timedelta(days=14)
+                    now + timedelta(days=14)
                 ),
-            )
+        )
+        batch_size = max(1, int(os.getenv("PREDICTION_REFRESH_BATCH_SIZE", "250")))
+        total = int(self.session.scalar(select(func.count(Match.id)).where(*filters)) or 0)
+        pages = max(1, (total + batch_size - 1) // batch_size)
+        interval = max(1, int(os.getenv("PREDICTION_REFRESH_ROTATION_MINUTES", "15")))
+        page = int(now.timestamp() // (interval * 60)) % pages
+        matches = self.session.scalars(
+            select(Match).where(*filters).order_by(Match.kickoff_at, Match.id)
+            .offset(page * batch_size).limit(batch_size)
         ).all()
         return sum(self._predict(match, markets) for match in matches)
 
@@ -903,9 +933,7 @@ class OperationalPipelineService:
         competition = self.session.get(Competition, match.competition_id)
         if (
             competition is None
-            or competition_policy(
-                competition.name, competition.country
-            ) is None
+            or not competition_is_modeled(competition)
         ):
             return 0
         home = self.session.get(Team, match.home_team_id)
@@ -937,8 +965,12 @@ class OperationalPipelineService:
             / Decimal(str(context["home_defense"])),
         )
         lineup = self._lineup_context(match)
-        provider_context = self._provider_signal_context(match)
-        evidence_base = self._evidence_base(match, lineup)
+        player_context = self.player_impact.context(match, persist=True)
+        provider_context = self._provider_signal_context(
+            match,
+            include_player_details=float(player_context["confidence"]) < .45,
+        )
+        evidence_base = self._evidence_base(match, lineup, player_context)
         home_xg = max(
             Decimal("0.2"),
             home_xg + Decimal(
@@ -951,18 +983,23 @@ class OperationalPipelineService:
                 str((lineup["away_continuity"] - 0.70) * 0.12)
             ),
         )
+        fallback_player_weight = (
+            0.0 if float(player_context["confidence"]) >= .45 else 1.0
+        )
         # Desfalques entram como ajuste limitado, nunca como autoridade única.
         # O teto evita que uma fonte isolada desfigure o modelo canônico.
         home_xg = max(
             Decimal("0.2"),
             home_xg - Decimal(str(
                 min(.20, provider_context["home_absences"] * .025)
+                * fallback_player_weight
             )),
         )
         away_xg = max(
             Decimal("0.2"),
             away_xg - Decimal(str(
                 min(.20, provider_context["away_absences"] * .025)
+                * fallback_player_weight
             )),
         )
         home_xg = max(
@@ -970,7 +1007,7 @@ class OperationalPipelineService:
             home_xg + Decimal(str(
                 max(-.08, min(.08, (
                     float(provider_context["home_player_form"]) - 6.5
-                ) * .06))
+                ) * .06)) * fallback_player_weight
             )),
         )
         away_xg = max(
@@ -978,8 +1015,16 @@ class OperationalPipelineService:
             away_xg + Decimal(str(
                 max(-.08, min(.08, (
                     float(provider_context["away_player_form"]) - 6.5
-                ) * .06))
+                ) * .06)) * fallback_player_weight
             )),
+        )
+        home_xg = max(
+            Decimal("0.2"),
+            home_xg + Decimal(str(player_context["home_xg_adjustment"])),
+        )
+        away_xg = max(
+            Decimal("0.2"),
+            away_xg + Decimal(str(player_context["away_xg_adjustment"])),
         )
         model = PoissonScoreModel(
             ModelSpecification(
@@ -1217,6 +1262,100 @@ class OperationalPipelineService:
             Decimal("0"), Decimal("1") - covered
         )
         forecasts["correct_score"] = score_probabilities
+        ml_forecasts = self.temporal_ml.predict(match)
+        poisson_winner = dict(forecasts["match_winner"])
+        draw_probability = poisson_winner["Draw"]
+        elo_gap = float(home.power_rating - away.power_rating) + 3.0
+        elo_home_decisive = 1 / (1 + 10 ** (-elo_gap / 20))
+        elo_winner = {
+            "Home": (Decimal("1") - draw_probability)
+            * Decimal(str(elo_home_decisive)),
+            "Draw": draw_probability,
+            "Away": (Decimal("1") - draw_probability)
+            * Decimal(str(1 - elo_home_decisive)),
+        }
+        winner_components = {
+            "poisson": poisson_winner,
+            "elo": elo_winner,
+        }
+        if "match_winner" in ml_forecasts:
+            winner_components["ml"] = {
+                key: Decimal(str(value))
+                for key, value in ml_forecasts["match_winner"].items()
+            }
+        forecasts["match_winner"] = self._blend_forecasts(
+            winner_components,
+            {"poisson": Decimal(".45"), "elo": Decimal(".25"),
+             "ml": Decimal(".30")},
+        )
+        challenger_winner = self._blend_forecasts(
+            winner_components,
+            {"poisson": Decimal(".30"), "elo": Decimal(".20"),
+             "ml": Decimal(".50")},
+        )
+        for market_code, labels in (
+            ("over_2_5_goals", ("Under 2.5", "Over 2.5")),
+            ("both_teams_to_score", ("No", "Yes")),
+        ):
+            ml_market = ml_forecasts.get(market_code)
+            if not ml_market:
+                continue
+            if market_code == "over_2_5_goals":
+                poisson_market = {
+                    "Under 2.5": forecasts["under_2_5_goals"]["Under 2.5"],
+                    "Over 2.5": forecasts["over_2_5_goals"]["Over 2.5"],
+                }
+            else:
+                poisson_market = forecasts[market_code]
+            blended = self._blend_forecasts(
+                {
+                    "poisson": poisson_market,
+                    "ml": {
+                        label: Decimal(str(ml_market[label]))
+                        for label in labels
+                    },
+                },
+                {"poisson": Decimal(".65"), "ml": Decimal(".35")},
+            )
+            if market_code == "over_2_5_goals":
+                forecasts["over_2_5_goals"] = {
+                    "Over 2.5": blended["Over 2.5"]
+                }
+                forecasts["under_2_5_goals"] = {
+                    "Under 2.5": blended["Under 2.5"]
+                }
+            else:
+                forecasts[market_code] = blended
+            self._persist_forecast(
+                match, "operational_ensemble", "ensemble-v2", market_code,
+                blended,
+                {
+                    "members": ["poisson", "ml"],
+                    "weights": {"poisson": .65, "ml": .35},
+                    "cutoff": match.kickoff_at.isoformat(),
+                    "player_impact": player_context,
+                },
+            )
+            challenger_market = self._blend_forecasts(
+                {
+                    "poisson": poisson_market,
+                    "ml": {
+                        label: Decimal(str(ml_market[label]))
+                        for label in labels
+                    },
+                },
+                {"poisson": Decimal(".45"), "ml": Decimal(".55")},
+            )
+            self._persist_forecast(
+                match, "operational_challenger", "challenger-v2", market_code,
+                challenger_market,
+                {
+                    "members": ["poisson", "ml"],
+                    "weights": {"poisson": .45, "ml": .55},
+                    "shadow": True,
+                    "cutoff": match.kickoff_at.isoformat(),
+                },
+            )
         market_consensus = self._winner_market_consensus(match, markets)
         if market_consensus:
             consensus, market_weight = market_consensus
@@ -1236,6 +1375,38 @@ class OperationalPipelineService:
                 selection: value / total
                 for selection, value in blended.items()
             }
+        winner = forecasts["match_winner"]
+        forecasts["double_chance"] = {
+            "Home or Draw": winner["Home"] + winner["Draw"],
+            "Home or Away": winner["Home"] + winner["Away"],
+            "Draw or Away": winner["Draw"] + winner["Away"],
+        }
+        decisive = max(Decimal(".0001"), winner["Home"] + winner["Away"])
+        forecasts["draw_no_bet"] = {
+            "Home": winner["Home"] / decisive,
+            "Away": winner["Away"] / decisive,
+        }
+        self._persist_forecast(
+            match, "operational_ensemble", "ensemble-v2", "match_winner",
+            forecasts["match_winner"],
+            {
+                "members": list(winner_components),
+                "weights": {"poisson": .45, "elo": .25, "ml": .30},
+                "market_consensus_applied": bool(market_consensus),
+                "cutoff": match.kickoff_at.isoformat(),
+                "player_impact": player_context,
+            },
+        )
+        self._persist_forecast(
+            match, "operational_challenger", "challenger-v2", "match_winner",
+            challenger_winner,
+            {
+                "members": list(winner_components),
+                "weights": {"poisson": .30, "elo": .20, "ml": .50},
+                "shadow": True,
+                "cutoff": match.kickoff_at.isoformat(),
+            },
+        )
         existing_predictions = {
             (item.market_id, item.selection): item
             for item in self.session.scalars(
@@ -1314,7 +1485,8 @@ class OperationalPipelineService:
                     0.42
                     + (0.30 * evidence_ratio)
                     + (0.04 * confirmed_lineups)
-                    + (0.04 * continuity),
+                    + (0.04 * continuity)
+                    + (0.03 * float(player_context["confidence"])),
                 )
                 prediction.uqs = min(
                     0.88,
@@ -1344,10 +1516,64 @@ class OperationalPipelineService:
                     created += 1
         return created
 
+    @staticmethod
+    def _blend_forecasts(
+        components: dict[str, dict[str, Decimal]],
+        weights: dict[str, Decimal],
+    ) -> dict[str, Decimal]:
+        available = {
+            name: values for name, values in components.items()
+            if name in weights and values
+        }
+        total_weight = sum((weights[name] for name in available), Decimal("0"))
+        labels = tuple(next(iter(available.values())))
+        blended = {
+            label: sum(
+                (values[label] * weights[name] for name, values in available.items()),
+                Decimal("0"),
+            ) / total_weight
+            for label in labels
+        }
+        total = sum(blended.values(), Decimal("0"))
+        return {label: value / total for label, value in blended.items()}
+
+    def _persist_forecast(
+        self,
+        match: Match,
+        model_name: str,
+        model_version: str,
+        market: str,
+        probabilities: dict[str, Decimal],
+        explanations: dict[str, object],
+    ) -> None:
+        if not inspect(self.session.connection()).has_table(
+            PredictiveForecastRecord.__tablename__
+        ):
+            return
+        row = self.session.scalar(select(PredictiveForecastRecord).where(
+            PredictiveForecastRecord.match_id == str(match.id),
+            PredictiveForecastRecord.model_name == model_name,
+            PredictiveForecastRecord.model_version == model_version,
+            PredictiveForecastRecord.market == market,
+        ))
+        values = {key: float(value) for key, value in probabilities.items()}
+        if row is None:
+            self.session.add(PredictiveForecastRecord(
+                match_id=str(match.id), model_name=model_name,
+                model_version=model_version, market=market,
+                probabilities=values, explanations=explanations,
+                generated_at=datetime.now(timezone.utc),
+            ))
+        else:
+            row.probabilities = values
+            row.explanations = explanations
+            row.generated_at = datetime.now(timezone.utc)
+
     def _evidence_base(
         self,
         match: Match,
         lineup: dict[str, float | int],
+        player_context: dict[str, object],
     ) -> dict[str, int]:
         """Mede evidência observável sem privilegiar um provedor."""
         histories = []
@@ -1392,6 +1618,9 @@ class OperationalPipelineService:
             "bookmakers": bookmakers,
             "lineups": int(lineup["coverage"]),
             "confirmed_lineups": int(lineup["confirmed"]),
+            "player_coverage": int(
+                round(float(player_context["confidence"]) * 2)
+            ),
         }
 
     def _market_evidence(
@@ -1426,10 +1655,11 @@ class OperationalPipelineService:
             else 1 if base["lineups"] == 2
             else 0
         )
+        player_points = 1 if base["player_coverage"] >= 1 else 0
         score = min(
             10,
             sample_points + history_points + detail_points
-            + price_points + lineup_points,
+            + price_points + lineup_points + player_points,
         )
         level = "high" if score >= 8 else "medium" if score >= 4 else "low"
         return {
@@ -1512,7 +1742,9 @@ class OperationalPipelineService:
             ),
         }
 
-    def _provider_signal_context(self, match: Match) -> dict[str, object]:
+    def _provider_signal_context(
+        self, match: Match, *, include_player_details: bool = True
+    ) -> dict[str, object]:
         """Lê sinais complementares sem conceder prioridade ao provedor."""
         connection = self.session.connection()
         if not inspect(connection).has_table(
@@ -1549,6 +1781,36 @@ class OperationalPipelineService:
             "winner_probabilities": None,
         }
         if not fixture_id:
+            return result
+
+        if not include_player_details:
+            prediction = self.session.scalar(
+                select(RawProviderPayloadRecord)
+                .where(
+                    RawProviderPayloadRecord.provider == "api_football",
+                    RawProviderPayloadRecord.resource == "provider_predictions",
+                    RawProviderPayloadRecord.external_id.like(f"{fixture_id}%"),
+                )
+                .order_by(RawProviderPayloadRecord.collected_at.desc())
+            )
+            if prediction is not None:
+                percentages = (
+                    (prediction.payload.get("predictions") or {}).get("percent")
+                    or {}
+                )
+                try:
+                    values = {
+                        "Home": float(str(percentages["home"]).rstrip("%")) / 100,
+                        "Draw": float(str(percentages["draw"]).rstrip("%")) / 100,
+                        "Away": float(str(percentages["away"]).rstrip("%")) / 100,
+                    }
+                    total = sum(values.values())
+                    if total > 0:
+                        result["winner_probabilities"] = {
+                            key: value / total for key, value in values.items()
+                        }
+                except (KeyError, TypeError, ValueError):
+                    pass
             return result
 
         injury_rows = self.session.scalars(

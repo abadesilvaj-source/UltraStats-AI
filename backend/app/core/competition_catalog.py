@@ -30,6 +30,15 @@ COMPETITION_POLICIES = (
         ("brasileirao serie b", "brasileiro serie b", "serie b brazil"),
     ),
     CompetitionPolicy(
+        "CDB", "Copa do Brasil", "core", "Brasil",
+        (
+            "copa do brasil",
+            "copa brasil",
+            "brazil cup",
+            "brazil copa do brasil",
+        ),
+    ),
+    CompetitionPolicy(
         "LIB", "Copa Libertadores da América", "core", "América do Sul",
         ("copa libertadores", "conmebol libertadores", "libertadores"),
     ),
@@ -172,14 +181,16 @@ def competition_policy(
 def competition_metadata(
     name: str,
     country: str | None = None,
+    *,
+    auto_core: bool = False,
 ) -> dict[str, str | bool | None]:
     policy = competition_policy(name, country)
     if policy is None:
         return {
             "code": None,
             "canonical_name": name,
-            "group": "observation",
-            "recommendations_enabled": False,
+            "group": "core" if auto_core else "observation",
+            "recommendations_enabled": auto_core,
         }
     return {
         "code": policy.code,
@@ -189,12 +200,25 @@ def competition_metadata(
     }
 
 
+def competition_is_modeled(competition: object | None) -> bool:
+    """Preserva o catálogo fixo e habilita apenas promoções persistidas."""
+    if competition is None:
+        return False
+    return bool(
+        competition_policy(
+            str(getattr(competition, "name", "")),
+            getattr(competition, "country", None),
+        )
+        or getattr(competition, "auto_core", False)
+    )
+
+
 def competition_priority(policy: CompetitionPolicy) -> int:
     """Ordena coleta: Brasil/CONMEBOL, elite europeia e seleções."""
     tiers = {
-        "BSA": 0, "BSB": 1, "LIB": 2, "SUD": 3,
-        "CL": 4, "PL": 5, "PD": 6, "BL1": 7, "SA": 8,
-        "FL1": 9, "EL": 10, "PPL": 11, "DED": 12,
+        "BSA": 0, "BSB": 1, "CDB": 2, "LIB": 3, "SUD": 4,
+        "CL": 5, "PL": 6, "PD": 7, "BL1": 8, "SA": 9,
+        "FL1": 10, "EL": 11, "PPL": 12, "DED": 13,
     }
     if policy.code in tiers:
         return tiers[policy.code]

@@ -1,5 +1,19 @@
 # UltraStats AI — Roadmap Oficial
 
+## G33 — Importância dos jogadores nas previsões (concluída)
+
+A camada `player_impact_v1` transforma estatísticas individuais da API Football
+em força de escalação, cobertura e impacto ponderado de desfalques. O cálculo é
+temporal, auditável, limitado e possui fallback neutro. Foi integrado ao xG,
+nível de evidência, confiança e explicações sem substituir Poisson, Elo, ML,
+odds ou os ratings coletivos. Configurações e critérios completos constam em
+[`next-steps-roadmap.md`](next-steps-roadmap.md).
+
+> Nota de vigência — 2 de agosto de 2026: este arquivo preserva o plano
+> histórico detalhado G1–G26. O estado atual e as próximas fases G27–G33 estão
+> em [`next-steps-roadmap.md`](next-steps-roadmap.md), que prevalece quando
+> houver divergência de status, métricas ou próximo passo.
+
 ## 1. Objetivo
 
 Este documento apresenta a evolução planejada do UltraStats AI.

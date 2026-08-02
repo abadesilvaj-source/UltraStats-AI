@@ -1,5 +1,6 @@
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+import os
 
 from sqlalchemy import Float, and_, cast, func, inspect, or_, select
 from sqlalchemy.orm import Session, aliased
@@ -32,6 +33,9 @@ from ultrastats_ai.infrastructure.database.models import (
     PredictionExplanationRecord,
     RawProviderPayloadRecord,
     RecommendationOpportunityRecord,
+    PaperBetRecord,
+    PaperLearningRunRecord,
+    PaperPortfolioRecord,
     TrainingDatasetRecord,
 )
 
@@ -115,8 +119,11 @@ class ApiQueries:
                     "name": competition.name,
                     "country": competition.country,
                     **competition_metadata(
-                        competition.name, competition.country
+                        competition.name, competition.country,
+                        auto_core=competition.auto_core,
                     ),
+                    "promotion_status": competition.promotion_status,
+                    "promotion_metrics": competition.promotion_metrics,
                 },
                 "home_team": {"id": h.id, "name": h.name},
                 "away_team": {"id": a.id, "name": a.name},
@@ -722,6 +729,41 @@ class ApiQueries:
             in self.session.execute(statement).all()
         ]
 
+    def paper_trading(self) -> dict:
+        if not inspect(self.session.connection()).has_table("paper_bets"):
+            return {"enabled": True, "status": "migration_pending", "metrics": {}, "recent": []}
+        portfolio = self.session.scalar(
+            select(PaperPortfolioRecord).where(PaperPortfolioRecord.active.is_(True))
+            .order_by(PaperPortfolioRecord.created_at).limit(1)
+        )
+        learning = self.session.scalar(
+            select(PaperLearningRunRecord).order_by(PaperLearningRunRecord.created_at.desc()).limit(1)
+        )
+        recent = self.session.scalars(
+            select(PaperBetRecord).order_by(PaperBetRecord.recommended_at.desc()).limit(100)
+        ).all()
+        return {
+            "enabled": True,
+            "mode": "paper_only",
+            "portfolio": ({
+                "name": portfolio.name,
+                "initial_balance": portfolio.initial_balance,
+                "current_balance": portfolio.current_balance,
+                "peak_balance": portfolio.peak_balance,
+            } if portfolio else None),
+            "metrics": learning.metrics if learning else {},
+            "last_learning_at": learning.created_at.isoformat() if learning else None,
+            "recent": [{
+                "id": str(row.id), "match_id": row.match_id,
+                "market": row.market, "selection": row.selection,
+                "risk": row.risk, "odds": row.offered_odds,
+                "stake": row.stake, "status": row.status,
+                "profit": row.profit, "clv": row.clv,
+                "recommended_at": row.recommended_at.isoformat(),
+                "settled_at": row.settled_at.isoformat() if row.settled_at else None,
+            } for row in recent],
+        }
+
     def recommendations(
         self,
         match_id: int | None = None,
@@ -1205,7 +1247,14 @@ class ApiQueries:
                 "lineups", "weather",
             ],
         }
+        active_providers = {
+            name.strip()
+            for name in os.getenv("ACTIVE_PROVIDERS", "").split(",")
+            if name.strip()
+        }
         for row in health_rows:
+            if active_providers and row.provider not in active_providers:
+                continue
             if row.provider in seen:
                 continue
             seen.add(row.provider)

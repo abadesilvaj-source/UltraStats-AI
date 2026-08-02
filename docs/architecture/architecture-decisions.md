@@ -1,5 +1,30 @@
 # UltraStats AI — Registro de Decisões Arquiteturais
 
+## ADR-023 — ML temporal não substitui baseline sem evidência
+
+**Status:** Aprovada em 2 de agosto de 2026
+
+O modelo supervisionado usa corte cronológico, calibração separada e teste fora
+da amostra. Só participa do ensemble quando supera o baseline em log loss. Em
+qualquer falha ou insuficiência, Poisson/Elo continuam atendendo a inferência.
+
+## ADR-024 — Ensemble significa combinação executada
+
+**Status:** Aprovada em 2 de agosto de 2026
+
+Uma família só pode ser exibida como ensemble quando dois ou mais componentes
+produzem probabilidades efetivamente combinadas e persistidas. Metadados sem
+execução não constituem deployment ativo. Atualmente isso vale para resultados
+e gols/BTTS.
+
+## ADR-025 — Operação permanece local
+
+**Status:** Aprovada em 2 de agosto de 2026
+
+Artefatos de produção podem permanecer como preparação histórica, mas nenhuma
+hospedagem ou exposição externa está autorizada. O G32 exige nova decisão
+explícita e arquitetura que inclua API, scheduler e banco persistente.
+
 Este documento registra decisões consideradas oficiais para o produto.
 
 ---

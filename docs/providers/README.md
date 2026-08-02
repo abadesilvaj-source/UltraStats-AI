@@ -1,5 +1,25 @@
 # Providers
 
+## Estado operacional em agosto de 2026
+
+Por decisão do proprietário em 2 de agosto, somente `api_football` permanece
+ativo para novas coletas (`ACTIVE_PROVIDERS=api_football`). The Odds API,
+Football-Data, SportMonks e fontes públicas ficam desativadas operacionalmente.
+Seus dados históricos não são removidos.
+
+O ciclo de odds sempre consulta o dia atual e gira pelos dias futuros da janela
+de 14 dias. Com um dia futuro por ciclo de 15 minutos, toda a janela é visitada
+em aproximadamente 3h30. Varreduras instantâneas são evitadas porque o endpoint
+de odds aplica rate limit próprio e pode responder HTTP 429.
+
+O construtor multifonte aceita `API_FOOTBALL_KEY`. Quando ela não existe,
+`SPORTS_API_KEY` é fallback legado; uma `API_FOOTBALL_KEY` explicitamente vazia
+continua desativando o conector. O job dedicado atualiza odds e marca snapshots
+elegíveis como closing odds. Falta de odd real nunca é preenchida artificialmente.
+
+Resultados e gols podem usar ensembles Poisson/Elo/ML quando o modelo temporal
+estiver aprovado; caso contrário, o pipeline mantém o baseline.
+
 ## API-Football Ultra
 
 A integração Ultra inclui fixtures, livescore, eventos, estatísticas,

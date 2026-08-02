@@ -17,6 +17,7 @@ from app.scheduler import (
     run_scheduled_live_sync,
     run_scheduled_backfill,
     run_scheduled_odds_sync,
+    run_scheduled_paper_trading,
     run_scheduled_sync,
     update_scheduler_heartbeat,
 )
@@ -151,6 +152,14 @@ def main() -> None:
             func=run_scheduled_odds_sync,
             minutes=settings.odds_sync_interval_minutes,
             job_id="odds_refresh",
+            run_immediately=False,
+        )
+
+    if settings.paper_trading_enabled:
+        scheduler.add_interval_job(
+            func=run_scheduled_paper_trading,
+            minutes=settings.paper_trading_interval_minutes,
+            job_id="automatic_paper_trading",
             run_immediately=False,
         )
 

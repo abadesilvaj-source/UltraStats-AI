@@ -10,6 +10,7 @@ from enum import StrEnum
 from io import StringIO
 from typing import Any, Mapping, Protocol
 import os
+import time
 
 import httpx
 
@@ -92,10 +93,19 @@ class JsonDataSource:
         )
 
     def _get(self, endpoint: str, params: Mapping[str, Any] | None = None) -> Any:
-        try:
-            response = self.client.get(endpoint, params=params)
-        except httpx.RequestError as error:
-            raise ProviderResponseError(f"{self.name}: falha de rede.") from error
+        retries = max(0, int(os.getenv("PROVIDER_RATE_LIMIT_RETRIES", "3")))
+        response = None
+        for attempt in range(retries + 1):
+            try:
+                response = self.client.get(endpoint, params=params)
+            except httpx.RequestError as error:
+                raise ProviderResponseError(f"{self.name}: falha de rede.") from error
+            if response.status_code != 429 or attempt == retries:
+                break
+            retry_after = response.headers.get("retry-after")
+            delay = float(retry_after) if retry_after and retry_after.replace(".", "", 1).isdigit() else min(30.0, 2 ** attempt)
+            time.sleep(max(.1, delay))
+        assert response is not None
         if response.status_code >= 400:
             raise ProviderResponseError(f"{self.name}: HTTP {response.status_code}.")
         self.last_rate_limit = {
@@ -652,13 +662,24 @@ def build_multi_source_engine(
     values = os.environ if environment is None else environment
     injected = transports or {}
     sources: list[DataSource] = []
-    api_key = values.get("API_FOOTBALL_KEY", "").strip()
+    explicit_api_key = values.get("API_FOOTBALL_KEY")
+    api_key = (
+        explicit_api_key.strip()
+        if explicit_api_key is not None
+        else values.get("SPORTS_API_KEY", "").strip()
+    )
     if api_key:
         sources.append(
             ApiFootballSource(
                 SourceConfig(
                     "api_football",
-                    values.get("API_FOOTBALL_BASE_URL", "https://v3.football.api-sports.io"),
+                    values.get(
+                        "API_FOOTBALL_BASE_URL",
+                        values.get(
+                            "SPORTS_API_BASE_URL",
+                            "https://v3.football.api-sports.io",
+                        ),
+                    ),
                     api_key,
                 ),
                 transport=injected.get("api_football"),
@@ -769,6 +790,33 @@ def build_multi_source_engine(
             ),
         )
     )
+    # Reduz novas coletas sem apagar payloads históricos. A ausência da
+    # variável preserva a composição legada para compatibilidade de bibliotecas
+    # e testes; o ambiente operacional seleciona explicitamente sua fonte.
+    active_provider_names = {
+        name.strip()
+        for name in values.get("ACTIVE_PROVIDERS", "").split(",")
+        if name.strip()
+    }
+    if active_provider_names:
+        excluded_sources = [
+            source for source in sources
+            if source.name not in active_provider_names
+        ]
+        sources = [
+            source for source in sources
+            if source.name in active_provider_names
+        ]
+        for source in excluded_sources:
+            source.close()
+        missing = active_provider_names.difference(
+            source.name for source in sources
+        )
+        if missing:
+            raise ValueError(
+                "Provedor(es) ativo(s) sem configuração válida: "
+                + ", ".join(sorted(missing))
+            )
     configured = values.get(
         "PROVIDER_PRIORITY",
         "api_football,sportmonks,football_data,the_odds_api,thesportsdb,"
