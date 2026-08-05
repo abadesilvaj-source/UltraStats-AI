@@ -430,6 +430,9 @@ export type RecommendationDto = PredictionDto & {
   ensemble_weights: Record<string, number>
   odds_movement: Record<string, unknown>
   calibration_segment: Record<string, unknown> | null
+  odds_age_hours: number | null
+  minimum_valid_odds: number | null
+  recommendation_expires_at: string | null
 }
 
 export async function loadPredictions(): Promise<PredictionDto[]> {
@@ -438,6 +441,60 @@ export async function loadPredictions(): Promise<PredictionDto[]> {
 
 export async function loadRecommendations(): Promise<RecommendationDto[]> {
   return request('/recommendations?primary_only=true&limit=200')
+}
+
+export type PaperBetDto = {
+  id: string
+  match_id: string
+  market: string
+  selection: string
+  risk: string
+  odds: number
+  probability: number
+  stake: number
+  payout: number
+  profit: number
+  clv: number | null
+  status: 'pending' | 'won' | 'lost' | 'void' | 'unsupported'
+  recommended_at: string
+  kickoff_at: string
+  settled_at: string | null
+  bookmaker: string | null
+  execution_mode: 'paper_executed' | 'shadow_observation' | 'paper_only'
+  recommendation_tier: string
+  home_team: string | null
+  away_team: string | null
+  competition: string | null
+}
+
+export type PaperTradingDto = {
+  enabled: boolean
+  mode?: string
+  status?: string
+  portfolio: {
+    name: string
+    initial_balance: number
+    current_balance: number
+    peak_balance: number
+  } | null
+  metrics: Record<string, any>
+  counts?: {
+    total: number
+    pending: number
+    settled: number
+    won: number
+    lost: number
+    void: number
+    today_created: number
+    executed: number
+    shadow: number
+  }
+  last_learning_at: string | null
+  recent: PaperBetDto[]
+}
+
+export async function loadPaperTrading(): Promise<PaperTradingDto> {
+  return request('/paper-trading?limit=300')
 }
 
 export async function loadIntelligence(): Promise<IntelligenceStatus> {

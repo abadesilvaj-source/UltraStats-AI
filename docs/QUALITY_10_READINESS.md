@@ -4,6 +4,11 @@ O UltraStats separa qualidade de software de qualidade preditiva. A primeira é
 verificável imediatamente por testes, saúde, latência e integridade; a segunda
 depende de dados pós-jogo e só pode subir com validação temporal fora da amostra.
 
+Não existe nota única “10/10”. A prontidão é um conjunto de gates independentes:
+software, operação, dados, modelos, decisão, risco, produto e segurança. Uma
+dimensão verde não compensa outra vermelha. Os critérios vigentes estão no
+[`development/next-steps-roadmap.md`](development/next-steps-roadmap.md).
+
 ## Critérios usados pelo painel
 
 - **Cobertura estatística:** considera apenas competições habilitadas pelo catálogo

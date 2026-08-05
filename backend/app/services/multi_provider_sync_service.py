@@ -43,6 +43,7 @@ from app.services.api_football_backfill_service import (
 )
 from app.services.closing_odds_service import ClosingOddsService
 from app.core.competition_catalog import (
+    competition_is_modeled,
     competition_policy,
     competition_priority,
 )
@@ -211,7 +212,20 @@ class MultiProviderSyncService:
                     skipped += 1
             all_odds = odds_report.observations + targeted_odds
 
-            if self.environment.get("FOOTBALL_DATA_API_TOKEN", "").strip():
+            active_providers = {
+                name.strip()
+                for name in self.environment.get(
+                    "ACTIVE_PROVIDERS", ""
+                ).split(",")
+                if name.strip()
+            }
+            if (
+                self.environment.get("FOOTBALL_DATA_API_TOKEN", "").strip()
+                and (
+                    not active_providers
+                    or "football_data" in active_providers
+                )
+            ):
                 football_provider = self.football_factory()
                 health = football_provider.health_check()
                 self.health_store.save(health)
@@ -623,7 +637,23 @@ class MultiProviderSyncService:
             odds_observations: list[SourceObservation] = []
             if api_source is not None:
                 consecutive_failures = 0
-                for offset in range(days_per_cycle + 1):
+                # Hoje é sempre prioritário. Os demais dias giram entre ciclos
+                # para cobrir toda a janela sem multiplicar o consumo de cota.
+                interval_seconds = max(
+                    60,
+                    int(self.environment.get(
+                        "ODDS_SYNC_INTERVAL_MINUTES", "15"
+                    )) * 60,
+                )
+                slot = int(datetime.now(timezone.utc).timestamp()) // interval_seconds
+                future_offsets: list[int] = []
+                if days > 0:
+                    start = 1 + ((slot * days_per_cycle) % days)
+                    future_offsets = [
+                        1 + ((start - 1 + index) % days)
+                        for index in range(days_per_cycle)
+                    ]
+                for offset in [0, *future_offsets]:
                     target = (datetime.now(ZoneInfo("America/Sao_Paulo"))
                               + timedelta(days=offset)).date().isoformat()
                     if not self._quota_allows(api_source):
@@ -711,9 +741,14 @@ class MultiProviderSyncService:
                 skipped += int(not created)
             self.session.commit()
             fused = MatchFusionService(self.session).fuse(tuple(fixture_observations))
-            promoted = OperationalPipelineService(self.session).process(
-                fixtures=tuple(fixture_observations), odds=tuple(odds_observations)
+            promoted = OperationalPipelineService(
+                self.session, temporal_ml_training=False
+            ).process(
+                fixtures=tuple(fixture_observations),
+                odds=tuple(odds_observations),
+                predict_only_with_odds=True,
             )
+            closing_marked = ClosingOddsService(self.session).mark()
             # ``process`` já recalcula as partidas presentes na janela. Um
             # refresh global aqui reprocessaria centenas de milhares de linhas
             # em todo ciclo e atrasaria desnecessariamente a disponibilidade.
@@ -736,6 +771,7 @@ class MultiProviderSyncService:
                 "promoted": promoted,
                 "recovered_schedule": recovered_schedule,
                 "predictions_refreshed": refreshed,
+                "closing_odds_marked": closing_marked,
                 "failures": failures,
             }
         except Exception as error:
@@ -936,9 +972,11 @@ class MultiProviderSyncService:
                 str(league.get("name") or ""),
                 str(league.get("country") or ""),
             )
-            if fixture_id and policy:
+            if fixture_id:
                 candidates.append((
-                    competition_priority(policy), kickoff, fixture_id
+                    competition_priority(policy) if policy else 40,
+                    kickoff,
+                    fixture_id,
                 ))
         limit = max(
             0,
@@ -1080,9 +1118,7 @@ class MultiProviderSyncService:
                     not bool(has_pending_bet),
                     0 if (
                         (competition := competitions.get(match.competition_id))
-                        and competition_policy(
-                            competition.name, competition.country
-                        ) is not None
+                        and competition_is_modeled(competition)
                     ) else 1,
                     match,
                     fixture_id,
@@ -1917,22 +1953,33 @@ class MultiProviderSyncService:
         )
         return remaining_value > reserve
 
-    @staticmethod
-    def _fixture_is_modeled(row: Mapping[str, Any]) -> bool:
+    def _fixture_is_modeled(self, row: Mapping[str, Any]) -> bool:
         league = row.get("league") or {}
-        return competition_policy(
+        if competition_policy(
             str(league.get("name") or ""),
             str(league.get("country") or ""),
-        ) is not None
+        ) is not None:
+            return True
+        external_id = str(league.get("id") or "")
+        competition = self.session.scalar(select(Competition).where(
+            Competition.source == "api_football",
+            Competition.external_id == external_id,
+        )) if external_id else None
+        return competition_is_modeled(competition)
 
-    @staticmethod
-    def _coverage_is_modeled(row: Mapping[str, Any]) -> bool:
+    def _coverage_is_modeled(self, row: Mapping[str, Any]) -> bool:
         league = row.get("league") or {}
         country = row.get("country") or {}
-        return competition_policy(
+        if competition_policy(
             str(league.get("name") or ""),
             str(country.get("name") or ""),
-        ) is not None
+        ) is not None:
+            return True
+        competition = self.session.scalar(select(Competition).where(
+            Competition.name == str(league.get("name") or ""),
+            Competition.country == (str(country.get("name") or "") or None),
+        ))
+        return competition_is_modeled(competition)
 
     def _reconcile_stale_matches(
         self,

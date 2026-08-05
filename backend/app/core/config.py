@@ -84,6 +84,12 @@ class Settings:
         self.odds_sync_interval_minutes = int(
             os.getenv("ODDS_SYNC_INTERVAL_MINUTES", "15")
         )
+        self.paper_trading_enabled = parse_bool(
+            os.getenv("PAPER_TRADING_ENABLED"), default=True
+        )
+        self.paper_trading_interval_minutes = int(
+            os.getenv("PAPER_TRADING_INTERVAL_MINUTES", "5")
+        )
 
         self.sync_provider = os.getenv(
             "SYNC_PROVIDER",
@@ -138,6 +144,8 @@ class Settings:
             raise ValueError(
                 "ODDS_SYNC_INTERVAL_MINUTES deve ser maior que zero."
             )
+        if self.paper_trading_interval_minutes <= 0:
+            raise ValueError("PAPER_TRADING_INTERVAL_MINUTES deve ser maior que zero.")
 
         if self.sync_max_runtime_minutes <= 0:
             raise ValueError(

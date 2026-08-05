@@ -36,6 +36,7 @@ class MatchContribution:
     away_score: int | None
     venue: str | None
     observed_at: datetime
+    country: str | None = None
 
 
 class MatchFusionService:
@@ -212,14 +213,19 @@ class MatchFusionService:
         )
         if exact:
             return exact, 1.0
-        candidates = self.session.scalars(
-            select(Match).where(
+        candidate_query = select(Match).join(
+            Competition, Competition.id == Match.competition_id
+        ).where(
                 Match.kickoff_at.between(
                     item.kickoff_at - timedelta(hours=3),
                     item.kickoff_at + timedelta(hours=3),
                 )
             )
-        ).all()
+        if item.country:
+            candidate_query = candidate_query.where(
+                Competition.country == item.country
+            )
+        candidates = self.session.scalars(candidate_query).all()
         best, best_score = None, 0.0
         for match in candidates:
             home = self.session.get(Team, match.home_team_id)
@@ -240,12 +246,18 @@ class MatchFusionService:
         return (best, best_score) if best_score >= 0.78 else (None, best_score)
 
     def _create_canonical(self, item: MatchContribution) -> Match:
-        competition = self.session.scalar(
-            select(Competition).where(Competition.name == item.competition)
+        competition_query = select(Competition).where(
+            Competition.name == item.competition
         )
+        if item.country:
+            competition_query = competition_query.where(
+                Competition.country == item.country
+            )
+        competition = self.session.scalar(competition_query)
         if competition is None:
             competition = Competition(
                 name=item.competition or "Competição não informada",
+                country=item.country,
                 sport="football",
                 source=item.provider,
                 external_id=f"{item.provider}:{item.competition}",
@@ -362,6 +374,7 @@ class MatchFusionService:
             self._int(goals.get("home")), self._int(goals.get("away")),
             str(venue.get("name") or "") or None,
             observation.observed_at,
+            str(row.get("league", {}).get("country") or "") or None,
         )
 
     def _normalized_fixture(

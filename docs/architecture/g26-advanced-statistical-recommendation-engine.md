@@ -1,5 +1,10 @@
 # G26 — Motor estatístico e recomendador avançados
 
+> Retificação de estado: em agosto de 2026, ensembles probabilísticos reais
+> estão ativos somente para resultados e gols/BTTS. Escanteios, cartões,
+> jogadores e mercados auxiliares mantêm seus modelos baseline até validação de
+> componentes adicionais. Consulte `predictive-models.md`.
+
 ## Arquitetura implementada
 
 O motor passou a separar previsão, confiança e decisão de aposta.

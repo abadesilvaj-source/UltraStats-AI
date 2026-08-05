@@ -1,5 +1,15 @@
 # Referência de produto do frontend
 
+## Superfícies atuais
+
+O produto mantém dois frontends sobre a mesma API e o mesmo isolamento de
+usuário: web em `localhost:8516` e mobile em `localhost:8517`. Eles compartilham
+estética, serviços e contratos, mas podem evoluir em composição e navegação sem
+duplicar regras de banca, apostas, recomendação ou autenticação.
+
+A operação externa permanece pausada. O piloto G31 será local até nova decisão
+explícita de hospedagem ou VPN privada.
+
 O protótipo `Interactive Sports Betting Site.zip`, fornecido pelo proprietário,
 é a referência de experiência do frontend React.
 

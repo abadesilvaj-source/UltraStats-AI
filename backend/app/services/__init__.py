@@ -27,12 +27,19 @@ from app.services.collector_orchestrator_service import (
 from app.services.scheduler_heartbeat_service import (
     SchedulerHeartbeatService,
 )
+from app.services.paper_trading_service import PaperTradingService
+from app.services.resilient_job_service import ResilientJobService, resilient_job
+from app.services.model_training_worker_service import ModelTrainingWorkerService
+from app.services.odds_data_contract_service import OddsDataContractService
+from app.services.mlops_governance_service import MLOpsGovernanceService
+from app.services.safe_retention_service import SafeRetentionService
 from app.services.multi_provider_sync_service import (
     MultiProviderSyncService,
 )
 from app.services.operational_pipeline_service import (
     OperationalPipelineService,
 )
+from app.services.player_impact_service import PlayerImpactService
 from app.services.operational_intelligence_service import (
     OperationalIntelligenceService,
 )
@@ -59,8 +66,11 @@ __all__ = [
     "SyncMonitorService",
     "CollectorOrchestratorService",
     "SchedulerHeartbeatService",
+    "PaperTradingService",
+    "SafeRetentionService",
     "MultiProviderSyncService",
     "OperationalPipelineService",
+    "PlayerImpactService",
     "OperationalIntelligenceService",
     "MaturityService",
     "IntelligencePlatformService",

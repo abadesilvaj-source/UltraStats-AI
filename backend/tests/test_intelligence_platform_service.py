@@ -106,4 +106,6 @@ def test_platform_creates_temporal_features_and_model_portfolio() -> None:
 
     assert result["feature_snapshots_created"] == 1
     assert db.scalar(select(FeatureSnapshotRecord)) is not None
-    assert len(db.scalars(select(ModelDeploymentRecord)).all()) == 12
+    deployments = db.scalars(select(ModelDeploymentRecord)).all()
+    assert len(deployments) == 4
+    assert {item.market_family for item in deployments} == {"results", "goals"}

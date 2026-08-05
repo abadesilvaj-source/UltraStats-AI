@@ -1,5 +1,14 @@
 # Plataforma de inteligência v2
 
+> Atualização de 2 de agosto de 2026: “modelo registrado” não é sinônimo de
+> ensemble executável. Somente `results` e `goals` possuem hoje combinação real
+> de probabilidades champion/challenger. As demais famílias usam seus baselines.
+
+Resultados combinam Poisson, Elo e ML temporal; gols e BTTS combinam Poisson e
+ML. Champion e challenger produzem forecasts persistidos. Treino e inferência
+ainda podem ocorrer dentro de um ciclo amplo; a G35 irá separá-los em jobs
+menores, mantendo o último champion sempre disponível.
+
 Esta evolução transforma os motores estatístico e de recomendações em um
 ciclo científico observável. Nenhuma promoção utiliza partidas posteriores ao
 corte do treinamento e nenhum desafiante assume produção sem validação.

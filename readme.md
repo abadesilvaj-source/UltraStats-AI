@@ -1,8 +1,17 @@
 # UltraStats AI
 
-Plataforma pessoal de inteligência para futebol, com coleta multiprovedor,
-conciliação de dados, estatísticas, previsões, recomendações, gestão de risco e
-controle de banca.
+> Estado atual: operação exclusivamente local. A visão final está em
+> [docs/product/product-vision.md](docs/product/product-vision.md) e o roadmap vigente é
+> [docs/development/next-steps-roadmap.md](docs/development/next-steps-roadmap.md).
+> Hospedagem externa permanece pausada até nova autorização explícita.
+
+Plataforma de inteligência para futebol orientada a decisões seletivas,
+explicáveis e calibradas. O produto combina coleta, conciliação, estatística,
+previsões, recomendação, gestão de risco e banca, sem prometer lucro ou 100% de
+acerto.
+
+Avaliação integral atual:
+[docs/operations/system-assessment-2026-08-02.md](docs/operations/system-assessment-2026-08-02.md).
 
 ## Estrutura
 
@@ -37,6 +46,10 @@ Detalhes da organização estão em
 A arquitetura dos motores e do ciclo científico está em
 [docs/architecture/intelligence-platform-v2.md](docs/architecture/intelligence-platform-v2.md).
 
+O pipeline atual combina baseline Poisson/Elo com ML temporal aprovado fora da
+amostra. Ensembles reais operam em champion/challenger para resultados e gols;
+na ausência de modelo aprovado, a inferência usa o baseline determinístico.
+
 ## Execução com Docker
 
 Na raiz:
@@ -47,6 +60,7 @@ docker compose ps
 ```
 
 - Aplicação: `http://localhost:8516`
+- Aplicação mobile: `http://localhost:8517`
 - API: `http://localhost:8000/api/v1/health`
 
 Para encerrar:

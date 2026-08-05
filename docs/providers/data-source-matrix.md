@@ -1,5 +1,9 @@
 # Matriz de fontes de dados
 
+> Cobertura é observada, não presumida. Odds e closing odds só contam quando há
+> snapshot real associado à identidade canônica. Metas G28 não autorizam
+> preenchimento sintético de lacunas.
+
 ## Regra arquitetural
 
 Uma fonte só participa de uma previsão quando possui a capacidade necessária e

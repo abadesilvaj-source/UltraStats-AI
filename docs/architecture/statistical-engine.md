@@ -1,5 +1,8 @@
 # Motor Estatístico
 
+> O motor estatístico continua sendo o fallback operacional. O ML temporal é
+> complementar e somente participa quando aprovado fora da amostra.
+
 ## Objetivo
 
 O Motor Estatístico transforma partidas históricas em snapshots temporais
@@ -27,6 +30,13 @@ pontuações incompatíveis com futebol são rejeitados.
 Pesos exponenciais tornam partidas recentes mais relevantes. O tamanho efetivo
 da amostra considera a concentração desses pesos; a confiabilidade é limitada
 ao intervalo de zero a um em relação à amostra-alvo.
+
+## Snapshots individuais
+
+O feature store mantém `player_impact_v1` por partida e hora de referência.
+Cada snapshot contém força dos elencos, cobertura, escalação confirmada ou
+provável, impacto dos ausentes, ajuste limitado de xG e proveniência. A política
+`strictly_known_at_cutoff` impede utilizar coletas posteriores ao kickoff.
 
 ## Persistência
 

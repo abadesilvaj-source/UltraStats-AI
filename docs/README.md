@@ -1,5 +1,19 @@
 # Documentação do UltraStats AI
 
+> Índice vigente em 2 de agosto de 2026. Comece pela
+> [`product/product-vision.md`](product/product-vision.md), consulte a avaliação
+> [`operations/system-assessment-2026-08-02.md`](operations/system-assessment-2026-08-02.md)
+> e, para planejamento, use
+> [`development/next-steps-roadmap.md`](development/next-steps-roadmap.md). O
+> arquivo `development/roadmap.md` preserva o histórico detalhado G1–G26.
+
+Manutenção segura do disco Docker:
+[`operations/docker-storage-maintenance.md`](operations/docker-storage-maintenance.md).
+Conclusão e evidências da G35:
+[`operations/g35-resilience-runbook.md`](operations/g35-resilience-runbook.md).
+Contratos e qualidade de dados G36:
+[`operations/g36-data-contracts-runbook.md`](operations/g36-data-contracts-runbook.md).
+
 Este diretório concentra a documentação técnica, arquitetural, operacional e de
 desenvolvimento do UltraStats AI.
 
@@ -42,7 +56,9 @@ Ela faz parte das entregas oficiais do projeto.
 ```text
 docs/
 ├── README.md
+├── product/
 ├── api/
+├── baselines/
 ├── architecture/
 ├── database/
 ├── deployment/
@@ -52,6 +68,16 @@ docs/
 ```
 
 Cada diretório possui uma responsabilidade específica.
+
+Documentos canônicos atuais:
+
+- visão e definição da v1.0: [`product/product-vision.md`](product/product-vision.md);
+- avaliação integral: [`operations/system-assessment-2026-08-02.md`](operations/system-assessment-2026-08-02.md);
+- execução futura: [`development/next-steps-roadmap.md`](development/next-steps-roadmap.md);
+- histórico: [`development/roadmap.md`](development/roadmap.md).
+- baseline vigente: [`baselines/g34-baseline-2026-08-02.json`](baselines/g34-baseline-2026-08-02.json);
+- catálogo de métricas: [`architecture/metrics-catalog.md`](architecture/metrics-catalog.md);
+- dívida técnica: [`development/technical-debt-register.md`](development/technical-debt-register.md).
 
 ---
 
@@ -656,7 +682,7 @@ Exemplo:
 Exemplo dentro de uma subpasta:
 
 ```markdown
-[Modelo Canônico](../architecture/canonical-domain-model.md)
+[Modelo Canônico](architecture/canonical-domain-model.md)
 ```
 
 Não deverão ser utilizados caminhos absolutos do computador local.
@@ -735,6 +761,9 @@ Geography, Competition, People e Team.
 | Team | `architecture/team-domain.md` |
 | Match | `architecture/match-domain.md` |
 | Roadmap | `development/roadmap.md` |
+| Roadmap mestre G34–G43 | `development/next-steps-roadmap.md` |
+| Operação MLOps G37 | `operations/g37-mlops-runbook.md` |
+| Recomendação e risco G38 | `operations/g38-selective-risk-runbook.md` |
 
 ---
 
@@ -753,3 +782,4 @@ A documentação deverá evoluir juntamente com o projeto.
 
 Uma funcionalidade não deverá ser considerada completamente concluída quando
 existirem alterações obrigatórias de documentação ainda pendentes.
+- [Paper trading e aprendizado automático](architecture/automatic-paper-learning.md)

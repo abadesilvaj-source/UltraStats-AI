@@ -1,5 +1,6 @@
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+import os
 
 from sqlalchemy import Float, and_, cast, func, inspect, or_, select
 from sqlalchemy.orm import Session, aliased
@@ -32,6 +33,9 @@ from ultrastats_ai.infrastructure.database.models import (
     PredictionExplanationRecord,
     RawProviderPayloadRecord,
     RecommendationOpportunityRecord,
+    PaperBetRecord,
+    PaperLearningRunRecord,
+    PaperPortfolioRecord,
     TrainingDatasetRecord,
 )
 
@@ -115,8 +119,11 @@ class ApiQueries:
                     "name": competition.name,
                     "country": competition.country,
                     **competition_metadata(
-                        competition.name, competition.country
+                        competition.name, competition.country,
+                        auto_core=competition.auto_core,
                     ),
+                    "promotion_status": competition.promotion_status,
+                    "promotion_metrics": competition.promotion_metrics,
                 },
                 "home_team": {"id": h.id, "name": h.name},
                 "away_team": {"id": a.id, "name": a.name},
@@ -722,6 +729,115 @@ class ApiQueries:
             in self.session.execute(statement).all()
         ]
 
+    def paper_trading(
+        self,
+        *,
+        status: str | None = None,
+        limit: int = 500,
+        offset: int = 0,
+    ) -> dict:
+        if not inspect(self.session.connection()).has_table("paper_bets"):
+            return {"enabled": True, "status": "migration_pending", "metrics": {}, "recent": []}
+        portfolio = self.session.scalar(
+            select(PaperPortfolioRecord).where(PaperPortfolioRecord.active.is_(True))
+            .order_by(PaperPortfolioRecord.created_at.desc()).limit(1)
+        )
+        learning = next((row for row in self.session.scalars(
+            select(PaperLearningRunRecord).order_by(PaperLearningRunRecord.created_at.desc())
+        ).all() if (row.metrics or {}).get("portfolio_name") == (portfolio.name if portfolio else None)), None)
+        statement = select(PaperBetRecord).order_by(
+            PaperBetRecord.recommended_at.desc(), PaperBetRecord.id.desc()
+        )
+        if portfolio:
+            statement = statement.where(PaperBetRecord.portfolio_id == portfolio.id)
+        if status and status != "all":
+            statuses = ("won", "lost", "void", "unsupported") if status == "settled" else (status,)
+            statement = statement.where(PaperBetRecord.status.in_(statuses))
+        recent = self.session.scalars(statement.offset(offset).limit(limit)).all()
+        counts_statement = select(
+            PaperBetRecord.status, func.count(PaperBetRecord.id)
+        ).group_by(PaperBetRecord.status)
+        if portfolio:
+            counts_statement = counts_statement.where(
+                PaperBetRecord.portfolio_id == portfolio.id
+            )
+        status_counts = dict(self.session.execute(counts_statement).all())
+        executed_count = shadow_count = 0
+        if portfolio:
+            mode_rows = self.session.scalars(
+                select(PaperBetRecord).where(PaperBetRecord.portfolio_id == portfolio.id)
+            ).all()
+            executed_count = sum(
+                (row.snapshot or {}).get("mode") == "paper_executed"
+                for row in mode_rows
+            )
+            shadow_count = len(mode_rows) - executed_count
+        match_ids = [int(row.match_id) for row in recent if row.match_id.isdigit()]
+        home, away = aliased(Team), aliased(Team)
+        match_rows = self.session.execute(
+            select(Match, home, away, Competition)
+            .join(home, home.id == Match.home_team_id)
+            .join(away, away.id == Match.away_team_id)
+            .join(Competition, Competition.id == Match.competition_id)
+            .where(Match.id.in_(match_ids))
+        ).all() if match_ids else []
+        match_map = {
+            str(match.id): (match, home_team, away_team, competition)
+            for match, home_team, away_team, competition in match_rows
+        }
+        today = datetime.now(timezone.utc).date()
+        today_created = sum(
+            1 for row in self.session.scalars(
+                select(PaperBetRecord.recommended_at).where(
+                    PaperBetRecord.portfolio_id == portfolio.id,
+                    PaperBetRecord.recommended_at >= datetime.combine(
+                        today, datetime.min.time(), tzinfo=timezone.utc
+                    )
+                )
+            )
+        ) if portfolio else 0
+        return {
+            "enabled": True,
+            "mode": "paper_only",
+            "portfolio": ({
+                "name": portfolio.name,
+                "initial_balance": portfolio.initial_balance,
+                "current_balance": portfolio.current_balance,
+                "peak_balance": portfolio.peak_balance,
+            } if portfolio else None),
+            "metrics": learning.metrics if learning else {},
+            "counts": {
+                "total": sum(status_counts.values()),
+                "pending": status_counts.get("pending", 0),
+                "settled": sum(status_counts.get(item, 0) for item in ("won", "lost", "void", "unsupported")),
+                "won": status_counts.get("won", 0),
+                "lost": status_counts.get("lost", 0),
+                "void": status_counts.get("void", 0),
+                "today_created": today_created,
+                "executed": executed_count,
+                "shadow": shadow_count,
+            },
+            "last_learning_at": learning.created_at.isoformat() if learning else None,
+            "recent": [{
+                "id": str(row.id), "match_id": row.match_id,
+                "market": row.market, "selection": row.selection,
+                "risk": row.risk, "odds": row.offered_odds,
+                "stake": row.stake, "status": row.status,
+                "profit": row.profit, "clv": row.clv,
+                "recommended_at": row.recommended_at.isoformat(),
+                "settled_at": row.settled_at.isoformat() if row.settled_at else None,
+                "kickoff_at": row.kickoff_at.isoformat(),
+                "probability": row.probability,
+                "payout": row.payout,
+                "bookmaker": (row.snapshot or {}).get("bookmaker"),
+                "execution_mode": (row.snapshot or {}).get("mode", "paper_only"),
+                "recommendation_tier": (row.snapshot or {}).get("recommendation_tier", "unknown"),
+                "home_team": match_map[row.match_id][1].name if row.match_id in match_map else None,
+                "away_team": match_map[row.match_id][2].name if row.match_id in match_map else None,
+                "competition": match_map[row.match_id][3].name if row.match_id in match_map else None,
+            } for row in recent],
+        }
+
     def recommendations(
         self,
         match_id: int | None = None,
@@ -940,6 +1056,16 @@ class ApiQueries:
                     opportunity.metrics.get("odds_age_hours")
                     if opportunity else None
                 ),
+                "minimum_valid_odds": (
+                    round(1.03 / float(
+                        (opportunity.metrics.get("probability_interval") or {}).get("low")
+                        or opportunity.metrics.get("calibrated_probability") or 1
+                    ), 3) if opportunity else None
+                ),
+                "recommendation_expires_at": (
+                    (opportunity.evaluated_at + timedelta(minutes=30)).isoformat()
+                    if opportunity else None
+                ),
                 "market_samples": (
                     opportunity.metrics.get("market_samples")
                     if opportunity else None
@@ -1080,6 +1206,15 @@ class ApiQueries:
             match, home_team, away_team, competition = match_row
             metrics = opportunity.metrics
             actionable = bool(opportunity.safe)
+            kickoff_aware = (
+                match.kickoff_at.replace(tzinfo=timezone.utc)
+                if match.kickoff_at.tzinfo is None else match.kickoff_at
+            )
+            evaluated_aware = (
+                opportunity.evaluated_at.replace(tzinfo=timezone.utc)
+                if opportunity.evaluated_at.tzinfo is None
+                else opportunity.evaluated_at
+            )
             result.append({
                 "id": 0,
                 "match_id": match.id,
@@ -1130,6 +1265,14 @@ class ApiQueries:
                 "odds_movement": metrics.get("odds_movement", {}),
                 "calibration_segment": metrics.get("calibration_segment"),
                 "odds_age_hours": metrics.get("odds_age_hours"),
+                "minimum_valid_odds": round(1.03 / float(
+                    (metrics.get("probability_interval") or {}).get("low")
+                    or metrics.get("calibrated_probability") or 1
+                ), 3),
+                "recommendation_expires_at": min(
+                    kickoff_aware,
+                    evaluated_aware + timedelta(minutes=30),
+                ).isoformat(),
                 "market_samples": metrics.get("market_samples"),
                 "model_trace": None,
             })
@@ -1205,7 +1348,14 @@ class ApiQueries:
                 "lineups", "weather",
             ],
         }
+        active_providers = {
+            name.strip()
+            for name in os.getenv("ACTIVE_PROVIDERS", "").split(",")
+            if name.strip()
+        }
         for row in health_rows:
+            if active_providers and row.provider not in active_providers:
+                continue
             if row.provider in seen:
                 continue
             seen.add(row.provider)

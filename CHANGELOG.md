@@ -11,6 +11,77 @@ acompanhar a evolução oficial do roadmap.
 
 ### Added
 
+- correção do travamento do Motor Estatístico com índices concorrentes para
+  snapshots, payloads e identidades, agregações SQL compactas e cache de 60s;
+- telas de estatísticas, modelos e sistema agora aguardam o relatório completo,
+  evitando exibir denominadores zero durante o carregamento inicial;
+- conclusão da G38 com reserva transacional e limites agregados por dia,
+  partida, competição, mercado e grupo de correlação;
+- circuit breakers por drawdown, drift de dados/calibração e perda de cobertura,
+  além de preço mínimo, frescor e expiração verificáveis antes de qualquer stake;
+- risco recalibrado por perda observada, métricas por coorte (hit rate, Brier,
+  CLV, ROI, yield e drawdown) e gates que bloqueiam promoção degradada;
+- liquidação idempotente com reconciliação de void e correções oficiais,
+  recomputando a carteira sem apagar a trilha histórica;
+- conclusão da G37 com dataset registry reproduzível, contratos contra leakage,
+  baselines por mercado, validação temporal aninhada e model cards versionados;
+- governança champion/challenger com canário de 5%, campeão preservado,
+  rollback por troca de papel, validade temporal e monitores de drift;
+- proveniência de dataset/cutoff/qualidade nas explicações, benchmark contra o
+  mercado, ablações e painel de gates MLOps em Modelos e aprendizado;
+- implementação da G36 com catálogo de capacidades, denominadores versionados,
+  frescor temporal, qualidade de odds, quarentena, causa raiz e custo de quota;
+- identidade de competição protegida por país e painel técnico de gates G36;
+- aceite G36 aprovado com odds frescas em 85,80%, múltiplos snapshots em
+  98,77%, estatísticas em 100% e erro de identidade amostrado em 0%;
+- conclusão da G35 com jobs persistentes, lease, retry/backoff, SLO,
+  dead-letter, treinamento isolado e kill switches independentes;
+- monitor de armazenamento e backup lógico integral com SHA-256, retenção e
+  restore PostgreSQL validado por contagens críticas;
+- conclusão da G34 com gerador e verificador de baseline sanitizado, checksum
+  reproduzível, fotografia PostgreSQL versionada e testes contra vazamento;
+- congelamento explícito da política v2 em under 2.5, under 3.5 e ambas marcam,
+  mantendo todos os demais mercados em observação sem stake;
+- catálogo canônico de métricas, registro priorizado de dívida técnica e
+  governança semanal com papéis e registro de decisão;
+
+- visão canônica do produto final, definição verificável da v1.0 e promessa
+  centrada em seletividade, explicabilidade e preservação de capital;
+- avaliação integral de produto, dados, estatística, ML, recomendação, risco,
+  UX, operação e segurança em 2 de agosto de 2026;
+- roadmap mestre G34–G43 com dependências, entregáveis, gates e painel semanal;
+
+- política seletiva de paper trading v2, com carteira nova e histórico v1
+  preservado, separação entre execução fictícia e observação sem stake;
+- reserva de exposição pendente, limites de 3% ao dia e 1% por partida, faixa
+  de odds 1,60–2,99, horizonte máximo de seis horas e probabilidade conservadora;
+- bloqueio de mercados extremos, promoção de segmentos condicionada a amostra,
+  ROI e Brier, além de isolamento correto da liquidação por carteira;
+
+- G33: camada temporal de importância dos jogadores, com rating relativo à
+  posição, minutos, forma, produção ofensiva/defensiva, escalação confirmada ou
+  provável, desfalques ponderados e snapshots auditáveis;
+- integração conservadora dos jogadores ao xG, confiança, evidência e
+  explicações, com cobertura mínima, teto configurável e fallback integral ao
+  modelo coletivo anterior;
+- automação da materialização de atributos individuais no ciclo de
+  inteligência já existente, sem novo worker concorrente;
+
+- roadmap vigente G27–G32 para estabilização, cobertura, MLOps, recomendação,
+  piloto local multiusuário e futura prontidão de hospedagem;
+- subetapa G27.1 e runbook de manutenção segura do armazenamento Docker, com
+  backup, checksum, restore testado, alertas e proibição de remover volumes;
+- modo operacional de provedor único, mantendo API-Football para novas coletas
+  e preservando todo o histórico das demais fontes;
+- rotação de odds que mantém o dia atual em todos os ciclos e percorre os 14
+  dias futuros sem rajadas, além de alinhar o denominador elegível à janela;
+- regressão logística temporal para 1X2, over/under 2,5 e BTTS, com split
+  cronológico 70/15/15, calibração holdout e gate contra baseline;
+- forecasts champion/challenger reais combinando Poisson, Elo e ML;
+- marcação de closing odds e fallback legado controlado da API-Football;
+- invalidação do ML quando placares, features ou alvos são corrigidos;
+- teste temporal dedicado e regressão integral com 2.729 testes aprovados.
+
 - pipeline operacional ponta a ponta para promover fixtures API-Football em
   competições, equipes e partidas; criar mercados; vincular odds reais; e
   registrar previsões Poisson idempotentes com nível de evidência explícito;
@@ -360,6 +431,10 @@ acompanhar a evolução oficial do roadmap.
 
 ### Changed
 
+- deployments sem ensemble probabilístico deixam de ser apresentados como
+  ensembles ativos;
+- treino temporal usa até 5.000 observações recentes para limitar custo;
+- documentação declara operação local e hospedagem pausada;
 - centralizada a configuração do pytest no arquivo `pyproject.toml`;
 - migradas as configurações `testpaths`, `pythonpath`, `python_files` e `python_functions`;
 - adotada a pasta `src` como raiz de importação do pacote `ultrastats_ai`;
@@ -529,3 +604,21 @@ Até a primeira versão oficial, as alterações permanecerão registradas em:
 ```text
 [Unreleased]
 ```
+# 2026-08-02
+
+- Adicionado ciclo automático de paper trading com banca sintética separada.
+- Adicionadas liquidação automática, captura de closing odds e cálculo de CLV.
+- Adicionado aprendizado automático com gates temporais, amostra mínima e
+  comparação estatística contra baseline.
+- Adicionados lotes rotativos de previsões e backoff para HTTP 429.
+- Adicionada retenção segura, desabilitada por padrão e condicionada a backup
+  recente verificado.
+- Adicionados endpoint, migração, testes e documentação do novo fluxo.
+# 2026-08-02 — acompanhamento das apostas fictícias
+
+- Adicionado botão **Apostas fictícias** em Visão técnica, com atualização
+  automática, totais diários e filtros por estado de liquidação.
+- A API de paper trading passou a informar partida, competição, kickoff,
+  probabilidade, payout, contagens e estado operacional.
+- A liquidação fictícia agora acontece imediatamente na transação do resultado
+  oficial e continua protegida por reconciliação recorrente a cada cinco minutos.

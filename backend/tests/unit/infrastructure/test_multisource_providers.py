@@ -444,3 +444,21 @@ def test_factory_enables_paid_source_only_with_key(monkeypatch) -> None:
     environment_engine = build_multi_source_engine(transports=responses)
     assert len(environment_engine.sources) == 4
     environment_engine.close()
+
+
+def test_factory_can_restrict_collection_to_api_football() -> None:
+    engine = build_multi_source_engine({
+        "API_FOOTBALL_KEY": "secret",
+        "ACTIVE_PROVIDERS": "api_football",
+    })
+
+    assert [source.name for source in engine.sources] == ["api_football"]
+    engine.close()
+
+
+def test_factory_rejects_selected_unconfigured_provider() -> None:
+    with pytest.raises(ValueError, match="sem configuração válida"):
+        build_multi_source_engine({
+            "API_FOOTBALL_KEY": "",
+            "ACTIVE_PROVIDERS": "api_football",
+        })
