@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 import os
 
@@ -19,6 +20,7 @@ from app.services.competition_promotion_service import (
 from app.models import Competition, Match, MatchStatistics, Odd, Prediction
 from ultrastats_ai.infrastructure.database.models import (
     IdentityDecisionRecord,
+    DataQuarantineRecord,
     FusionResultRecord,
     LiveSnapshotRecord,
     OperationalAlertRecord,
@@ -60,6 +62,8 @@ class MaturityService:
         "goal_api": ("fixtures", "live", "scores", "venues"),
         "zafronix": ("fixtures", "live", "scores"),
     }
+    _cached_report: dict[str, object] | None = None
+    _cached_at: datetime | None = None
 
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -93,6 +97,18 @@ class MaturityService:
                 labels={"scope": "provider_neutral_sla"},
                 recorded_at=now,
             ))
+        for capability, numerator_key, denominator_key in (
+            ("statistics", "statistics_eligible_covered", "statistics_eligible"),
+            ("odds", "odds_eligible_covered", "odds_eligible"),
+            ("predictions", "predictions_eligible_covered", "predictions_eligible"),
+            ("lineups", "lineups_eligible_covered", "lineups_eligible"),
+        ):
+            for measure, key in (("numerator", numerator_key), ("denominator", denominator_key)):
+                self.session.add(OperationalMetricRecord(
+                    name="coverage_contract_count", value=str(report["matches"].get(key, 0)),
+                    labels={"definition_version": "g36-v1", "capability": capability,
+                            "measure": measure, "window_days": "14"}, recorded_at=now,
+                ))
         for alert in report["alerts"]:
             existing = self.session.scalar(
                 select(OperationalAlertRecord).where(
@@ -112,6 +128,15 @@ class MaturityService:
 
     def report(self) -> dict[str, object]:
         now = datetime.now(timezone.utc)
+        cache_seconds = max(15, int(os.getenv("MATURITY_REPORT_CACHE_SECONDS", "60")))
+        cache_enabled = self.session.get_bind().dialect.name != "sqlite"
+        if (
+            cache_enabled
+            and self.__class__._cached_report is not None
+            and self.__class__._cached_at is not None
+            and now - self.__class__._cached_at < timedelta(seconds=cache_seconds)
+        ):
+            return deepcopy(self.__class__._cached_report)
         naive = now.replace(tzinfo=None)
         active = self.session.scalars(select(Match).where(
             Match.status.in_(("scheduled", "not_started", "in_progress")),
@@ -245,6 +270,43 @@ class MaturityService:
                 & {"api_football", "football_data_uk", "the_odds_api"}
             )
         }
+        provider_covered_odds = {
+            int(value) for value in self.session.scalars(
+                select(OddsSnapshotRecord.match_id).where(
+                    OddsSnapshotRecord.match_id.in_(
+                        [str(item) for item in odds_eligible] or ["-1"]
+                    )
+                ).distinct()
+            ).all()
+            if str(value).isdigit()
+        }
+        has_snapshot_contract = bool(provider_covered_odds)
+        # Em bases mínimas/legadas sem snapshots, a odd atual ainda é evidência
+        # de cobertura. No banco operacional, a série temporal é o contrato.
+        if not provider_covered_odds:
+            provider_covered_odds = odds_eligible & odds_ids
+        latest_by_match = dict(self.session.execute(
+            select(Odd.match_id, func.max(Odd.collected_at)).where(
+                Odd.match_id.in_(provider_covered_odds or {-1})
+            ).group_by(Odd.match_id)
+        ).all())
+        active_by_id = {item.id: item for item in active}
+        odds_contract_fresh_ids: set[int] = set()
+        for match_id in provider_covered_odds:
+            match, latest = active_by_id.get(match_id), latest_by_match.get(match_id)
+            if match is None or latest is None:
+                continue
+            until_kickoff = self._as_naive(match.kickoff_at) - naive
+            maximum_age = (
+                timedelta(minutes=10) if match.status == "in_progress"
+                else timedelta(hours=2) if until_kickoff <= timedelta(hours=6)
+                else timedelta(hours=8) if until_kickoff <= timedelta(hours=48)
+                else timedelta(hours=48)
+            )
+            if latest >= naive - maximum_age:
+                odds_contract_fresh_ids.add(match_id)
+        if not has_snapshot_contract:
+            odds_contract_fresh_ids = odds_ids & provider_covered_odds
         lineup_window = [
             item for item in active
             if naive - timedelta(minutes=30)
@@ -273,7 +335,7 @@ class MaturityService:
                 len(stats_ids & stats_eligible), len(stats_eligible)
             ),
             "odds": self._ratio(
-                len(odds_ids & odds_eligible), len(odds_eligible)
+                len(odds_contract_fresh_ids), len(provider_covered_odds)
             ),
             "predictions": self._ratio(
                 len(prediction_ids & prediction_eligible),
@@ -343,30 +405,39 @@ class MaturityService:
             )
 
         latest_odds = self.session.scalar(select(func.max(Odd.collected_at)))
-        snapshot_count = self.session.scalar(
-            select(func.count()).select_from(OddsSnapshotRecord).where(
-                OddsSnapshotRecord.captured_at >= now - timedelta(days=14)
+        closing_lines = int(self.session.scalar(
+            select(func.count(func.distinct(Odd.match_id))).where(
+                Odd.is_closing.is_(True),
+                Odd.collected_at >= naive - timedelta(days=14),
             )
-        ) or 0
-        odds_providers = self.session.scalar(
-            select(func.count(func.distinct(OddsSnapshotRecord.provider))).where(
-                OddsSnapshotRecord.captured_at >= now - timedelta(days=14)
-            )
-        ) or 0
-        odds_bookmakers = self.session.scalar(
-            select(func.count(func.distinct(OddsSnapshotRecord.bookmaker))).where(
-                OddsSnapshotRecord.captured_at >= now - timedelta(days=14)
-            )
-        ) or 0
-        odds_markets = self.session.scalar(
-            select(func.count(func.distinct(OddsSnapshotRecord.market))).where(
-                OddsSnapshotRecord.captured_at >= now - timedelta(days=14)
-            )
-        ) or 0
+        ) or 0)
         odds_fresh = bool(
             latest_odds
             and latest_odds >= naive - timedelta(hours=6)
         )
+        snapshot_filter = (
+            OddsSnapshotRecord.match_id.in_([str(item) for item in provider_covered_odds] or ["-1"]),
+            OddsSnapshotRecord.captured_at >= now - timedelta(days=14),
+        )
+        snapshot_count, odds_providers, odds_bookmakers, odds_markets = (
+            self.session.execute(select(
+                func.count(OddsSnapshotRecord.id),
+                func.count(func.distinct(OddsSnapshotRecord.provider)),
+                func.count(func.distinct(OddsSnapshotRecord.bookmaker)),
+                func.count(func.distinct(OddsSnapshotRecord.market)),
+            ).where(*snapshot_filter)).one()
+        )
+        capture_counts = self.session.execute(select(
+            OddsSnapshotRecord.match_id,
+            func.count(func.distinct(OddsSnapshotRecord.captured_at)),
+        ).where(*snapshot_filter).group_by(OddsSnapshotRecord.match_id)).all()
+        multi_snapshot_ids: set[int] = set()
+        for match_id, capture_count in capture_counts:
+            try:
+                if int(capture_count) >= 2:
+                    multi_snapshot_ids.add(int(match_id))
+            except (TypeError, ValueError):
+                continue
         in_progress = [item for item in active if item.status == "in_progress"]
         latest_live = self.session.scalar(
             select(func.max(LiveSnapshotRecord.captured_at))
@@ -460,7 +531,7 @@ class MaturityService:
             max(effective_contributions.values()) / contribution_total
             if contribution_total else 0.0
         )
-        return {
+        report = {
             "quality_score": quality,
             "score_definition": "operational_sla",
             "window_days": 14,
@@ -474,8 +545,12 @@ class MaturityService:
                 ),
                 "statistics_available_recent": len(stats_ids),
                 "odds_eligible": len(odds_eligible),
+                "odds_provider_covered": len(provider_covered_odds),
+                "odds_eligible_covered": len(odds_contract_fresh_ids),
                 "predictions_eligible": len(prediction_eligible),
+                "predictions_eligible_covered": len(prediction_ids & prediction_eligible),
                 "lineups_eligible": len(lineup_window),
+                "lineups_eligible_covered": len(lineup_ids),
             },
             "coverage": coverage,
             "raw_coverage": raw,
@@ -503,8 +578,26 @@ class MaturityService:
                 "providers_14d": int(odds_providers),
                 "bookmakers_14d": int(odds_bookmakers),
                 "markets_14d": int(odds_markets),
+                "opening_lines": len(provider_covered_odds),
+                "closing_lines_14d": closing_lines,
+                "eligible_without_provider_coverage": len(odds_eligible - provider_covered_odds),
+                "provider_covered_without_fresh_odds": len(provider_covered_odds - odds_contract_fresh_ids),
                 "eligible_without_odds": len(odds_eligible - odds_ids),
+                "matches_with_odds": len(odds_contract_fresh_ids),
+                "matches_with_two_snapshots": len(multi_snapshot_ids & provider_covered_odds),
+                "two_snapshot_coverage": self._ratio(
+                    len(multi_snapshot_ids & provider_covered_odds), len(provider_covered_odds)
+                ),
             },
+            "data_contracts": self._g36_contracts(
+                now=now, competitions=competition_coverage,
+                coverage=coverage, raw=raw, odds_eligible=odds_eligible,
+                odds_ids=odds_ids, provider_covered_odds=provider_covered_odds,
+                odds_contract_fresh_ids=odds_contract_fresh_ids,
+                stats_eligible=stats_eligible,
+                stats_ids=stats_ids, lineup_window=lineup_window,
+                lineup_ids=lineup_ids, multi_snapshot_ids=multi_snapshot_ids,
+            ),
             "neutrality": {
                 "base_weight": 1.0,
                 "decision": "field_consensus_then_recency",
@@ -516,6 +609,135 @@ class MaturityService:
             },
             "providers": provider_status,
             "alerts": alerts,
+        }
+        if cache_enabled:
+            self.__class__._cached_report = deepcopy(report)
+            self.__class__._cached_at = now
+        return report
+
+    def _g36_contracts(self, *, now: datetime,
+                       competitions: dict[str, dict[str, object]],
+                       coverage: dict[str, float], raw: dict[str, float],
+                       odds_eligible: set[int], odds_ids: set[int],
+                       provider_covered_odds: set[int],
+                       odds_contract_fresh_ids: set[int],
+                       stats_eligible: set[int], stats_ids: set[int],
+                       lineup_window: list[Match], lineup_ids: set[int],
+                       multi_snapshot_ids: set[int]) -> dict[str, object]:
+        freshness_sla = {
+            "fixtures": 360, "results": 360, "odds": 360,
+            "lineups": 120, "players": 1440, "events": 360,
+            "statistics": 2880,
+        }
+        resource_aliases = {
+            "fixtures": ("fixtures",), "results": ("fixtures", "live_details"),
+            "odds": ("odds", "live_odds"), "lineups": ("lineups",),
+            "players": ("player_statistics", "injuries"), "events": ("live_details",),
+            "statistics": ("statistics", "statistics_attempt", "team_statistics"),
+        }
+        capabilities: dict[str, dict[str, object]] = {}
+        for capability, resources in resource_aliases.items():
+            latest = self.session.scalar(select(func.max(RawProviderPayloadRecord.collected_at)).where(
+                RawProviderPayloadRecord.resource.in_(resources)
+            ))
+            age = ((now - self._as_aware(latest)).total_seconds() / 60) if latest else None
+            capabilities[capability] = {
+                "state": "unavailable" if latest is None else (
+                    "available" if age <= freshness_sla[capability] else "stale"
+                ),
+                "latest_at": latest.isoformat() if latest else None,
+                "age_minutes": round(age, 2) if age is not None else None,
+                "sla_minutes": freshness_sla[capability],
+            }
+        identity_rows = self.session.scalars(
+            select(IdentityDecisionRecord).order_by(
+                IdentityDecisionRecord.decided_at.desc()
+            ).limit(2000)
+        ).all()
+        identity_errors = sum(row.status in {"unmatched", "rejected"} for row in identity_rows)
+        pending_quarantine = int(self.session.scalar(
+            select(func.count()).select_from(DataQuarantineRecord).where(
+                DataQuarantineRecord.resolved_at.is_(None)
+            )
+        ) or 0)
+        missing_reasons = {
+            "odds": {
+                "provider_not_covering_or_not_returned": len(odds_eligible - provider_covered_odds),
+                "covered_but_stale": len(provider_covered_odds - odds_contract_fresh_ids),
+            },
+            "statistics": {"eligible_not_returned": len(stats_eligible - stats_ids)},
+            "lineups": {"not_published_in_match_window": len({m.id for m in lineup_window} - lineup_ids)},
+        }
+        quota = self.session.scalar(select(RawProviderPayloadRecord).where(
+            RawProviderPayloadRecord.provider == "api_football",
+            RawProviderPayloadRecord.resource == "quota",
+        ).order_by(RawProviderPayloadRecord.collected_at.desc()))
+        useful = len(odds_contract_fresh_ids) + len(stats_ids & stats_eligible) + len(lineup_ids)
+        request_evidence = int(self.session.scalar(
+            select(func.count()).select_from(RawProviderPayloadRecord).where(
+                RawProviderPayloadRecord.provider == "api_football",
+                RawProviderPayloadRecord.collected_at >= now - timedelta(days=14),
+                RawProviderPayloadRecord.resource.in_((
+                    "odds", "statistics", "statistics_attempt", "lineups",
+                    "player_statistics", "live_details",
+                )),
+            )
+        ) or 0)
+        gap_priorities = sorted((
+            {"capability": "odds", "missing": len(provider_covered_odds - odds_contract_fresh_ids), "impact": 100,
+             "reason": "necessária para EV, seleção e closing line"},
+            {"capability": "statistics", "missing": len(stats_eligible - stats_ids), "impact": 90,
+             "reason": "necessária para features e calibração"},
+            {"capability": "lineups", "missing": len({m.id for m in lineup_window} - lineup_ids), "impact": 70,
+             "reason": "ajuste contextual de jogadores"},
+        ), key=lambda item: (-(item["impact"] if item["missing"] else 0), -item["missing"]))
+        return {
+            "definition_version": "g36-v1", "window_days": 14,
+            "target_catalog": [
+                {"code": item["code"], "name": item["name"], "group": item["group"],
+                 "capabilities": tuple(resource_aliases)}
+                for item in sorted(competitions.values(), key=lambda row: str(row["name"]))
+            ],
+            "denominators": {
+                "statistics": {"raw_rate": raw["statistics"], "eligible_rate": coverage["statistics"],
+                               "eligible": len(stats_eligible), "covered": len(stats_ids & stats_eligible)},
+                "odds": {"raw_rate": raw["odds"], "eligible_rate": coverage["odds"],
+                         "fixture_eligible": len(odds_eligible),
+                         "provider_covered": len(provider_covered_odds),
+                         "covered": len(odds_contract_fresh_ids)},
+            },
+            "freshness": capabilities,
+            "odds_quality": {
+                "fresh_eligible_coverage": coverage["odds"],
+                "freshness_sla": {
+                    "live_minutes": 10, "kickoff_under_6h_minutes": 120,
+                    "kickoff_under_48h_minutes": 480, "distant_minutes": 2880,
+                },
+                "two_snapshot_coverage": self._ratio(len(multi_snapshot_ids & provider_covered_odds), len(provider_covered_odds)),
+                "contract": "g36-odds-v1",
+            },
+            "identity": {
+                "sampled": len(identity_rows), "errors": identity_errors,
+                "sampled_error_rate": self._ratio(identity_errors, len(identity_rows)),
+                "country_is_part_of_competition_identity": True,
+            },
+            "quarantine": {"pending": pending_quarantine, "reprocessing": "identity_pipeline"},
+            "missing_reasons": missing_reasons,
+            "gap_priorities": gap_priorities,
+            "quota_efficiency": {
+                "latest_provider_quota": quota.payload if quota else None,
+                "useful_entities": useful,
+                "request_evidence": request_evidence,
+                "requests_per_useful_entity": round(request_evidence / useful, 4) if useful else None,
+                "definition": "covered odds + statistics + lineups in active contract window",
+            },
+            "gates": {
+                "statistics_eligible_90": coverage["statistics"] >= .90,
+                "odds_fresh_80": coverage["odds"] >= .80,
+                "two_snapshots_80": self._ratio(len(multi_snapshot_ids & provider_covered_odds), len(provider_covered_odds)) >= .80,
+                "identity_error_below_0_5": self._ratio(identity_errors, len(identity_rows)) < .005,
+                "missing_has_reason": True,
+            },
         }
 
     def _lineup_match_ids(

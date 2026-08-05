@@ -14,6 +14,7 @@ from app.scheduler.scheduler_state import (
 )
 from app.services import CollectorOrchestratorService
 from app.services.multi_provider_sync_service import MultiProviderSyncService
+from app.services.resilient_job_service import resilient_job
 
 from app.services import SchedulerHeartbeatService
 
@@ -26,6 +27,7 @@ backfill_lock = threading.Lock()
 odds_sync_lock = threading.Lock()
 live_sync_lock = threading.Lock()
 paper_trading_lock = threading.Lock()
+model_training_lock = threading.Lock()
 
 
 def mark_stale_runs() -> int:
@@ -87,6 +89,7 @@ def mark_stale_runs() -> int:
         session.close()
 
 
+@resilient_job("sync", maximum_runtime_seconds=1200, slot_seconds=300)
 def run_scheduled_sync() -> None:
     """
     Executa a sincronização automática.
@@ -245,6 +248,7 @@ def run_scheduled_sync() -> None:
             "Erro na sincronização agendada: %s",
             error,
         )
+        raise
 
     finally:
         if sync_session is not None:
@@ -258,6 +262,7 @@ def run_scheduled_sync() -> None:
         scheduler_lock.release()
 
 
+@resilient_job("live", maximum_runtime_seconds=120, slot_seconds=30)
 def run_scheduled_live_sync() -> None:
     """Executa o coletor leve de placares sem bloquear o pipeline completo."""
     # O feed ao vivo tem SLA próprio e não pode ficar parado durante coleta
@@ -291,12 +296,14 @@ def run_scheduled_live_sync() -> None:
         logger.exception(
             "Erro na atualização leve ao vivo: %s", error
         )
+        raise
     finally:
         if session is not None:
             session.close()
         live_sync_lock.release()
 
 
+@resilient_job("backfill", maximum_runtime_seconds=300, slot_seconds=300)
 def run_scheduled_backfill() -> None:
     """Preenche estatísticas históricas sem bloquear placares ao vivo."""
     if settings.sync_provider != "multi_provider":
@@ -317,12 +324,14 @@ def run_scheduled_backfill() -> None:
         )
     except Exception as error:
         logger.exception("Erro no backfill estatístico: %s", error)
+        raise
     finally:
         if session is not None:
             session.close()
         backfill_lock.release()
 
 
+@resilient_job("odds", maximum_runtime_seconds=300, slot_seconds=300)
 def run_scheduled_odds_sync() -> None:
     """Atualiza preços em janela móvel sem esperar a sincronização completa."""
     if settings.sync_provider != "multi_provider":
@@ -343,12 +352,14 @@ def run_scheduled_odds_sync() -> None:
         )
     except Exception as error:
         logger.exception("Erro na atualização de odds: %s", error)
+        raise
     finally:
         if session is not None:
             session.close()
         odds_sync_lock.release()
 
 
+@resilient_job("paper", maximum_runtime_seconds=300, slot_seconds=60)
 def run_scheduled_paper_trading() -> None:
     """Cria, liquida e aprende com apostas fictícias; nunca usa banca real."""
     if not settings.paper_trading_enabled or not paper_trading_lock.acquire(blocking=False):
@@ -366,10 +377,33 @@ def run_scheduled_paper_trading() -> None:
         if session is not None:
             session.rollback()
         logger.exception("Erro no ciclo automático de paper trading.")
+        raise
     finally:
         if session is not None:
             session.close()
         paper_trading_lock.release()
+
+
+@resilient_job("training", maximum_runtime_seconds=1200, slot_seconds=300)
+def run_scheduled_model_training() -> None:
+    """Executa treino em worker dedicado, fora da inferencia e liquidacao."""
+    if not model_training_lock.acquire(blocking=False):
+        return
+    session = None
+    try:
+        from app.services.model_training_worker_service import ModelTrainingWorkerService
+        session = SessionLocal()
+        result = ModelTrainingWorkerService(session).run_once()
+        logger.info("Worker de treino concluido: %s", result)
+    except Exception:
+        if session is not None:
+            session.rollback()
+        logger.exception("Erro no worker dedicado de treino.")
+        raise
+    finally:
+        if session is not None:
+            session.close()
+        model_training_lock.release()
         
 def update_scheduler_heartbeat() -> None:
     """

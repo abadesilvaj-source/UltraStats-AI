@@ -1,236 +1,285 @@
-# Roadmap 2026 — próximas etapas
+# Roadmap mestre 2026–2027 — UltraStats AI
 
 Atualizado em: 2 de agosto de 2026.
 
-Este é o plano vigente após a conclusão da fundação G1–G26 e da primeira
-implementação operacional de ML temporal, ensembles reais e closing odds. O
-aplicativo permanece local; publicação na internet não faz parte do escopo atual.
+Este é o único plano vigente do produto. O histórico G1–G33 permanece em
+[`roadmap.md`](roadmap.md). A visão final está em
+[`../product/product-vision.md`](../product/product-vision.md) e a avaliação que
+originou este plano em
+[`../operations/system-assessment-2026-08-02.md`](../operations/system-assessment-2026-08-02.md).
 
-## Estado de partida
+O aplicativo permanece exclusivamente local. Hospedagem, acesso externo e
+automação com dinheiro real não estão autorizados.
 
-Decisão operacional de 2 de agosto de 2026: API-Football é a única fonte ativa
-para novas coletas. Dados históricos das demais fontes são preservados para
-auditoria e reprodutibilidade, mas não recebem novas observações.
+## Norte do produto
 
-- backend FastAPI, scheduler, PostgreSQL e frontends web/mobile saudáveis;
-- autenticação e isolamento dos dados por usuário implementados;
-- 14.305 partidas e 299.203 previsões na fotografia operacional de 1º de agosto;
-- API-Football, The Odds API e fontes complementares configuráveis;
-- Poisson e Elo em produção, com ML temporal condicionado à aprovação fora da amostra;
-- ensembles champion/challenger reais para resultados e gols;
-- 2.729 testes aprovados e 99% de cobertura na última validação integral.
+Construir um assistente de decisão de futebol seletivo e responsável. O sistema
+deve provar probabilidades calibradas e risco controlado antes de ampliar
+mercados ou usuários. “Sem aposta” é um resultado correto.
 
-Os números operacionais são fotografias do ambiente, não metas permanentes.
+## Estado inicial
 
-## Ordem de execução
+- fundação G1–G26 e impacto de jogadores G33 implementados;
+- API-Football como única fonte ativa de novas coletas;
+- web, mobile, API, scheduler e PostgreSQL operacionais localmente;
+- política de paper trading v2 ativa, com histórico v1 preservado;
+- validação temporal, champion/challenger e fallback presentes;
+- evidência prospectiva da nova política ainda insuficiente;
+- G27–G30 parcialmente implementadas e consolidadas nas fases abaixo.
 
-| Fase | Prioridade | Horizonte sugerido | Resultado esperado |
+## Sequência executiva
+
+| Fase | Prioridade | Horizonte relativo | Saída obrigatória |
 |---|---:|---:|---|
-| G27 — estabilização do pipeline | P0 | 1–2 semanas | ciclos curtos, concorrência controlada e observabilidade |
-| G28 — qualidade e cobertura | P0 | 2–4 semanas | cobertura elegível ≥ 90% nas competições-alvo |
-| G29 — validação científica | P0 | 3–6 semanas | modelos aprovados por evidência, não por cadastro |
-| G30 — recomendação e risco | P1 | 5–8 semanas | recomendações seletivas e auditáveis |
-| G31 — piloto local multiusuário | P1 | 7–10 semanas | feedback estruturado sem publicação externa |
-| G32 — prontidão para hospedagem | P2 | somente sob nova decisão | implantação privada reversível e segura |
+| G34 — baseline e congelamento | P0 | semana 1 | fotografia reproduzível e escopo decisório reduzido |
+| G35 — operação e armazenamento | P0 | semanas 1–3 | jobs isolados, recuperação e backup demonstrados |
+| G36 — contratos de dados | P0 | semanas 2–5 | SLA e qualidade por competição/capacidade |
+| G37 — laboratório científico | P0 | semanas 4–8 | datasets/modelos reproduzíveis e calibrados |
+| G38 — decisão e risco | P0 | semanas 6–10 | política prospectiva segura e auditável |
+| G39 — observação prospectiva | P0 | mínimo 30–90 dias | evidência suficiente para promoção |
+| G40 — produto web/mobile | P1 | semanas 8–14 | jornada simples, acessível e testada |
+| G41 — piloto multiusuário local | P1 | após G39/G40 | teste controlado sem falhas críticas |
+| G42 — prontidão operacional externa | P2 | sob autorização | ambiente privado reversível |
+| G43 — v1.0 e evolução | P2 | após todos os gates | release sustentada por evidência |
 
-Os horizontes indicam sequência e esforço relativo. Não são promessas de data.
+Horizontes representam ordem e esforço, não datas prometidas. G39 depende do
+calendário esportivo e não pode ser acelerada por backfill.
 
-## G27 — Estabilização do pipeline operacional
+## G34 — Baseline, inventário e congelamento de escopo
 
-Objetivo: impedir que coleta, treinamento e geração de previsões concorram por
-uma única transação longa.
+Objetivo: criar uma referência única antes de novas otimizações.
 
-- [ ] separar coleta, promoção, treino e inferência em jobs idempotentes;
-- [ ] adotar commits por lote e limites de tempo por etapa;
-- [ ] criar trava de exclusão por tipo de job e evitar treinos duplicados;
-- [ ] mover treino para fila própria, mantendo inferência com o último champion;
-- [ ] registrar duração, filas, itens processados e motivo de degradação;
-- [ ] criar retry com backoff para HTTP 429 e circuit breaker para HTTP 402;
-- [ ] testar recuperação após encerramento no meio de cada etapa;
-- [ ] manter o frontend disponível durante backfills e treinamentos.
+- [x] registrar visão final e avaliação integral do sistema;
+- [x] iniciar paper trading v2 sem apagar a v1;
+- [x] gerar manifesto automático de versões, migrations e configurações não secretas;
+- [x] congelar mercados executáveis iniciais e manter os demais em shadow;
+- [x] capturar baseline de banco, cobertura, latência, modelos e recomendações;
+- [x] reconciliar documentos que ainda tratam G27–G30 como não iniciadas;
+- [x] classificar dívida técnica por impacto e remover métricas duplicadas;
+- [x] definir responsáveis, cadence semanal e registro de decisões.
 
-### G27.1 — Manutenção segura de armazenamento
+Status: **concluída**. Evidências em
+[`../baselines/g34-baseline-2026-08-02.json`](../baselines/g34-baseline-2026-08-02.json),
+[`g34-baseline-governance.md`](g34-baseline-governance.md),
+[`technical-debt-register.md`](technical-debt-register.md) e
+[`../architecture/metrics-catalog.md`](../architecture/metrics-catalog.md).
 
-Objetivo: impedir esgotamento do disco virtual Docker sem perda ou alteração do
+Gate aprovado: baseline reproduzível, sem segredo, com números e consultas
+versionadas.
+
+## G35 — Operação resiliente e armazenamento seguro
+
+Objetivo: garantir que coleta, treino e inferência não derrubem o produto nem o
 banco.
 
-- [ ] medir semanalmente imagens, containers, cache e volumes separadamente;
-- [ ] criar alertas em 75%, 85% e 90% do limite;
-- [ ] produzir backup lógico com checksum antes de cada limpeza;
-- [ ] validar o restore em banco temporário isolado;
-- [ ] limpar somente cache de build e imagens comprovadamente não utilizadas;
-- [ ] proibir `docker system prune --volumes`, `docker volume prune`,
-  `docker compose down -v` e remoção manual de `PGDATA`;
-- [ ] comparar contagens críticas e executar smoke tests depois da manutenção;
-- [ ] documentar espaço recuperado e evidências da preservação do banco.
+- [x] separar coleta, promoção, odds, treino, inferência, paper e liquidação em jobs;
+- [x] idempotência, lease, timeout, retry/backoff e dead-letter por job;
+- [x] treinar fora do processo de inferência e manter o champion disponível;
+- [x] limitar transações e commits por lote;
+- [x] criar SLO de duração, atraso, fila, erro e recuperação;
+- [x] alertar disco em 75%, 85% e 90%;
+- [x] automatizar backup lógico com checksum e retenção;
+- [x] testar restore em PostgreSQL temporário e comparar contagens críticas;
+- [x] executar ensaio de interrupção no meio de cada job;
+- [x] criar kill switch de coleta, treino e recomendação independentes.
 
-Critérios de aceite:
+Gate:
 
-- volume PostgreSQL ativo permanece com o mesmo identificador;
-- nenhuma contagem funcional diminui após a manutenção;
-- backup possui checksum e teste de restore aprovado;
-- todos os cinco serviços retornam saudáveis após a limpeza;
-- cache recuperável é reduzido sem remover imagens em uso.
+- nenhum job bloqueia API/live por mais de cinco minutos;
+- reinício não duplica artefatos;
+- restore validado e RPO/RTO documentados;
+- volume PostgreSQL nunca é removido por manutenção.
 
-Runbook obrigatório:
-[`../operations/docker-storage-maintenance.md`](../operations/docker-storage-maintenance.md).
+Runbook: [`../operations/docker-storage-maintenance.md`](../operations/docker-storage-maintenance.md).
 
-Critérios de aceite:
+Conclusão: 03/08/2026. Evidências em
+[`../operations/g35-resilience-runbook.md`](../operations/g35-resilience-runbook.md).
 
-- ciclo ao vivo não é bloqueado por treino ou refresh de odds;
-- nenhuma transação operacional permanece aberta por mais de cinco minutos;
-- reinício do scheduler não duplica forecasts, odds ou payloads;
-- health check diferencia saudável, degradado e indisponível.
+## G36 — Contratos de dados, odds e identidade
 
-## G28 — Cobertura, odds e qualidade dos dados
+Objetivo: transformar disponibilidade externa em qualidade mensurável.
 
-Objetivo: elevar cobertura útil com dados reais, sem fabricar preenchimentos.
+- [x] catálogo-alvo de competições com fixtures, resultados, odds, escalações,
+  jogadores, eventos e estatísticas;
+- [x] denominadores brutos e elegíveis versionados;
+- [x] contrato de frescor por capacidade e estado `available/unavailable/stale`;
+- [x] reconciliar IDs de competição, temporada, equipe, partida e mercado;
+- [x] impedir união de competições homônimas de países diferentes;
+- [x] coletar abertura, snapshots e closing line quando disponíveis;
+- [x] validar bookmaker, linha, seleção e timestamp antes de associar odds;
+- [x] priorizar lacunas pelo impacto nos mercados ativos;
+- [x] quarentena e reprocessamento de payloads inconsistentes;
+- [x] painel de causa raiz e custo de cota por dado útil.
 
-- [ ] definir lista explícita de competições-alvo e SLA por capacidade;
-- [ ] medir denominadores de cobertura bruta e elegível por data/competição;
-- [ ] ampliar backfill de estatísticas por lotes respeitando cotas;
-- [ ] consolidar matching de partidas entre provedores de odds e fixtures;
-- [ ] armazenar abertura, snapshots intermediários e closing odds;
-- [ ] criar reconciliação para partidas sem estatística, odds ou identidade;
-- [ ] priorizar automaticamente lacunas com maior impacto nos modelos;
-- [ ] criar painel de erros por provedor, competição e causa.
-- [x] restringir novas coletas à API-Football sem excluir histórico anterior;
-- [x] rotacionar a janela futura de odds preservando o dia atual em cada ciclo;
-- [x] alinhar cobertura elegível de odds à janela operacional de 14 dias;
+Gate:
 
-Critérios de aceite:
+- estatísticas elegíveis ≥ 90% no núcleo;
+- odds frescas ≥ 80% das partidas realmente cobertas pelo provedor;
+- ≥ 80% das partidas com odds possuem dois snapshots quando a fonte permite;
+- erro de identidade amostrado < 0,5%;
+- toda ausência relevante possui motivo verificável.
 
-- cobertura elegível de estatísticas ≥ 90% nas competições-alvo;
-- cobertura bruta cresce de forma mensurável e com denominador documentado;
-- ≥ 80% das partidas elegíveis com odds têm ao menos dois snapshots válidos;
-- closing odds são marcadas antes da liquidação sempre que a fonte permitir;
-- toda ausência relevante possui causa auditável.
+Implementação concluída em 03/08/2026. Contratos e procedimento de aceite:
+[`../operations/g36-data-contracts-runbook.md`](../operations/g36-data-contracts-runbook.md).
 
-## G29 — Validação científica e MLOps
+## G37 — Laboratório estatístico, ML e MLOps
 
-Objetivo: promover modelos somente quando superarem baseline em dados futuros.
+Objetivo: aprovar modelos somente por desempenho temporal futuro.
 
-- [ ] versionar dataset, features, hiperparâmetros e checksum do conteúdo;
-- [ ] executar walk-forward por competição, mercado e horizonte;
-- [ ] comparar Poisson, Elo, ML e ensembles com log loss, Brier e calibração;
-- [ ] definir amostra mínima e intervalo de confiança por segmento;
-- [ ] automatizar champion/challenger e rollback de modelo;
-- [ ] monitorar drift de features, probabilidades e resultado;
-- [ ] calibrar pesos do ensemble fora da amostra;
-- [ ] expandir ML apenas para mercados com dados suficientes;
-- [ ] publicar model cards internas com limitações conhecidas.
+- [x] registry de dataset com consulta, cutoff, checksum, features e alvos;
+- [x] testes automáticos de leakage e contratos de features;
+- [x] baselines Poisson/Elo por mercado e regime;
+- [x] modelos especializados apenas onde existe amostra;
+- [x] walk-forward aninhado por temporada/competição/mercado/horizonte;
+- [x] calibração sem usar o conjunto de teste;
+- [x] intervalos de confiança e análise de sensibilidade;
+- [x] benchmark contra probabilidade implícita sem margem;
+- [x] champion/challenger com canário, rollback e validade temporal;
+- [x] drift de dados, conceito, calibração e cobertura;
+- [x] model card, limitações e segmentos proibidos por versão;
+- [x] ablação de escalações, jogadores, odds e contexto.
 
-Critérios de aceite:
+Gate:
 
-- nenhum challenger é promovido sem ganho fora da amostra;
-- treino, calibração e teste possuem cortes temporais reproduzíveis;
-- inferência tem fallback determinístico para o baseline;
-- métricas globais nunca ocultam segmentos com amostra insuficiente;
-- cada forecast informa modelo, versão, corte e nível de evidência.
+- challenger melhora baseline fora da amostra com incerteza aceitável;
+- nenhum segmento ruim é ocultado por média global;
+- treino é reproduzível e rollback leva minutos, não horas;
+- previsão registra modelo, dataset, cutoff e qualidade das features.
 
-## G30 — Recomendações, banca e risco
+Implementação concluída em 04/08/2026. O canário permanece limitado a 5% e
+não substitui automaticamente o campeão. Evidências e rollback:
+[`../operations/g37-mlops-runbook.md`](../operations/g37-mlops-runbook.md).
 
-Objetivo: transformar probabilidades calibradas em decisões conservadoras.
+## G38 — Recomendação seletiva, paper trading e risco
 
-- [ ] usar odds atuais e closing line apenas quando realmente observadas;
-- [ ] recalibrar limiares de EV, incerteza e abstinência por segmento;
-- [ ] limitar exposição por partida, competição, mercado e correlação;
-- [ ] validar Kelly fracionado com cenários de estresse;
-- [ ] medir ROI, yield, drawdown e CLV somente em apostas liquidadas;
-- [ ] separar recomendação, simulação e aposta registrada;
-- [ ] explicar por que uma oportunidade foi recomendada ou recusada;
-- [ ] reforçar limites e mensagens de jogo responsável.
+Objetivo: converter probabilidades em decisões sem repetir a política v1.
 
-Critérios de aceite:
+- [x] separar `paper_executed` de `shadow_observation`;
+- [x] odds 1,60–2,99, limite inferior ≥ 80% e horizonte ≤ 6h;
+- [x] reservar pendências e limitar 3% ao dia/1% por partida;
+- [x] bloquear placar exato, linhas extremas e escanteios na execução inicial;
+- [x] isolar carteiras, liquidação e métricas por política;
+- [x] limite agregado por competição, mercado e correlação;
+- [x] circuit breaker por drawdown, drift e perda de cobertura;
+- [x] odd mínima válida e expiração visível na recomendação;
+- [x] recalibrar rótulos de risco por perda observada, não por nome do mercado;
+- [x] painel com hit rate, Brier, CLV, ROI, yield e drawdown por coorte;
+- [x] impedir promoção quando ROI, CLV ou calibração degradarem;
+- [x] testar estresse, sequência de perdas, void e correções de resultado.
 
-- ausência de odds recentes sempre produz “Sem aposta”;
-- recomendações não usam métricas financeiras sintéticas;
-- exposição respeita integralmente o perfil do usuário;
-- auditoria reconstrói a decisão com os dados disponíveis naquele instante.
+Gate: todas as invariantes de exposição passam em concorrência e nenhuma
+recomendação sem preço recente recebe stake.
 
-## G31 — Piloto local multiusuário
+Implementação concluída em 04/08/2026. Política, limites, circuit breakers,
+reconciliação e procedimento de aceite:
+[`../operations/g38-selective-risk-runbook.md`](../operations/g38-selective-risk-runbook.md).
 
-Objetivo: permitir testes reais com amigos mantendo o sistema na máquina local.
+## G39 — Validação prospectiva contínua
 
-- [ ] revisar isolamento de banca, apostas, favoritos e configurações por usuário;
-- [ ] testar cadastro, login, logout, recuperação e expiração de sessão;
-- [ ] adicionar consentimento, exclusão de conta e exportação dos próprios dados;
-- [ ] criar coleta de feedback dentro do produto, sem dados sensíveis;
-- [ ] executar testes de usabilidade web e mobile;
-- [ ] definir backup antes do piloto e rotina de restauração;
-- [ ] acompanhar erros e feedback por 7–14 dias.
+Objetivo: obter evidência que não foi usada para escolher a política.
 
-Critérios de aceite:
+- [ ] iniciar coorte v2 com data de corte imutável;
+- [ ] revisão semanal automática, sem ajustar regra no meio da coorte;
+- [ ] relatório de calibração por decil e segmento;
+- [ ] comparar executadas, shadow, baseline e mercado;
+- [ ] medir CLV de abertura/execução/fechamento;
+- [ ] registrar mudanças como nova versão, nunca sobrescrever a coorte;
+- [ ] promover mercado em três etapas: shadow, stake mínimo, política ativa;
+- [ ] rebaixar automaticamente em drift ou deterioração;
+- [ ] executar análise independente antes de ampliar capital fictício.
 
-- zero acesso cruzado entre usuários nos testes automatizados e exploratórios;
-- nenhuma credencial ou chave aparece no frontend, logs ou repositório;
-- backup e restauração são demonstrados antes do primeiro convidado;
-- problemas P0/P1 do piloto são corrigidos antes de ampliar participantes.
+Gate mínimo:
 
-Amigos fora da rede local só poderão acessar após uma decisão de hospedagem ou
-VPN privada. Essa autorização não está ativa neste roadmap.
+- 30–90 dias prospectivos;
+- 1.000 decisões liquidadas totais;
+- 100 por segmento promovido;
+- Brier/ECE dentro do limite definido;
+- CLV médio não negativo com intervalo reportado;
+- drawdown abaixo do limite aprovado;
+- nenhuma falha de integridade aberta.
 
-## G32 — Prontidão para hospedagem privada
+## G40 — Produto web e mobile centrado na decisão
 
-Objetivo: preparar, sem executar, uma futura publicação segura.
+Objetivo: tornar o sistema compreensível sem expor complexidade operacional.
 
-- [ ] decidir arquitetura de frontend, API, banco, scheduler e armazenamento;
-- [ ] substituir bancos locais por PostgreSQL gerenciado com backups;
-- [ ] separar secrets de build e runtime;
-- [ ] configurar domínio, TLS, CORS, rate limit e observabilidade;
-- [ ] executar migrations e smoke tests em ambiente isolado;
-- [ ] elaborar rollback e plano de resposta a incidentes;
-- [ ] concluir revisão jurídica e de privacidade aplicável.
+- [ ] design system compartilhado e tokens responsivos;
+- [ ] separar “projeção”, “observação”, “recomendação” e “aposta registrada”;
+- [ ] onboarding, glossário e mensagens de risco;
+- [ ] recomendação em um cartão: seleção, odd mínima, validade, confiança,
+  incerteza, stake máximo e explicação;
+- [ ] busca, filtros e estados vazios consistentes;
+- [ ] histórico pessoal com evolução da banca e decisões;
+- [ ] acessibilidade WCAG 2.2 AA e navegação por teclado;
+- [ ] E2E dos fluxos críticos em web e viewport mobile;
+- [ ] performance, paginação e virtualização de listas grandes;
+- [ ] feedback no produto com consentimento e sem dado sensível.
 
-Gate de início: somente após autorização explícita do proprietário. Vercel
-isoladamente não hospeda o scheduler e o PostgreSQL persistente desta arquitetura.
+Gate: usuários de teste concluem busca → compreensão → registro sem ajuda e sem
+erros P0/P1.
 
-## G33 — Importância dos jogadores nas previsões ✅
+## G41 — Piloto local multiusuário
 
-Objetivo: transformar estatísticas individuais, escalações e desfalques em
-evidência temporal auditável, preservando o modelo coletivo quando a cobertura
-for insuficiente.
+Objetivo: validar utilidade e isolamento antes de acesso externo.
 
-- [x] normalizar estatísticas individuais provenientes da API Football;
-- [x] criar rating 0–100 sensível à posição, minutos, amostra e forma;
-- [x] agregar força da escalação provável ou confirmada;
-- [x] ponderar ausências pela importância observada do atleta;
-- [x] materializar `player_impact_v1` no feature store temporal;
-- [x] aplicar cobertura mínima e teto configurável de ajuste do xG;
-- [x] preservar fallback determinístico para o pipeline anterior;
-- [x] incluir cobertura individual no nível de evidência e confiança;
-- [x] registrar fatores individuais nas explicações dos forecasts;
-- [x] automatizar a atualização dentro do ciclo operacional existente;
-- [x] adicionar testes de regressão, escalação confirmada e falta de identidade.
+- [ ] testes de autorização por objeto em todas as rotas pessoais;
+- [ ] cadastro, login, logout, expiração, recuperação e revogação;
+- [ ] exportação e exclusão dos dados do usuário;
+- [ ] backup imediatamente antes do piloto;
+- [ ] telemetria local de erros, sem credenciais ou conteúdo privado;
+- [ ] roteiro de teste, formulário e triagem de feedback;
+- [ ] piloto de 7–14 dias com grupo pequeno;
+- [ ] correção de todos os P0/P1 e decisão formal de continuar.
 
-Critérios de aceite:
+Gate: zero vazamento entre usuários, restore demonstrado e aceite do piloto.
 
-- nenhuma observação posterior ao cutoff participa da previsão;
-- cobertura abaixo de 45% não altera o xG;
-- ajuste individual absoluto não ultrapassa 0,12 xG por equipe por padrão;
-- desligar `PLAYER_IMPACT_ENABLED` restaura o comportamento coletivo;
-- competições sem estatísticas individuais continuam operando normalmente;
-- cada snapshot informa cutoff, fontes e versão da política;
-- novos pesos continuam subordinados ao gate temporal G29.
+## G42 — Prontidão para operação externa
 
-## Indicadores semanais
+Objetivo: preparar publicação privada, sem executá-la automaticamente.
 
-| Área | Indicador |
+- [ ] decisão explícita do proprietário;
+- [ ] threat model, gestão de segredos e revisão de dependências;
+- [ ] PostgreSQL gerenciado, backups/PITR e migrations controladas;
+- [ ] API e scheduler em runtime persistente; frontend em CDN quando aplicável;
+- [ ] TLS, domínio, CORS, CSP, rate limit e proteção contra abuso;
+- [ ] observabilidade, alertas, orçamento e limites de cota;
+- [ ] staging isolado, teste de carga, desastre e rollback;
+- [ ] privacidade, termos e jogo responsável revisados juridicamente;
+- [ ] plano de incidentes e encerramento seguro do serviço.
+
+Gate: checklist de produção aprovado e rollback ensaiado. Vercel isoladamente
+não substitui backend, scheduler e PostgreSQL.
+
+## G43 — Release v1.0 e evolução controlada
+
+Objetivo: declarar maturidade apenas quando produto e evidência convergirem.
+
+- [ ] cumprir a definição v1.0 da visão de produto;
+- [ ] publicar model cards e release notes internas;
+- [ ] definir SLO/SLA, suporte e cadence de releases;
+- [ ] revisão mensal de dados/modelos e trimestral de risco;
+- [ ] experimentos sempre versionados, reversíveis e em shadow primeiro;
+- [ ] expansão de mercado/competição somente após os mesmos gates;
+- [ ] revisão formal semestral da visão e deste roadmap.
+
+## Painel semanal obrigatório
+
+| Área | Indicadores |
 |---|---|
-| Operação | duração e taxa de sucesso por job |
-| Dados | cobertura bruta/elegível e idade do dado |
-| Odds | partidas com snapshots, casas e closing odds |
-| Modelos | log loss, Brier, ECE, drift e taxa de aprovação |
-| Recomendação | abstinência, EV observado e exposição |
-| Produto | usuários ativos, erros e feedback resolvido |
-| Segurança | tentativas bloqueadas, sessões e acessos cruzados |
+| Operação | disponibilidade, atraso, duração, fila, erro e recuperação |
+| Banco | tamanho, crescimento, backup, restore, conexões e queries lentas |
+| Dados | cobertura, frescor, identidade, cota e incidentes por causa |
+| Modelos | Brier, log loss, ECE, drift, amostra e ganho sobre baseline |
+| Decisão | abstinência, executadas/shadow, CLV, ROI, yield e drawdown |
+| Risco | exposição pendente, concentração, correlação e circuit breakers |
+| Produto | tarefas concluídas, latência, erros, acessibilidade e feedback |
+| Segurança | acessos negados, sessões, segredos e testes de isolamento |
 
-## Regras de governança
+## Governança
 
-- dados ausentes nunca são inventados para atingir uma meta;
-- cobertura não representa acurácia;
-- acurácia isolada não autoriza recomendação;
-- mudanças de modelo exigem validação temporal e caminho de rollback;
-- credenciais, bancos e dados pessoais não são enviados ao Git;
-- hospedagem permanece pausada até nova autorização explícita;
-- cada fase atualiza código, testes, runbook, changelog e este roadmap.
+- uma fase só conclui com código, testes, documentação e evidência;
+- implementação não significa validação e validação não significa produção;
+- nenhuma regra é ajustada retroativamente dentro da mesma coorte;
+- dados pessoais, bancos e segredos nunca entram no Git;
+- resultados negativos permanecem visíveis;
+- toda expansão exige rollback;
+- este documento prevalece sobre roadmaps históricos.

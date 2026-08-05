@@ -98,6 +98,10 @@ class RawProviderPayloadRecord(CanonicalBase):
     __table_args__ = (
         UniqueConstraint("fingerprint", name="uq_provider_payload_fingerprint"),
         Index("ix_provider_payload_lookup", "provider", "resource", "collected_at"),
+        Index(
+            "ix_provider_payload_external_lookup",
+            "provider", "resource", "external_id", "collected_at",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -125,6 +129,10 @@ class IdentityDecisionRecord(CanonicalBase):
     __table_args__ = (
         UniqueConstraint("provider", "external_id", name="uq_identity_external"),
         Index("ix_identity_review_queue", "status", "decided_at"),
+        Index(
+            "ix_identity_candidate_status_provider",
+            "candidate_id", "status", "provider",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -260,6 +268,7 @@ class OddsSnapshotRecord(CanonicalBase):
             name="uq_odds_snapshot",
         ),
         Index("ix_odds_snapshot_timeline", "match_id", "market", "captured_at"),
+        Index("ix_odds_snapshot_captured", "captured_at"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)

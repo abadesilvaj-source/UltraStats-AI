@@ -10,6 +10,7 @@ from app.services.maturity_service import MaturityService
 from ultrastats_ai.infrastructure.database.models import (
     CanonicalBase,
     ProviderHealthRecord,
+    OddsSnapshotRecord,
     RawProviderPayloadRecord,
 )
 
@@ -117,6 +118,35 @@ def test_provider_availability_follows_sync_cadence_and_recent_payload():
 def test_empty_eligible_population_is_not_reported_as_full_coverage():
     assert MaturityService._ratio(0, 0) == 0.0
     assert MaturityService._ratio(9, 10) == 0.9
+
+
+def test_odds_denominator_requires_provider_coverage_evidence():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine); CanonicalBase.metadata.create_all(engine)
+    now = datetime.now(timezone.utc)
+    with Session(engine) as session:
+        competition = Competition(name="Premier League", country="England")
+        home, away = Team(name="H"), Team(name="A")
+        market = Market(code="result", name="Result", category="result")
+        session.add_all((competition, home, away, market)); session.flush()
+        covered = Match(competition_id=competition.id, home_team_id=home.id,
+                        away_team_id=away.id, kickoff_at=now + timedelta(hours=2),
+                        status="scheduled", source="api_football", external_id="c1")
+        uncovered = Match(competition_id=competition.id, home_team_id=home.id,
+                          away_team_id=away.id, kickoff_at=now + timedelta(hours=3),
+                          status="scheduled", source="api_football", external_id="c2")
+        session.add_all((covered, uncovered)); session.flush()
+        session.add_all((
+            Odd(match_id=covered.id, market_id=market.id, bookmaker="Book",
+                selection="home", odd_value=Decimal("2"), collected_at=now),
+            OddsSnapshotRecord(provider="api_football", match_id=str(covered.id),
+                bookmaker="Book", market="result", selection="home",
+                decimal_odds="2", captured_at=now),
+        )); session.flush()
+        report = MaturityService(session).report()
+        assert report["matches"]["odds_eligible"] == 2
+        assert report["matches"]["odds_provider_covered"] == 1
+        assert report["coverage"]["odds"] == 1
 
 
 def test_empty_eligible_population_is_not_reported_as_full_coverage():

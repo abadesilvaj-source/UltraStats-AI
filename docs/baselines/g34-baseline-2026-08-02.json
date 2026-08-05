@@ -1,0 +1,187 @@
+{
+  "schema_version": "g34-baseline-v1",
+  "captured_at": "2026-08-03T02:39:46.013861+00:00",
+  "source_commit": "0bd07194d9fe267578a774a86cfde5bc94b116a8",
+  "source_tree_checksum": "d811c17497e34ee56a168b731bfebad81834957294535fab03037fb6695da681",
+  "runtime": {
+    "python": "3.13.14",
+    "packages": {
+      "fastapi": "0.136.3",
+      "sqlalchemy": "2.0.51",
+      "alembic": "1.18.5",
+      "psycopg": "3.3.4",
+      "apscheduler": "3.11.3",
+      "httpx": "0.28.1"
+    }
+  },
+  "configuration": {
+    "ACTIVE_PROVIDERS": "api_football",
+    "SYNC_INTERVAL_MINUTES": "360",
+    "LIVE_SYNC_INTERVAL_MINUTES": "30",
+    "ODDS_SYNC_INTERVAL_MINUTES": "15",
+    "ODDS_SYNC_WINDOW_DAYS": "14",
+    "ODDS_MAX_AGE_HOURS": null,
+    "AUTO_STATS_LOOKBACK_DAYS": "365",
+    "PLAYER_IMPACT_ENABLED": null,
+    "PLAYER_IMPACT_MIN_COVERAGE": null,
+    "PLAYER_IMPACT_MAX_XG_ADJUSTMENT": null,
+    "PAPER_TRADING_PORTFOLIO": null,
+    "PAPER_TRADING_MIN_ODDS": null,
+    "PAPER_TRADING_MAX_ODDS": null,
+    "PAPER_TRADING_MIN_PROBABILITY": null,
+    "PAPER_TRADING_MAX_HORIZON_HOURS": null,
+    "PAPER_TRADING_DAILY_EXPOSURE": null,
+    "PAPER_TRADING_MATCH_EXPOSURE": null,
+    "PAPER_TRADING_EXECUTABLE_MARKETS": null,
+    "PAPER_TRADING_BLOCKED_MARKETS": null,
+    "PAPER_POLICY_MIN_SEGMENT_SAMPLES": null
+  },
+  "decision_scope": {
+    "portfolio": "automatic-shadow-v2",
+    "executable_markets": [
+      "both_teams_to_score",
+      "under_2_5_goals",
+      "under_3_5_goals"
+    ],
+    "policy": "selective_reserved_exposure_v2"
+  },
+  "database": {
+    "dialect": "postgresql",
+    "migration_heads": [
+      "b53d8a44e015"
+    ],
+    "counts": {
+      "competitions": 536,
+      "teams": 6638,
+      "matches": 15118,
+      "markets": 125,
+      "predictions": 357922,
+      "recommendation_opportunities": 531529,
+      "feature_snapshots": 20855,
+      "odds_snapshots": 6980781,
+      "data_quality_incidents": 9294,
+      "model_deployments": 12,
+      "temporal_backtests": 30,
+      "paper_bets": 3528,
+      "paper_portfolios": 2,
+      "users": 1,
+      "bet_slips": 11
+    },
+    "paper_portfolios": [
+      {
+        "name": "automatic-shadow-v1",
+        "active": false,
+        "initial_balance": 10000.0,
+        "current_balance": -17422.70367674733,
+        "decisions": 3528,
+        "executed": 3528,
+        "shadow": 0,
+        "total_stake": 153708.26468387162
+      },
+      {
+        "name": "automatic-shadow-v2",
+        "active": true,
+        "initial_balance": 10000.0,
+        "current_balance": 10000.0,
+        "decisions": 0,
+        "executed": 0,
+        "shadow": 0,
+        "total_stake": 0.0
+      }
+    ],
+    "recommendations": {
+      "total": 531529,
+      "safe": 3843,
+      "latest_evaluated_at": "2026-08-02 19:28:44.775141+00:00"
+    }
+  },
+  "health": {
+    "status": "healthy",
+    "latency_ms": 1173.47,
+    "counts": {
+      "matches": 15118,
+      "predictions": 357922,
+      "markets": 125,
+      "bet_slips": 11
+    },
+    "last_sync": {
+      "id": 4202,
+      "status": "success",
+      "source": "multi_provider_live",
+      "started_at": "2026-08-03T02:39:35.890922",
+      "finished_at": "2026-08-03T02:39:43.856936",
+      "warnings": null
+    },
+    "intelligence": {
+      "statistics": {
+        "matches_with_statistics": 3406,
+        "last_update": "2026-08-03T02:39:39.606999",
+        "recent_attempts": 5811
+      },
+      "recommendations": {
+        "persisted": 73750,
+        "safe": 1599
+      },
+      "learning": {
+        "audited_predictions": 27843,
+        "registered_models": 114,
+        "training_datasets": 34,
+        "latest_validation": {
+          "approved": true,
+          "evaluated_at": "2026-08-02T19:27:05.265290+00:00",
+          "brier_score": 0.15162795436123558,
+          "calibration_error": 0.030457587157781005,
+          "samples": 16970,
+          "drift_detected": false,
+          "champion": "operational-poisson-v1",
+          "challenger": "challenger-v1"
+        }
+      },
+      "platform": {
+        "feature_store": {
+          "snapshots": 20855,
+          "player_impact_snapshots": 341,
+          "player_impact_enabled": true,
+          "latest_as_of": "2026-08-03T02:00:00+00:00",
+          "leakage_guard": "strictly_before_kickoff"
+        },
+        "quality": {
+          "open_incidents": 7972,
+          "critical": 0,
+          "by_kind": {
+            "missing_post_match_statistics": 1385,
+            "missing_or_stale_odds": 6587
+          }
+        },
+        "models": {
+          "deployments": 4,
+          "champions": 2,
+          "shadow_challengers": 2,
+          "families": [
+            "goals",
+            "results"
+          ]
+        },
+        "decision_control": {
+          "active_policies": 170,
+          "calibrated_segments": 170,
+          "drifted_segments": 12,
+          "selective_prediction": "target_accuracy_with_abstention",
+          "target_accuracy": 0.85,
+          "dimensions": [
+            "competition",
+            "market_family",
+            "odds_band",
+            "horizon"
+          ]
+        },
+        "task_queue": {
+          "pending": 0,
+          "failed": 0,
+          "completed": 18
+        }
+      }
+    }
+  },
+  "checksum": "522b0665eff703ca4f43933770ee83e58a09549f10fb59cd6749fce242b7bea9"
+}

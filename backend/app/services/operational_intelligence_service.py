@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import os
 from math import sqrt
 from hashlib import sha256
 from statistics import mean
@@ -290,6 +291,10 @@ class OperationalIntelligenceService:
     def _materialize_recommendations(
         self, *, model_approved: bool
     ) -> int:
+        if os.getenv("RECOMMENDATION_GENERATION_ENABLED", "true").lower() not in {
+            "1", "true", "yes", "sim", "on"
+        }:
+            return 0
         now = datetime.now(timezone.utc)
         validation = self.session.scalar(
             select(ModelValidationRecord)

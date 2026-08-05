@@ -28,6 +28,10 @@ from app.services.scheduler_heartbeat_service import (
     SchedulerHeartbeatService,
 )
 from app.services.paper_trading_service import PaperTradingService
+from app.services.resilient_job_service import ResilientJobService, resilient_job
+from app.services.model_training_worker_service import ModelTrainingWorkerService
+from app.services.odds_data_contract_service import OddsDataContractService
+from app.services.mlops_governance_service import MLOpsGovernanceService
 from app.services.safe_retention_service import SafeRetentionService
 from app.services.multi_provider_sync_service import (
     MultiProviderSyncService,

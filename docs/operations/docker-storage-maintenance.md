@@ -1,10 +1,13 @@
 # Manutenção segura do armazenamento Docker
 
-Atualizado em: 2 de agosto de 2026.
+Atualizado em: 3 de agosto de 2026.
 
 Esta rotina controla o crescimento do disco virtual do Docker sem remover dados
-do PostgreSQL. Ela integra a G27.1 e não deve ser executada parcialmente ou sem
+do PostgreSQL. Ela integra a G35 e não deve ser executada parcialmente ou sem
 as verificações obrigatórias.
+
+O procedimento automatizado, o restore aprovado e os valores atuais estão em
+[`g35-resilience-runbook.md`](g35-resilience-runbook.md).
 
 ## Princípio de segurança
 

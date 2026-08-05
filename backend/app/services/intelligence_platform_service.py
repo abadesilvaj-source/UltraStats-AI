@@ -19,6 +19,7 @@ from app.models import (
     Team,
 )
 from app.services.player_impact_service import PlayerImpactService
+from app.services.mlops_governance_service import MLOpsGovernanceService
 from ultrastats_ai.infrastructure.database.models import (
     DataQualityIncidentRecord,
     DecisionPolicyRecord,
@@ -29,6 +30,7 @@ from ultrastats_ai.infrastructure.database.models import (
     ProcessingTaskRecord,
     RawProviderPayloadRecord,
     TemporalBacktestRecord,
+    TrainingDatasetRecord,
 )
 
 
@@ -123,6 +125,7 @@ class IntelligencePlatformService:
         backtests = self.run_temporal_backtests()
         policies = self.materialize_decision_policies()
         explanations = self.materialize_explanations()
+        mlops = MLOpsGovernanceService(self.session).run()
         tasks = self.register_pipeline_tasks()
         return {
             "feature_snapshots_created": features,
@@ -131,6 +134,7 @@ class IntelligencePlatformService:
             "temporal_backtests": backtests,
             "decision_policies": policies,
             "prediction_explanations_created": explanations,
+            "mlops_governance": mlops,
             "pipeline_tasks_registered": tasks,
         }
 
@@ -765,6 +769,11 @@ class IntelligencePlatformService:
 
     def materialize_explanations(self) -> int:
         now = datetime.now(timezone.utc)
+        dataset = self.session.scalar(
+            select(TrainingDatasetRecord)
+            .where(TrainingDatasetRecord.name == "temporal_prematch_features")
+            .order_by(TrainingDatasetRecord.created_at.desc())
+        )
         predictions = self.session.scalars(
             select(Prediction)
             .join(Match, Match.id == Prediction.match_id)
@@ -777,11 +786,22 @@ class IntelligencePlatformService:
         ).all()
         created = 0
         for prediction in predictions:
-            if self.session.scalar(
-                select(PredictionExplanationRecord.id).where(
+            existing_explanation = self.session.scalar(
+                select(PredictionExplanationRecord).where(
                     PredictionExplanationRecord.prediction_id == str(prediction.id)
                 )
-            ):
+            )
+            provenance = {
+                "dataset_version": dataset.version if dataset else None,
+                "dataset_checksum": dataset.checksum if dataset else None,
+                "dataset_cutoff_at": dataset.cutoff_at.isoformat() if dataset else None,
+                "feature_set": "prematch_context_v1",
+            }
+            if existing_explanation:
+                decision = dict(existing_explanation.decision or {})
+                if decision.get("provenance") != provenance:
+                    decision["provenance"] = provenance
+                    existing_explanation.decision = decision
                 continue
             market = self.session.get(Market, prediction.market_id)
             feature = self.session.scalar(
@@ -839,6 +859,14 @@ class IntelligencePlatformService:
                             prediction.expected_value is not None
                             and prediction.expected_value > 0
                         ),
+                        "provenance": {
+                            **provenance,
+                            "feature_quality": {
+                                "snapshot_available": feature is not None,
+                                "available_fields": len(feature_values),
+                                "leakage_guard": "as_of_lte_prediction_created_at",
+                            },
+                        },
                     },
                 )
             )
@@ -867,6 +895,29 @@ class IntelligencePlatformService:
         return len(tasks)
 
     def status(self) -> dict[str, object]:
+        recent_scheduler_tasks = self.session.scalars(
+            select(ProcessingTaskRecord).where(
+                ProcessingTaskRecord.kind.like("scheduler:%")
+            ).order_by(ProcessingTaskRecord.created_at.desc()).limit(500)
+        ).all()
+        scheduler_slo: dict[str, dict[str, object]] = {}
+        for task in recent_scheduler_tasks:
+            name = task.kind.removeprefix("scheduler:")
+            item = scheduler_slo.setdefault(name, {
+                "samples": 0, "completed": 0, "failed": 0,
+                "running": 0, "pending": 0, "slo_breaches": 0,
+                "dead_letter": 0, "maximum_duration_seconds": 0.0,
+            })
+            item["samples"] += 1
+            if task.status in {"completed", "failed", "running", "pending"}:
+                item[task.status] += 1
+            payload = task.payload or {}
+            duration = float(payload.get("duration_seconds") or 0)
+            item["maximum_duration_seconds"] = max(
+                float(item["maximum_duration_seconds"]), duration
+            )
+            item["slo_breaches"] += int(bool(payload.get("timed_out")))
+            item["dead_letter"] += int(bool(payload.get("dead_letter")))
         deployments = self.session.scalars(
             select(ModelDeploymentRecord).where(ModelDeploymentRecord.active.is_(True))
         ).all()
@@ -938,7 +989,9 @@ class IntelligencePlatformService:
                     select(func.count()).select_from(PredictionExplanationRecord)
                 ) or 0,
             },
+            "mlops_governance": MLOpsGovernanceService(self.session).status(),
             "task_queue": {
+                "scheduler_slo": scheduler_slo,
                 "pending": self.session.scalar(
                     select(func.count()).select_from(ProcessingTaskRecord).where(
                         ProcessingTaskRecord.status == "pending"
@@ -952,6 +1005,17 @@ class IntelligencePlatformService:
                 "completed": self.session.scalar(
                     select(func.count()).select_from(ProcessingTaskRecord).where(
                         ProcessingTaskRecord.status == "completed"
+                    )
+                ) or 0,
+                "running": self.session.scalar(
+                    select(func.count()).select_from(ProcessingTaskRecord).where(
+                        ProcessingTaskRecord.status == "running"
+                    )
+                ) or 0,
+                "dead_letter": self.session.scalar(
+                    select(func.count()).select_from(ProcessingTaskRecord).where(
+                        ProcessingTaskRecord.status == "failed",
+                        ProcessingTaskRecord.payload["dead_letter"].as_boolean().is_(True),
                     )
                 ) or 0,
             },

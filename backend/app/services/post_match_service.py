@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from app.models import Audit, MatchStatistics
@@ -321,6 +322,14 @@ class PostMatchService:
             multiple_slips_settled = BetSlipService(
                 self.session
             ).settle_match(match, statistics)
+            # A liquidação fictícia participa da mesma transação do resultado
+            # oficial. O job recorrente continua como reconciliação de segurança.
+            paper_bets_settled = 0
+            if inspect(self.session.connection()).has_table("paper_bets"):
+                from app.services.paper_trading_service import PaperTradingService
+                paper_bets_settled = PaperTradingService(
+                    self.session
+                ).settle_finished()
             learning = LearningPipelineService(
                 self.session
             ).process(match, statistics)
@@ -351,6 +360,7 @@ class PostMatchService:
                 "settled_bets": settled_bets,
                 "total_profit_units": total_profit,
                 "multiple_slips_settled": multiple_slips_settled,
+                "paper_bets_settled": paper_bets_settled,
                 "learning": learning,
             }
 

@@ -1,7 +1,7 @@
 # Implantação
 
 > Status em 2 de agosto de 2026: implantação externa pausada. Estes documentos
-> são preparação e não autorizam publicação. A retomada depende do gate G32 e
+> são preparação e não autorizam publicação. A retomada depende do gate G42 e
 > de autorização explícita.
 
 Esta seção reúne documentos relacionados à execução e implantação do UltraStats AI.

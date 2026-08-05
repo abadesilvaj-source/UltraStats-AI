@@ -1,7 +1,7 @@
 # Runbook de produção
 
 > Uso suspenso em 2 de agosto de 2026. O aplicativo opera localmente; este
-> runbook permanece apenas como preparação para uma futura decisão G32.
+> runbook permanece apenas como preparação para uma futura decisão G42.
 
 ## Inicialização
 

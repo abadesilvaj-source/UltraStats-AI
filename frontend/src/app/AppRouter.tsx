@@ -17,7 +17,7 @@ import type { BetSelection, Match, PlacedBet } from '../data'
 import {
   analyzeBetSlip, loadBankrolls, loadBetSlips, loadCurrentUser, loadMatch, loadMatches,
   loginUser, logoutUser, registerUser,
-  loadIntelligence, loadMaturity, loadPredictions, loadRecommendations, placeBet,
+  loadIntelligence, loadMaturity, loadPaperTrading, loadPredictions, loadRecommendations, placeBet,
 } from '../api'
 import type { AuthUser, PredictionDto, RecommendationDto } from '../api'
 
@@ -80,6 +80,7 @@ const queryKeys = {
   predictions: ['predictions'] as const,
   recommendations: ['recommendations'] as const,
   intelligence: ['intelligence'] as const,
+  paperTrading: ['paper-trading'] as const,
 }
 
 function useStoredFavorites(userId: string) {
@@ -308,6 +309,13 @@ function UltraStatsApp({ user, onLogout }: { user: AuthUser; onLogout: () => Pro
     staleTime: 60_000,
     refetchInterval: 120_000,
   })
+  const paperTradingQuery = useQuery({
+    queryKey: queryKeys.paperTrading,
+    queryFn: loadPaperTrading,
+    enabled: location.pathname === '/system',
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  })
 
   useEffect(() => {
     if (betsQuery.data) setPlacedBets(betsQuery.data)
@@ -402,6 +410,7 @@ function UltraStatsApp({ user, onLogout }: { user: AuthUser; onLogout: () => Pro
   const queryError = [
     matchesQuery.error, bankrollQuery.error, betsQuery.error, maturityQuery.error,
     predictionsQuery.error, recommendationsQuery.error, intelligenceQuery.error,
+    paperTradingQuery.error,
   ].find(Boolean)
 
   return (
@@ -494,7 +503,10 @@ function UltraStatsApp({ user, onLogout }: { user: AuthUser; onLogout: () => Pro
               />
             </FeaturePage>
           } />
-          <Route path="/system" element={<SystemView maturity={maturityQuery.data} />} />
+          <Route path="/system" element={
+            maturityQuery.isPending ? <LoadingScreen compact /> :
+            <SystemView maturity={maturityQuery.data} paperTrading={paperTradingQuery.data} />
+          } />
           <Route path="/analysis" element={
             predictionsQuery.isPending ? <LoadingScreen compact /> :
             <AnalysisPage predictions={predictionsQuery.data || []} onOpenMatch={id => navigate(`/matches/${id}`)} />
@@ -504,11 +516,11 @@ function UltraStatsApp({ user, onLogout }: { user: AuthUser; onLogout: () => Pro
             <RiskPage recommendations={recommendationsQuery.data || []} onOpenMatch={id => navigate(`/matches/${id}`)} />
           } />
           <Route path="/statistics" element={
-            intelligenceQuery.isPending ? <LoadingScreen compact /> :
+            (maturityQuery.isPending || intelligenceQuery.isPending) ? <LoadingScreen compact /> :
             <StatisticsPage maturity={maturityQuery.data} intelligence={intelligenceQuery.data} />
           } />
           <Route path="/models" element={
-            intelligenceQuery.isPending ? <LoadingScreen compact /> :
+            (maturityQuery.isPending || intelligenceQuery.isPending) ? <LoadingScreen compact /> :
             <ModelsPage maturity={maturityQuery.data} intelligence={intelligenceQuery.data} />
           } />
           <Route path="/recommendations" element={
@@ -768,7 +780,12 @@ function RiskPage({ recommendations, onOpenMatch }: {
       <DataList empty="Nenhuma avaliação de risco disponível.">
         {primary.slice(0, 80).map(item => (
           <button className="data-row" key={`${item.match_id}-${item.market_id}`} onClick={() => onOpenMatch(item.match_id)}>
-            <div><strong>{item.match}</strong><span>{item.market} · {item.selection}</span></div>
+            <div><strong>{item.match}</strong><span>{item.market} · {item.selection}</span>
+              <small style={{ display: 'block', color: '#7a88b0', marginTop: 3 }}>
+                Odd mínima {item.minimum_valid_odds?.toFixed(2) ?? '—'}
+                {' · '}válida até {item.recommendation_expires_at ? formatDateTime(item.recommendation_expires_at) : '—'}
+              </small>
+            </div>
             <RiskBadge item={item} />
           </button>
         ))}
@@ -840,6 +857,8 @@ function ModelsPage({ maturity, intelligence }: { maturity: any; intelligence: a
   const quality = platform.quality || {}
   const taskQueue = platform.task_queue || {}
   const decisionControl = platform.decision_control || {}
+  const mlops = platform.mlops_governance || {}
+  const mlopsGates = mlops.gates || {}
   return (
     <FeaturePage title="MODELOS E APRENDIZADO" subtitle="Auditoria, validação e evolução do modelo preditivo.">
       <div className="engine-grid">
@@ -909,6 +928,21 @@ function ModelsPage({ maturity, intelligence }: { maturity: any; intelligence: a
           Políticas condicionadas por competição, mercado, faixa de odd e antecedência.
           {' · '}O motor sinaliza incerteza sem transformar baixa evidência em falsa confiança.
         </p>
+      </section>
+      <section className={`insight-panel ${Object.values(mlopsGates).every(Boolean) ? 'success' : 'warning'}`}>
+        <div>{Object.values(mlopsGates).every(Boolean) ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+          <strong>GovernanÃ§a MLOps G37</strong>
+        </div>
+        <p>
+          Dataset: {mlops.dataset_version || 'aguardando registro'}
+          {' Â· '}Mercados com ganho fora da amostra: {(mlops.improved_markets || []).map(humanize).join(', ') || 'nenhum aprovado'}
+          {' Â· '}CanÃ¡rio limitado a 5%, com campeÃ£o preservado e rollback automÃ¡tico.
+        </p>
+        <div className="engine-grid" style={{ marginTop: 12 }}>
+          {Object.entries(mlopsGates).map(([name, passed]) => (
+            <MetricCard key={name} label={humanize(name)} value={passed ? 'APROVADO' : 'PENDENTE'} />
+          ))}
+        </div>
       </section>
     </FeaturePage>
   )

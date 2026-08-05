@@ -10,7 +10,7 @@ odds ou os ratings coletivos. Configurações e critérios completos constam em
 [`next-steps-roadmap.md`](next-steps-roadmap.md).
 
 > Nota de vigência — 2 de agosto de 2026: este arquivo preserva o plano
-> histórico detalhado G1–G26. O estado atual e as próximas fases G27–G33 estão
+> histórico detalhado G1–G33. O estado atual e as próximas fases G34–G43 estão
 > em [`next-steps-roadmap.md`](next-steps-roadmap.md), que prevalece quando
 > houver divergência de status, métricas ou próximo passo.
 

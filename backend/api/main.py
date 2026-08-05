@@ -174,9 +174,21 @@ def recommendations(
 
 
 @app.get("/api/v1/paper-trading")
-def paper_trading(request: Request):
+def paper_trading(
+    request: Request,
+    status: str | None = None,
+    limit: int = 500,
+    offset: int = 0,
+):
     """Painel auditável da simulação automática; não expõe banca real."""
-    return queries(request).paper_trading()
+    allowed = {None, "all", "pending", "settled", "won", "lost", "void", "unsupported"}
+    if status not in allowed:
+        raise HTTPException(status_code=422, detail="Status de paper trading inválido.")
+    return queries(request).paper_trading(
+        status=status,
+        limit=max(1, min(limit, 1000)),
+        offset=max(0, offset),
+    )
 
 
 @app.get("/api/v1/bankrolls")

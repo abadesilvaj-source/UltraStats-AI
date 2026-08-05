@@ -5,11 +5,12 @@ import {
   loadBetSlips, settleBetLeg,
   withdrawBankroll,
 } from './api'
+import type { PaperTradingDto } from './api'
 import {
   TrendingUp, Star, ChevronRight, ChevronLeft,
   Circle, Activity, BarChart3, Users, BookOpen,
   Trash2, CheckCircle2, XCircle, Clock,
-  AlertTriangle, Target, X, Filter, Search
+  AlertTriangle, Target, X, Filter, Search, Receipt,
 } from 'lucide-react'
 
 type MatchTab = 'live' | 'lineup' | 'stats' | 'analysis' | 'markets' | 'h2h'
@@ -1422,7 +1423,12 @@ export function FavoritesView({ matches, favorites, onMatchClick, onToggleFavori
   )
 }
 
-export function SystemView({ maturity }: { maturity: any }) {
+export function SystemView({ maturity, paperTrading }: {
+  maturity: any
+  paperTrading?: PaperTradingDto
+}) {
+  const [paperOpen, setPaperOpen] = useState(false)
+  const [paperStatus, setPaperStatus] = useState<'all' | 'pending' | 'settled'>('all')
   if (!maturity) {
     return <Card style={{ marginTop: 24, padding: 32, color: '#7a88b0' }}>
       Carregando diagnóstico operacional...
@@ -1441,6 +1447,7 @@ export function SystemView({ maturity }: { maturity: any }) {
     ['Previsões', maturity.raw_coverage.predictions],
     ['Escalações', maturity.raw_coverage.lineups],
   ] : []
+  const contracts = maturity.data_contracts
   return (
     <div className="animate-fade-in">
       <div style={{ padding: '24px 0 16px' }}>
@@ -1450,7 +1457,25 @@ export function SystemView({ maturity }: { maturity: any }) {
         <p style={{ fontSize: 13, color: '#5a6480' }}>
           Cobertura, atualidade e disponibilidade dos motores
         </p>
+        <button
+          type="button"
+          onClick={() => setPaperOpen(value => !value)}
+          aria-expanded={paperOpen}
+          style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, border: '1px solid #00e887', background: paperOpen ? 'rgba(0,232,135,.14)' : '#22252a', color: '#00e887', cursor: 'pointer', fontWeight: 700 }}
+        >
+          <Receipt size={16} /> Apostas fictícias
+          {paperTrading?.counts && <span style={{ padding: '2px 7px', borderRadius: 10, background: '#00e887', color: '#17191c', fontSize: 11 }}>
+            {paperTrading.counts.pending} pendentes
+          </span>}
+        </button>
       </div>
+      {paperOpen && (
+        <PaperTradingPanel
+          data={paperTrading}
+          status={paperStatus}
+          onStatusChange={setPaperStatus}
+        />
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 10 }}>
         <Card style={{ padding: 16 }}>
           <div style={{ color: '#5a6480', fontSize: 11 }}>SLA operacional</div>
@@ -1480,6 +1505,40 @@ export function SystemView({ maturity }: { maturity: any }) {
           ))}
         </div>
       </>}
+      {contracts && <>
+        <SectionLabel>Contratos de dados G36</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 8, marginBottom: 16 }}>
+          {Object.entries(contracts.gates || {}).map(([name, passed]: [string, any]) => (
+            <Card key={name} style={{ padding: 12, display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ color: '#eef0f9', fontSize: 11 }}>{name.replace(/_/g, ' ')}</span>
+              <strong style={{ color: passed ? '#00e887' : '#fbbf24', fontSize: 11 }}>{passed ? 'APROVADO' : 'PENDENTE'}</strong>
+            </Card>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 8, marginBottom: 24 }}>
+          {Object.entries(contracts.freshness || {}).map(([name, item]: [string, any]) => (
+            <Card key={name} style={{ padding: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#eef0f9', fontSize: 12 }}>{name}</span>
+                <span style={{ color: item.state === 'available' ? '#00e887' : item.state === 'stale' ? '#fbbf24' : '#ff1744', fontSize: 11 }}>{item.state}</span>
+              </div>
+              <div style={{ color: '#5a6480', fontSize: 10, marginTop: 5 }}>idade {item.age_minutes ?? '—'} min · SLA {item.sla_minutes} min</div>
+            </Card>
+          ))}
+        </div>
+        <SectionLabel>Causa raiz e eficiência</SectionLabel>
+        <Card style={{ padding: 16, marginBottom: 24 }}>
+          <div style={{ color: '#7a88b0', fontSize: 12, lineHeight: 1.8 }}>
+            Odds ausentes: {contracts.missing_reasons?.odds?.provider_not_covering_or_not_returned ?? 0} ·
+            Estatísticas ausentes: {contracts.missing_reasons?.statistics?.eligible_not_returned ?? 0} ·
+            Escalações não publicadas: {contracts.missing_reasons?.lineups?.not_published_in_match_window ?? 0}<br />
+            Quarentena pendente: {contracts.quarantine?.pending ?? 0} ·
+            Identidade: {percent(contracts.identity?.sampled_error_rate || 0)} de erro em {contracts.identity?.sampled || 0} decisões ·
+            Dados úteis por janela: {contracts.quota_efficiency?.useful_entities ?? 0} ·
+            Evidências de requisição/dado útil: {contracts.quota_efficiency?.requests_per_useful_entity ?? '—'}
+          </div>
+        </Card>
+      </>}
       <SectionLabel>Provedores</SectionLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 8, marginBottom: 24 }}>
         {Object.entries(maturity.providers).map(([name, item]: [string, any]) => (
@@ -1501,6 +1560,139 @@ export function SystemView({ maturity }: { maturity: any }) {
         </Card>
       ))}
     </div>
+  )
+}
+
+function PaperTradingPanel({ data, status, onStatusChange }: {
+  data?: PaperTradingDto
+  status: 'all' | 'pending' | 'settled'
+  onStatusChange: (value: 'all' | 'pending' | 'settled') => void
+}) {
+  if (!data || data.status === 'migration_pending') {
+    return <Card style={{ padding: 24, marginBottom: 24, color: '#7a88b0' }}>
+      Carregando apostas fictícias…
+    </Card>
+  }
+  const counts = data.counts || {
+    total: data.recent.length,
+    pending: data.recent.filter(item => item.status === 'pending').length,
+    settled: data.recent.filter(item => item.status !== 'pending').length,
+    won: 0, lost: 0, void: 0, today_created: 0, executed: 0, shadow: 0,
+  }
+  const visible = data.recent.filter(item => (
+    status === 'all' || (status === 'pending' ? item.status === 'pending' : item.status !== 'pending')
+  )).slice(0, 100)
+  const money = (value: number | null | undefined) =>
+    Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  const labels: Record<string, { label: string; color: string }> = {
+    pending: { label: 'Esperando liquidação', color: '#fbbf24' },
+    won: { label: 'Ganha', color: '#00c853' },
+    lost: { label: 'Perdida', color: '#ff1744' },
+    void: { label: 'Anulada', color: '#7a88b0' },
+    unsupported: { label: 'Mercado não suportado', color: '#f97316' },
+  }
+  return (
+    <section style={{ marginBottom: 28 }} aria-label="Apostas fictícias automáticas">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10, marginBottom: 14 }}>
+        {[
+          ['Criadas hoje', counts.today_created], ['Total', counts.total],
+          ['Executadas', counts.executed], ['Em observação', counts.shadow],
+          ['Esperando liquidação', counts.pending], ['Liquidadas', counts.settled],
+          ['Saldo fictício', money(data.portfolio?.current_balance)],
+        ].map(([label, value]) => (
+          <Card key={String(label)} style={{ padding: 14 }}>
+            <div style={{ color: '#5a6480', fontSize: 11 }}>{label}</div>
+            <strong style={{ display: 'block', marginTop: 6, color: '#eef0f9', fontSize: 19 }}>{value}</strong>
+          </Card>
+        ))}
+      </div>
+      <Card style={{ padding: 14, marginBottom: 12, borderColor: '#00e887' }}>
+        <strong style={{ color: '#eef0f9', fontSize: 13 }}>Automação ativa</strong>
+        <div style={{ color: '#7a88b0', fontSize: 12, marginTop: 4 }}>
+          A política v2 executa apenas recomendações de alta confiança dentro dos limites de odds, prazo e exposição. As demais ficam em observação com stake zero para aprendizado seguro. A reconciliação ocorre a cada cinco minutos.
+        </div>
+      </Card>
+      {data.metrics?.circuit_breaker && (
+        <Card style={{ padding: 14, marginBottom: 12, borderColor: data.metrics.circuit_breaker.open ? '#ff1744' : '#00e887' }}>
+          <strong style={{ color: '#eef0f9', fontSize: 13 }}>
+            Circuit breaker {data.metrics.circuit_breaker.open ? 'ABERTO' : 'normal'}
+          </strong>
+          <div style={{ color: '#7a88b0', fontSize: 12, marginTop: 4 }}>
+            Drawdown {(Number(data.metrics.circuit_breaker.drawdown || 0) * 100).toFixed(1)}%
+            {' · '}{data.metrics.circuit_breaker.reasons?.join(', ') || 'sem bloqueios por drift ou cobertura'}
+          </div>
+        </Card>
+      )}
+      {Object.keys(data.metrics?.cohorts || {}).length > 0 && <>
+        <SectionLabel>Métricas por coorte G38</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 8, marginBottom: 14 }}>
+          {Object.entries(data.metrics.cohorts).map(([name, item]: [string, any]) => (
+            <Card key={name} style={{ padding: 12 }}>
+              <strong style={{ color: '#eef0f9', fontSize: 12 }}>{name.replace(/_/g, ' ')}</strong>
+              <div style={{ color: '#7a88b0', fontSize: 11, marginTop: 5, lineHeight: 1.7 }}>
+                Acerto {item.hit_rate == null ? '—' : `${(item.hit_rate * 100).toFixed(1)}%`} ·
+                Brier {item.brier_score ?? '—'} · CLV {item.mean_clv ?? '—'}<br />
+                ROI {item.roi == null ? '—' : `${(item.roi * 100).toFixed(1)}%`} ·
+                Yield {item.yield == null ? '—' : `${(item.yield * 100).toFixed(1)}%`} ·
+                Drawdown {item.max_drawdown_fraction == null ? '—' : `${(item.max_drawdown_fraction * 100).toFixed(1)}%`}
+              </div>
+            </Card>
+          ))}
+        </div>
+      </>}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 12 }}>
+        {([
+          ['all', `Todas (${counts.total})`],
+          ['pending', `Esperando liquidação (${counts.pending})`],
+          ['settled', `Liquidadas (${counts.settled})`],
+        ] as const).map(([value, label]) => (
+          <button key={value} type="button" onClick={() => onStatusChange(value)}
+            style={{ padding: '8px 11px', borderRadius: 7, border: `1px solid ${status === value ? '#00e887' : '#444a52'}`, background: status === value ? 'rgba(0,232,135,.1)' : '#22252a', color: status === value ? '#00e887' : '#7a88b0', cursor: 'pointer' }}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div style={{ color: '#59616b', fontSize: 10, marginBottom: 9 }}>
+        Exibindo até 100 registros mais recentes do filtro selecionado.
+      </div>
+      {visible.length === 0 ? (
+        <Card style={{ padding: 28, textAlign: 'center', color: '#7a88b0' }}>
+          Nenhuma aposta fictícia nesta categoria.
+        </Card>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {visible.map(item => {
+            const state = labels[item.status] || labels.unsupported
+            return <Card key={item.id} style={{ padding: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                  <strong style={{ color: '#eef0f9', fontSize: 13 }}>
+                    {item.home_team && item.away_team ? `${item.home_team} × ${item.away_team}` : `Partida #${item.match_id}`}
+                  </strong>
+                  <div style={{ color: '#5a6480', fontSize: 11, marginTop: 3 }}>
+                    {item.competition || 'Competição'} · {new Date(item.kickoff_at).toLocaleString('pt-BR')}
+                  </div>
+                </div>
+                <span style={{ color: state.color, fontSize: 11, fontWeight: 700 }}>
+                  {item.execution_mode === 'shadow_observation' ? `Observação · ${state.label}` : state.label}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))', gap: 8, marginTop: 12, color: '#7a88b0', fontSize: 11 }}>
+                <span>Mercado<br /><strong style={{ color: '#eef0f9' }}>{item.market.replace(/_/g, ' ')}</strong></span>
+                <span>Seleção<br /><strong style={{ color: '#eef0f9' }}>{item.selection}</strong></span>
+                <span>Odd<br /><strong style={{ color: '#00e887' }}>{item.odds.toFixed(2)}</strong></span>
+                <span>Stake fictício<br /><strong style={{ color: '#eef0f9' }}>{money(item.stake)}</strong></span>
+                <span>Resultado<br /><strong style={{ color: state.color }}>{item.status === 'pending' ? '—' : money(item.profit)}</strong></span>
+              </div>
+              <div style={{ color: '#59616b', fontSize: 10, marginTop: 10 }}>
+                Criada em {new Date(item.recommended_at).toLocaleString('pt-BR')}
+                {item.settled_at ? ` · Liquidada em ${new Date(item.settled_at).toLocaleString('pt-BR')}` : ''}
+              </div>
+            </Card>
+          })}
+        </div>
+      )}
+    </section>
   )
 }
 

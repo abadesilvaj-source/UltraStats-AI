@@ -1,5 +1,23 @@
 # UltraStats AI — Registro de Decisões Arquiteturais
 
+## ADR-027 — Evidência prospectiva precede expansão
+
+**Decisão:** mercados, competições, modelos e políticas novas começam em shadow,
+avançam para exposição mínima e somente depois podem integrar a política ativa.
+Backfill e ajuste retrospectivo não substituem uma coorte prospectiva.
+
+**Consequência:** a evolução pode parecer mais lenta, mas reduz sobreajuste e
+torna cada promoção reversível e auditável.
+
+## ADR-026 — Produto otimiza decisão ajustada ao risco, não acerto isolado
+
+**Decisão:** a função de sucesso combina calibração, CLV, retorno/yield,
+drawdown, cobertura seletiva e abstenção. Taxa de acerto nunca será usada
+isoladamente nem apresentada como promessa.
+
+**Consequência:** “sem aposta” é uma saída válida e a interface diferencia
+projeção, observação, recomendação executável e aposta registrada.
+
 ## ADR-023 — ML temporal não substitui baseline sem evidência
 
 **Status:** Aprovada em 2 de agosto de 2026

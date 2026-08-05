@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database.base import Base
 from app.models import Competition, Match, Team
-from app.services.match_fusion_service import MatchFusionService
+from app.services.match_fusion_service import MatchContribution, MatchFusionService
 from ultrastats_ai.infrastructure.database.models import (
     CanonicalBase,
     FusionResultRecord,
@@ -88,6 +88,19 @@ def test_fusion_matches_aliases_and_records_field_provenance():
         "api_football", "football_data"
     }
     assert len(session.scalars(select(IdentityDecisionRecord)).all()) == 2
+
+
+def test_homonymous_competitions_from_different_countries_never_merge():
+    session = database(); now = datetime.now(timezone.utc)
+    service = MatchFusionService(session)
+    base = dict(provider="api_football", kickoff_at=now, home_name="Home",
+                away_name="Away", competition="Premier League", status="scheduled",
+                home_score=None, away_score=None, venue=None, observed_at=now)
+    service._create_canonical(MatchContribution(external_id="br-1", country="Brazil", **base))
+    service._create_canonical(MatchContribution(external_id="gb-1", country="England", **base))
+    session.flush()
+    rows = session.scalars(select(Competition).where(Competition.name == "Premier League")).all()
+    assert {row.country for row in rows} == {"Brazil", "England"}
 
 
 def test_fusion_creates_canonical_match_from_secondary_source():

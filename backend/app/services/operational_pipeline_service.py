@@ -870,6 +870,13 @@ class OperationalPipelineService:
             # Bancos mínimos usados por integrações legadas podem não carregar
             # a base canônica; a promoção da odd continua funcional.
             return
+        from app.services.odds_data_contract_service import OddsDataContractService
+        if not OddsDataContractService(self.session).accept(
+            provider=provider, match_id=match_id, bookmaker=bookmaker,
+            market=market, selection=selection, value=value,
+            captured_at=captured_at,
+        ):
+            return
         normalized_capture = self._as_aware_utc(captured_at)
         key = (
             provider, str(match_id), bookmaker, market, selection,

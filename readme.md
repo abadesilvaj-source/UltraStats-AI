@@ -1,12 +1,17 @@
 # UltraStats AI
 
-> Estado atual: operação exclusivamente local. O roadmap vigente é
+> Estado atual: operação exclusivamente local. A visão final está em
+> [docs/product/product-vision.md](docs/product/product-vision.md) e o roadmap vigente é
 > [docs/development/next-steps-roadmap.md](docs/development/next-steps-roadmap.md).
 > Hospedagem externa permanece pausada até nova autorização explícita.
 
-Plataforma pessoal de inteligência para futebol, com coleta multiprovedor,
-conciliação de dados, estatísticas, previsões, recomendações, gestão de risco e
-controle de banca.
+Plataforma de inteligência para futebol orientada a decisões seletivas,
+explicáveis e calibradas. O produto combina coleta, conciliação, estatística,
+previsões, recomendação, gestão de risco e banca, sem prometer lucro ou 100% de
+acerto.
+
+Avaliação integral atual:
+[docs/operations/system-assessment-2026-08-02.md](docs/operations/system-assessment-2026-08-02.md).
 
 ## Estrutura
 
